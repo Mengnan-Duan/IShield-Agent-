@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Virtual environment
+env/
+venv/
+
+# Node.js
+node_modules/
+
+# SQLite database
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vs/
+.DS_Store
+Thumbs.db
+
+# Python env files
+*.egg-info/
+dist/
+build/
+
+# Temporary files
+_setup.bat
+_find_python.bat
+_check_flask.py
+
+# Backend generated files
+backend/reports/*.md
+backend/reports/*.json
+backend/logs/*.log
+
+# API key
+backend/config.py

@@ -1,0 +1,14 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "plugins": ["prettier-plugin-tailwindcss"],
+  "tailwindFunctions": ["clsx", "cn", "tw", "classnames"],
+  "overrides": [
+    {
+      "files": ["*.css", "*.html"],
+      "options": {
+        "parser": "html",
+      },
+    },
+  ],
+}

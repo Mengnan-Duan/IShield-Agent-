@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IShield — 安全态势大屏</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body class="bg-[#020617] text-slate-300 font-sans antialiased min-h-screen">
+
+  <!-- Top bar -->
+  <header class="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-xl border-b border-white/[0.06]">
+    <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg viewBox="0 0 24 24" fill="none" class="w-8 h-8 drop-shadow-[0_0_8px_rgba(59,130,246,0.4)]">
+          <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5L12 2z" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M9 12l2 2 4-4" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <div class="text-base font-bold text-white tracking-wide">IShield 安全态势大屏</div>
+          <div class="text-xs text-slate-500 font-mono">AI Agent Security Operations Center</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div id="connStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
+          <div class="w-2 h-2 rounded-full bg-green-500 live-dot"></div>
+          <span class="text-xs font-medium text-green-400 font-mono">LIVE</span>
+        </div>
+        <div id="clock" class="text-sm font-mono text-slate-400 tabular-nums"></div>
+        <button onclick="location.reload()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-white/[0.06] text-xs font-mono text-slate-400 hover:text-blue-400 hover:border-blue-400/30 transition-all">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/></svg>
+          刷新
+        </button>
+        <a href="index.html" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs font-mono text-blue-400 hover:bg-blue-500/20 transition-all">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-width="2" stroke-linecap="round"/></svg>
+          控制台
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <main class="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
+
+    <!-- Row 1: 4 KPI cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 fade-in">
+      <!-- Threat Total -->
+      <div class="card p-5 glow-pulse">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-4xl font-bold font-mono text-white tabular-nums" id="kpi-total">0</div>
+            <div class="text-xs font-medium text-slate-500 mt-1 tracking-wide uppercase">威胁总数</div>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+            <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="mt-3 flex items-center gap-2">
+          <span class="text-xs font-mono text-red-500">+<span id="kpi-today">0</span></span>
+          <span class="text-xs text-slate-600">今日新增</span>
+        </div>
+      </div>
+      <!-- Blocked -->
+      <div class="card p-5">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-4xl font-bold font-mono text-red-500 tabular-nums" id="kpi-blocked">0</div>
+            <div class="text-xs font-medium text-slate-500 mt-1 tracking-wide uppercase">已拦截</div>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+            <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="mt-3 flex items-center gap-2">
+          <span class="text-xs font-mono text-red-500">+<span id="kpi-blocked-today">0</span></span>
+          <span class="text-xs text-slate-600">今日拦截</span>
+        </div>
+      </div>
+      <!-- Pass Rate -->
+      <div class="card p-5">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-4xl font-bold font-mono text-green-500 tabular-nums" id="kpi-rate">0%</div>
+            <div class="text-xs font-medium text-slate-500 mt-1 tracking-wide uppercase">拦截率</div>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="mt-3 flex items-center gap-2">
+          <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div id="kpi-rate-bar" class="h-full bg-green-500 rounded-full transition-all duration-1000" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Active Threats -->
+      <div class="card p-5">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-4xl font-bold font-mono text-amber-500 tabular-nums" id="kpi-high">0</div>
+            <div class="text-xs font-medium text-slate-500 mt-1 tracking-wide uppercase">高危事件</div>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="mt-3 text-xs text-slate-600">近 7 天高危累计</div>
+      </div>
+    </div>
+
+    <!-- Row 2: Charts row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 fade-in" style="animation-delay:0.1s">
+
+      <!-- Pie: Attack Type Distribution -->
+      <div class="chart-card">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" stroke-width="1.5" stroke-linecap="round"/><path d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="text-sm font-medium text-white">攻击类型分布</span>
+          </div>
+        </div>
+        <div id="pieChart" style="height:240px"></div>
+      </div>
+
+      <!-- Line: 7-day Trend -->
+      <div class="chart-card">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="text-sm font-medium text-white">7日拦截趋势</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs font-mono">
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span>拦截</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-500"></span>通过</span>
+          </div>
+        </div>
+        <div id="trendChart" style="height:240px"></div>
+      </div>
+
+      <!-- Bar: Top Attack Types -->
+      <div class="chart-card">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="text-sm font-medium text-white">TOP 5 攻击类型</span>
+          </div>
+        </div>
+        <div id="barChart" style="height:240px"></div>
+      </div>
+    </div>
+
+    <!-- Row 3: Real-time log + threat level gauge -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 fade-in" style="animation-delay:0.2s">
+
+      <!-- Real-time intercept list -->
+      <div class="chart-card lg:col-span-3">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="1.5"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="text-sm font-medium text-white">实时拦截事件</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-red-500/10 text-red-500 border border-red-500/20">LIVE</span>
+          </div>
+          <span class="text-xs font-mono text-slate-500" id="live-count">0 条记录</span>
+        </div>
+        <div id="liveFeed" class="max-h-[260px] overflow-y-auto divide-y divide-white/[0.03]">
+          <div class="px-5 py-12 text-center">
+            <div class="inline-flex flex-col items-center gap-2">
+              <svg class="w-8 h-8 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="1.5"/></svg>
+              <div class="text-xs text-slate-600 font-mono">// AWAITING_EVENTS</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Threat Level Gauge -->
+      <div class="chart-card">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="text-sm font-medium text-white">威胁等级</span>
+          </div>
+        </div>
+        <div id="gaugeChart" style="height:260px"></div>
+      </div>
+    </div>
+
+    <!-- Row 4: Analytics + Top tools -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 fade-in" style="animation-delay:0.3s">
+      <!-- Attack categories breakdown -->
+      <div class="chart-card">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="text-sm font-medium text-white">分类防御效果</span>
+          </div>
+        </div>
+        <div id="categoryChart" style="height:220px"></div>
+      </div>
+
+      <!-- Top attacked tools -->
+      <div class="chart-card">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="12" r="3" stroke-width="1.5"/></svg>
+            <span class="text-sm font-medium text-white">高危工具 TOP</span>
+          </div>
+        </div>
+        <div id="toolChart" style="height:220px"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="border-t border-white/[0.04] mt-4">
+    <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between text-xs font-mono text-slate-600">
+      <span>IShield Security Operations Center</span>
+      <span>Powered by IShield Security Team</span>
+    </div>
+  </footer>
+
+<script>
+"use strict";
+
+const API = "http://localhost:5000/api";
+
+// ── Clock ──
+function tick() {
+  const n = new Date();
+  const el = document.getElementById('clock');
+  if (el) el.textContent = [n.getHours(),n.getMinutes(),n.getSeconds()].map(v => String(v).padStart(2,'0')).join(':');
+}
+setInterval(tick, 1000);
+tick();
+
+// ── ECharts theme ──
+const CHART_DARK = {
+  backgroundColor: 'transparent',
+  textStyle: { color: '#64748b', fontFamily: 'JetBrains Mono, monospace' },
+};
+
+// ── Init charts ──
+const pieChart = echarts.init(document.getElementById('pieChart'));
+const trendChart = echarts.init(document.getElementById('trendChart'));
+const barChart = echarts.init(document.getElementById('barChart'));
+const gaugeChart = echarts.init(document.getElementById('gaugeChart'));
+const categoryChart = echarts.init(document.getElementById('categoryChart'));
+const toolChart = echarts.init(document.getElementById('toolChart'));
+
+const chartInstances = [pieChart, trendChart, barChart, gaugeChart, categoryChart, toolChart];
+window.addEventListener('resize', () => chartInstances.forEach(c => c.resize()));
+
+// ── KPI counters ──
+function animateKPI(id, target, suffix) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = parseInt(el.textContent.replace(/[^0-9]/g,'')) || 0;
+  const end = typeof target === 'number' ? target : parseInt(target) || 0;
+  if (start === end) return;
+  const duration = 800;
+  const startTime = performance.now();
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(start + (end - start) * ease) + (suffix || '');
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ── Load all data ──
+const MAX_LIVE = 50;
+
+async function loadAll() {
+  try {
+    const [statsRes, analyticsRes, eventsRes] = await Promise.all([
+      fetch(API+'/stats'),
+      fetch(API+'/analytics?days=7'),
+      fetch(API+'/events?limit=100')
+    ]);
+
+    const stats = await statsRes.json();
+    const analytics = await analyticsRes.json();
+    const data = await eventsRes.json();
+    const events = data.events || [];
+
+    // ── KPI cards ──
+    const total = stats.total || 0;
+    const blocked = stats.blocked || 0;
+    const rate = stats.block_rate || 0;
+
+    animateKPI('kpi-total', total);
+    animateKPI('kpi-blocked', blocked);
+    animateKPI('kpi-rate', Math.round(rate), '%');
+    document.getElementById('kpi-rate-bar').style.width = rate + '%';
+
+    const todayStats = analytics.today_stats || {};
+    animateKPI('kpi-today', todayStats.total || 0);
+    animateKPI('kpi-blocked-today', todayStats.blocked || 0);
+
+    const highCount = events.filter(e => e.threat_level === 'high').length;
+    animateKPI('kpi-high', highCount);
+
+    // ── Pie chart ──
+    const typeMap = {};
+    events.forEach(e => { const t = e.type || '未知'; typeMap[t] = (typeMap[t] || 0) + 1; });
+    const pieData = Object.entries(typeMap).map(([name, value]) => ({ name, value }));
+    if (pieData.length === 0) pieData.push({ name: '暂无数据', value: 1 });
+    pieChart.setOption({
+      ...CHART_DARK,
+      tooltip: { trigger: 'item', backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#94a3b8' } },
+      legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#64748b', fontSize: 11 }, itemWidth: 10, itemHeight: 10 },
+      series: [{
+        type: 'pie', radius: ['45%', '72%'], center: ['38%', '50%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 6, borderColor: '#0f172a', borderWidth: 2 },
+        label: { show: false },
+        emphasis: { label: { show: true, fontSize: 13, fontWeight: 'bold', color: '#fff' } },
+        data: pieData.map((d, i) => ({ ...d, itemStyle: { color: ['#ef4444','#f59e0b','#3b82f6','#10b981','#8b5cf6','#ec4899','#14b8a6','#f97316'][i % 8] } }))
+      }]
+    });
+
+    // ── Trend chart ──
+    const trend = analytics.trend || [];
+    const days = trend.map(d => d.date ? d.date.substring(5) : '');
+    const blockedTrend = trend.map(d => d.blocked || 0);
+    const passedTrend = trend.map(d => (d.total || 0) - (d.blocked || 0));
+    trendChart.setOption({
+      ...CHART_DARK,
+      tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#94a3b8' }, axisPointer: { type: 'cross', crossStyle: { color: '#334155' } },
+      legend: { show: false },
+      grid: { top: 20, right: 20, bottom: 30, left: 50 },
+      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#1e293b' } }, axisTick: { show: false }, axisLabel: { color: '#475569', fontSize: 10 } },
+      yAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLabel: { color: '#475569', fontSize: 10 } },
+      series: [
+        { name: '拦截', type: 'line', smooth: true, data: blockedTrend, lineStyle: { color: '#ef4444', width: 2 }, itemStyle: { color: '#ef4444' }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(239,68,68,0.25)' }, { offset: 1, color: 'rgba(239,68,68,0)' }] } } },
+        { name: '通过', type: 'line', smooth: true, data: passedTrend, lineStyle: { color: '#10b981', width: 2 }, itemStyle: { color: '#10b981' } }
+      ]
+    });
+
+    // ── Bar chart ──
+    const sortedTypes = Object.entries(typeMap).sort((a,b) => b[1]-a[1]).slice(0,5);
+    barChart.setOption({
+      ...CHART_DARK,
+      tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#94a3b8' }, axisPointer: { type: 'shadow' } },
+      grid: { top: 10, right: 20, bottom: 10, left: 10 },
+      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLabel: { color: '#475569', fontSize: 10 } },
+      yAxis: { type: 'category', data: sortedTypes.map(t => t[0]).reverse(), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#64748b', fontSize: 11 } },
+      series: [{
+        type: 'bar', data: sortedTypes.map(t => t[1]).reverse(),
+        itemStyle: { borderRadius: [0, 4, 4, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#3b82f6' }, { offset: 1, color: '#60a5fa' }]) },
+        barWidth: 14, label: { show: true, position: 'right', color: '#64748b', fontSize: 11 }
+      }]
+    });
+
+    // ── Gauge ──
+    const highEvents = events.filter(e => e.threat_level === 'high').length;
+    const mediumEvents = events.filter(e => e.threat_level === 'medium').length;
+    const threatScore = total > 0 ? Math.min(100, Math.round(((highEvents * 2 + mediumEvents) / Math.max(total, 1)) * 100)) : 0;
+    gaugeChart.setOption({
+      ...CHART_DARK,
+      series: [{
+        type: 'gauge', center: ['50%', '60%'], radius: '90%', startAngle: 200, endAngle: -20, min: 0, max: 100, splitNumber: 5,
+        axisLine: { lineStyle: { width: 14, color: [[0.3, '#10b981'],[0.7, '#f59e0b'],[1, '#ef4444']] } },
+        pointer: { icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z', length: '60%', width: 6, offsetCenter: [0, '-10%'], itemStyle: { color: '#94a3b8' } },
+        axisTick: { distance: -16, length: 4, lineStyle: { color: '#1e293b', width: 1 } },
+        splitLine: { distance: -20, length: 10, lineStyle: { color: '#1e293b', width: 1.5 } },
+        axisLabel: { color: '#475569', fontSize: 9, distance: -30 },
+        detail: {
+          valueAnimation: true,
+          formatter: function(value) { return value < 30 ? '{a|安全}' : value < 70 ? '{b|警戒}' : '{c|危险}'; },
+          rich: { a: { color: '#10b981', fontSize: 14, fontWeight: 'bold' }, b: { color: '#f59e0b', fontSize: 14, fontWeight: 'bold' }, c: { color: '#ef4444', fontSize: 14, fontWeight: 'bold' } },
+          offsetCenter: [0, '40%']
+        },
+        data: [{ value: threatScore }]
+      }]
+    });
+
+    // ── Category chart ──
+    const catMap = {};
+    events.forEach(e => { const cat = e.category || e.type || '其他'; if (!catMap[cat]) catMap[cat] = { total: 0, blocked: 0 }; catMap[cat].total++; if (/已拦截|已阻断/.test(e.status)) catMap[cat].blocked++; });
+    const catEntries = Object.entries(catMap).slice(0, 6);
+    categoryChart.setOption({
+      ...CHART_DARK,
+      tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#94a3b8' }, axisPointer: { type: 'shadow' } },
+      grid: { top: 5, right: 60, bottom: 5, left: 10 },
+      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLabel: { color: '#475569', fontSize: 9 } },
+      yAxis: { type: 'category', data: catEntries.map(c => c[0]), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#64748b', fontSize: 10 } },
+      series: [
+        { name: '已拦截', type: 'bar', stack: 'total', data: catEntries.map(c => c[1].blocked), itemStyle: { color: '#ef4444', borderRadius: c => c.dataIndex === catEntries.length - 1 ? [4,4,0,0] : 0 }, barWidth: 10 },
+        { name: '已放行', type: 'bar', stack: 'total', data: catEntries.map(c => c[1].total - c[1].blocked), itemStyle: { color: '#10b981', borderRadius: c => c.dataIndex === catEntries.length - 1 ? [0,4,4,0] : 0 }, barWidth: 10 }
+      ]
+    });
+
+    // ── Tool chart ──
+    const toolMap = {};
+    events.forEach(e => { const match = e.detail ? e.detail.match(/工具=([^,，]+)/) : null; const tool = match ? match[1] : '未知工具'; if (!toolMap[tool]) toolMap[tool] = { total: 0, blocked: 0 }; toolMap[tool].total++; if (/已拦截|已阻断/.test(e.status)) toolMap[tool].blocked++; });
+    const topTools = Object.entries(toolMap).sort((a,b) => b[1].total - a[1].total).slice(0, 5);
+    toolChart.setOption({
+      ...CHART_DARK,
+      tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#94a3b8' }, axisPointer: { type: 'shadow' } },
+      grid: { top: 10, right: 20, bottom: 10, left: 90 },
+      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLabel: { color: '#475569', fontSize: 10 } },
+      yAxis: { type: 'category', data: topTools.map(t => t[0]), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' } },
+      series: [{ type: 'bar', data: topTools.map(t => ({ value: t[1].blocked, itemStyle: { color: '#ef4444', borderRadius: [0, 4, 4, 0] } })), barWidth: 12, label: { show: true, position: 'right', color: '#64748b', fontSize: 10 } }]
+    });
+
+    // ── Live feed ──
+    const newEvents = events.filter(e => /已拦截|已阻断/.test(e.status)).slice(0, MAX_LIVE);
+    const feed = document.getElementById('liveFeed');
+    const countEl = document.getElementById('live-count');
+    if (countEl) countEl.textContent = newEvents.length + ' 条记录';
+
+    if (newEvents.length === 0) {
+      feed.innerHTML = '<div class="px-5 py-12 text-center"><div class="inline-flex flex-col items-center gap-2"><svg class="w-8 h-8 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="1.5"/></svg><div class="text-xs text-slate-600 font-mono">// ALL_CLEAR — 系统安全</div></div></div>';
+      return;
+    }
+
+    feed.innerHTML = newEvents.map((ev, i) => {
+      const time = ev.time ? ev.time.substring(11, 19) : '--:--:--';
+      const level = ev.threat_level || 'medium';
+      const levelColor = level === 'high' ? '#ef4444' : level === 'medium' ? '#f59e0b' : '#3b82f6';
+      const levelBg = level === 'high' ? 'rgba(239,68,68,0.08)' : level === 'medium' ? 'rgba(245,158,11,0.08)' : 'rgba(59,130,246,0.08)';
+      const levelBorder = level === 'high' ? 'rgba(239,68,68,0.15)' : level === 'medium' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)';
+      return `<div class="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors fade-in" style="animation-delay:${i*30}ms">
+        <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:${levelColor};box-shadow:0 0 6px ${levelColor}50"></div>
+        <div class="flex-shrink-0 text-xs font-mono text-slate-600 w-20">${time}</div>
+        <div class="flex-1 min-w-0"><div class="text-xs font-mono text-slate-300 truncate">${ev.detail || ev.type || '未知事件'}</div></div>
+        <div class="flex-shrink-0">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium border" style="color:${levelColor};background:${levelBg};border-color:${levelBorder}">${level === 'high' ? '高危' : level === 'medium' ? '中危' : '低危'}</span>
+        </div>
+        <div class="flex-shrink-0 text-xs font-mono text-red-500 font-medium">${ev.confidence ? ev.confidence + '%' : '已拦截'}</div>
+      </div>`;
+    }).join('');
+
+  } catch(e) { console.warn('Dashboard data fetch failed:', e.message); }
+}
+
+// ── SSE real-time updates ──
+let evtSource = null;
+function connectSSE() {
+  if (evtSource) evtSource.close();
+  evtSource = new EventSource(API + '/events/stream');
+  evtSource.addEventListener('message', function(e) { try { const data = JSON.parse(e.data); if (data && data.type === 'alert') loadAll(); } catch(ex) {} });
+  evtSource.addEventListener('error', function() {
+    const connEl = document.getElementById('connStatus');
+    if (connEl) { connEl.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20'; connEl.innerHTML = '<div class="w-2 h-2 rounded-full bg-amber-500 live-dot"></div><span class="text-xs font-medium text-amber-400 font-mono">RECONNECTING</span>'; }
+    setTimeout(connectSSE, 5000);
+  });
+  evtSource.addEventListener('open', function() {
+    const connEl = document.getElementById('connStatus');
+    if (connEl) { connEl.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20'; connEl.innerHTML = '<div class="w-2 h-2 rounded-full bg-green-500 live-dot"></div><span class="text-xs font-medium text-green-400 font-mono">LIVE</span>'; }
+  });
+}
+
+// ── Init ──
+loadAll();
+connectSSE();
+setInterval(loadAll, 10000);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,15 @@
+node_modules
+src
+assets
+__pycache__
+*.pyc
+.git
+.gitignore
+.env
+*.db
+.vscode
+.DS_Store
+terminals
+agent-transcripts
+.cursor
+plans
