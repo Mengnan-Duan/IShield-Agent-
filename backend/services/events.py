@@ -2,10 +2,9 @@
 import sqlite3
 import os
 import json
-import hashlib
 from datetime import datetime, timezone, timedelta
 from threading import Lock
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 
@@ -16,8 +15,25 @@ _db_lock = Lock()
 
 _UTC8 = timezone(timedelta(hours=8))
 
+
 def _local_now():
     return datetime.now(_UTC8)
+
+
+def _json_dumps(value: Optional[Dict[str, Any]]) -> Optional[str]:
+    if value is None:
+        return None
+    return json.dumps(value, ensure_ascii=False, default=str)
+
+
+def _json_loads(value: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return {"raw": value}
+
 
 # ── 初始化 ──────────────────────────────────────────────────────────────────
 def init_db():
@@ -26,7 +42,6 @@ def init_db():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
 
-        # 事件表
         c.execute("""
             CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,11 +52,17 @@ def init_db():
                 text_hash TEXT,
                 threat_level TEXT,
                 confidence INTEGER,
+                source_ip TEXT,
+                action TEXT,
+                tool_name TEXT,
+                target TEXT,
+                rule_id TEXT,
+                category TEXT,
+                metadata_json TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
-        # 检测缓存表
         c.execute("""
             CREATE TABLE IF NOT EXISTS detect_cache (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +73,6 @@ def init_db():
             )
         """)
 
-        # 威胁统计预聚合表
         c.execute("""
             CREATE TABLE IF NOT EXISTS threat_stats (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,13 +84,31 @@ def init_db():
             )
         """)
 
-        # 索引（IF NOT EXISTS 幂等）
+        existing_columns = {
+            row[1] for row in c.execute("PRAGMA table_info(events)").fetchall()
+        }
+        column_migrations = {
+            "source_ip": "ALTER TABLE events ADD COLUMN source_ip TEXT",
+            "action": "ALTER TABLE events ADD COLUMN action TEXT",
+            "tool_name": "ALTER TABLE events ADD COLUMN tool_name TEXT",
+            "target": "ALTER TABLE events ADD COLUMN target TEXT",
+            "rule_id": "ALTER TABLE events ADD COLUMN rule_id TEXT",
+            "category": "ALTER TABLE events ADD COLUMN category TEXT",
+            "metadata_json": "ALTER TABLE events ADD COLUMN metadata_json TEXT",
+        }
+        for column_name, sql in column_migrations.items():
+            if column_name not in existing_columns:
+                c.execute(sql)
+
         for idx_sql in [
-            "CREATE INDEX IF NOT EXISTS idx_events_time    ON events(time DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_events_time ON events(time DESC)",
             "CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)",
-            "CREATE INDEX IF NOT EXISTS idx_events_type   ON events(type)",
-            "CREATE INDEX IF NOT EXISTS idx_events_hash   ON events(text_hash)",
-            "CREATE INDEX IF NOT EXISTS idx_cache_hash   ON detect_cache(text_hash)",
+            "CREATE INDEX IF NOT EXISTS idx_events_type ON events(type)",
+            "CREATE INDEX IF NOT EXISTS idx_events_hash ON events(text_hash)",
+            "CREATE INDEX IF NOT EXISTS idx_events_source_ip ON events(source_ip)",
+            "CREATE INDEX IF NOT EXISTS idx_events_tool_name ON events(tool_name)",
+            "CREATE INDEX IF NOT EXISTS idx_events_category ON events(category)",
+            "CREATE INDEX IF NOT EXISTS idx_cache_hash ON detect_cache(text_hash)",
             "CREATE INDEX IF NOT EXISTS idx_cache_expires ON detect_cache(expires_at)",
         ]:
             c.execute(idx_sql)
@@ -82,22 +120,25 @@ def init_db():
 # ── 事件 CRUD ────────────────────────────────────────────────────────────────
 def add_event(event_type: str, detail: str, status: str,
               text_hash: str = None, threat_level: str = None,
-              confidence: int = None):
-    """
-    添加事件记录，同时更新 DB 和内存缓存失效标记。
-    """
+              confidence: int = None, source_ip: str = None,
+              action: str = None, tool_name: str = None,
+              target: str = None, rule_id: str = None,
+              category: str = None, metadata: Dict[str, Any] = None):
+    """添加事件记录，同时更新 DB 和内存缓存失效标记。"""
     time_str = _local_now().strftime("%Y-%m-%d %H:%M:%S")
     with _db_lock:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute(
-            "INSERT INTO events (time, type, detail, status, text_hash, threat_level, confidence) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (time_str, event_type, detail, status, text_hash, threat_level, confidence)
+            "INSERT INTO events (time, type, detail, status, text_hash, threat_level, confidence, source_ip, action, tool_name, target, rule_id, category, metadata_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                time_str, event_type, detail, status, text_hash, threat_level, confidence,
+                source_ip, action, tool_name, target, rule_id, category, _json_dumps(metadata)
+            )
         )
         conn.commit()
         conn.close()
-    # 失效事件列表缓存
     invalidate_events_cache()
 
 
@@ -106,16 +147,16 @@ def get_events_from_db(limit: int = 200, offset: int = 0,
                         type_filter: str = None,
                         date_from: str = None,
                         date_to: str = None) -> List[dict]:
-    """
-    从数据库查询事件列表，支持筛选。
-    """
-    # 尝试命中事件缓存（仅无筛选时）
+    """从数据库查询事件列表，支持筛选。"""
     if not any([status_filter, type_filter, date_from, date_to]):
         cached = get_cached_events()
         if cached is not None:
-            return cached[:limit]
+            return cached[offset: offset + limit]
 
-    query = "SELECT time, type, detail, status, threat_level, confidence FROM events WHERE 1=1"
+    query = (
+        "SELECT time, type, detail, status, threat_level, confidence, source_ip, action, "
+        "tool_name, target, rule_id, category, metadata_json FROM events WHERE 1=1"
+    )
     params = []
 
     if status_filter:
@@ -142,9 +183,12 @@ def get_events_from_db(limit: int = 200, offset: int = 0,
         rows = c.fetchall()
         conn.close()
 
-    events = [dict(r) for r in rows]
+    events = []
+    for row in rows:
+        item = dict(row)
+        item["metadata"] = _json_loads(item.pop("metadata_json", None))
+        events.append(item)
 
-    # 缓存无筛选结果
     if not any([status_filter, type_filter, date_from, date_to]) and events:
         set_cached_events(events, ttl=30)
 
@@ -152,41 +196,45 @@ def get_events_from_db(limit: int = 200, offset: int = 0,
 
 
 def get_stats() -> dict:
-    """
-    从 DB 聚合统计数据（利用索引加速）。
-    """
+    """从 DB 聚合统计数据（利用索引加速）。"""
     with _db_lock:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
 
-        # 总数 / 拦截 / 通过
         c.execute("""
             SELECT
                 COUNT(*) AS total,
                 SUM(CASE WHEN status LIKE '%拦截%' OR status LIKE '%阻断%' THEN 1 ELSE 0 END) AS blocked,
-                SUM(CASE WHEN status LIKE '%放行%' THEN 1 ELSE 0 END) AS passed
+                SUM(CASE WHEN status LIKE '%放行%' THEN 1 ELSE 0 END) AS passed,
+                SUM(CASE WHEN threat_level IN ('high', 'critical') THEN 1 ELSE 0 END) AS high_risk
             FROM events
         """)
         row = c.fetchone()
-        total   = row[0] or 0
+        total = row[0] or 0
         blocked = row[1] or 0
-        passed  = row[2] or 0
-        rate    = round(blocked / total * 100, 1) if total > 0 else 0
+        passed = row[2] or 0
+        high_risk = row[3] or 0
+        rate = round(blocked / total * 100, 1) if total > 0 else 0
 
-        # 近期趋势（最近 20 条）
+        today_str = _local_now().strftime("%Y-%m-%d")
         c.execute("""
-            SELECT status FROM events ORDER BY id DESC LIMIT 20
-        """)
-        recent = [r[0] for r in c.fetchall()]
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status LIKE '%拦截%' OR status LIKE '%阻断%' THEN 1 ELSE 0 END) AS blocked
+            FROM events WHERE time LIKE ?
+        """, (f"{today_str}%",))
+        today_row = c.fetchone()
+        today_total = today_row[0] or 0
+        today_blocked = today_row[1] or 0
 
+        c.execute("SELECT status FROM events ORDER BY id DESC LIMIT 20")
+        recent = [r[0] for r in c.fetchall()]
         conn.close()
 
     recent_trend = "stable"
     if len(recent) >= 10:
-        recent_blocked = sum(1 for s in recent[:10]
-                            if "拦截" in s or "阻断" in s)
-        prev_blocked   = sum(1 for s in recent[10:20]
-                            if "拦截" in s or "阻断" in s)
+        recent_blocked = sum(1 for s in recent[:10] if "拦截" in s or "阻断" in s)
+        prev_blocked = sum(1 for s in recent[10:20] if "拦截" in s or "阻断" in s)
         if prev_blocked > 0:
             if recent_blocked > prev_blocked * 1.3:
                 recent_trend = "rising"
@@ -194,11 +242,14 @@ def get_stats() -> dict:
                 recent_trend = "falling"
 
     return {
-        "total":   total,
+        "total": total,
         "blocked": blocked,
-        "passed":  passed,
+        "passed": passed,
         "block_rate": rate,
         "recent_trend": recent_trend,
+        "high_risk": high_risk,
+        "today_total": today_total,
+        "today_blocked": today_blocked,
     }
 
 
@@ -227,9 +278,7 @@ def get_cached_detection(text_hash: str) -> Optional[dict]:
 def set_cached_detection(text_hash: str, result: dict, ttl_seconds: int = 600):
     """写入检测缓存（DB 层）"""
     from utils.cache import detect_cache as lru_cache
-    # 内存缓存
     lru_cache.set(text_hash, result)
-    # DB 缓存
     expires = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
     with _db_lock:
         conn = sqlite3.connect(DB_PATH)
@@ -257,10 +306,7 @@ def cleanup_expired_cache():
 
 
 def cleanup_old_events(days: int = 30):
-    """
-    清理超过指定天数的旧事件。
-    默认保留 30 天数据。
-    """
+    """清理超过指定天数的旧事件。"""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
     with _db_lock:
         conn = sqlite3.connect(DB_PATH)
@@ -273,5 +319,4 @@ def cleanup_old_events(days: int = 30):
     return deleted
 
 
-# ── 启动时初始化 ────────────────────────────────────────────────────────────
 init_db()

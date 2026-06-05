@@ -3,613 +3,793 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IShield — 安全态势大屏</title>
+  <title>IShield — 威胁情报可视化大屏</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.39.2/dist/globe.gl.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            base: { 950: '#020617', 900: '#0f172a', 800: '#1e293b', 700: '#334155' },
-            accent: { DEFAULT: '#3b82f6', light: '#60a5fa', dark: '#1d4ed8', dim: 'rgba(59,130,246,0.12)' },
-            safe: { DEFAULT: '#10b981', light: '#34d399', dim: 'rgba(16,185,129,0.12)' },
-            danger: { DEFAULT: '#ef4444', light: '#f87171', dim: 'rgba(239,68,68,0.12)' },
+            base: { 950: '#020617', 900: '#0b1120', 800: '#111827', 700: '#1f2937' },
+            accent: { DEFAULT: '#3b82f6', light: '#60a5fa', dim: 'rgba(59,130,246,0.12)' },
+            safe: { DEFAULT: '#10b981', dim: 'rgba(16,185,129,0.12)' },
+            danger: { DEFAULT: '#ef4444', dim: 'rgba(239,68,68,0.12)' },
             warning: { DEFAULT: '#f59e0b', dim: 'rgba(245,158,11,0.12)' },
           },
           fontFamily: {
             sans: ['Inter', 'sans-serif'],
             mono: ['JetBrains Mono', 'monospace'],
-          },
+          }
         }
       }
     }
   </script>
   <style>
-    * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-    ::selection { background: rgba(59,130,246,0.25); color: #fff; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .fade-in { animation: fadeIn 0.5s ease both; }
-    @keyframes pulse-glow { 0%,100% { box-shadow: 0 0 0 rgba(59,130,246,0); } 50% { box-shadow: 0 0 16px rgba(59,130,246,0.3); } }
-    .glow-pulse { animation: pulse-glow 2s ease-in-out infinite; }
-    @keyframes live-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-    .live-dot { animation: live-dot 1s ease-in-out infinite; }
-    .card { background: rgba(15,23,42,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
-    .chart-card { background: rgba(15,23,42,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; }
+    body {
+      background:
+        radial-gradient(circle at top, rgba(59,130,246,0.10), transparent 30%),
+        linear-gradient(180deg, #020617 0%, #020617 100%);
+    }
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(59,130,246,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .card {
+      background: rgba(11,17,32,0.84);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(14px);
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(2,6,23,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .ticker-item { animation: fadeIn .4s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity:1; transform: translateY(0);} }
+    @keyframes pulseDot { 0%,100% { opacity: 1;} 50% { opacity: .35;} }
+    .pulse-dot { animation: pulseDot 1s ease-in-out infinite; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.25); border-radius: 6px; }
   </style>
 </head>
-<body class="bg-[#020617] text-slate-300 font-sans antialiased min-h-screen">
+<body class="text-slate-200 font-sans min-h-screen overflow-x-hidden">
+  <div class="fixed inset-0 grid-bg pointer-events-none opacity-30"></div>
 
-  <!-- Top bar -->
-  <header class="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-xl border-b border-white/[0.06]">
-    <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <svg viewBox="0 0 24 24" fill="none" class="w-8 h-8 drop-shadow-[0_0_8px_rgba(59,130,246,0.4)]">
-          <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5L12 2z" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
-          <path d="M9 12l2 2 4-4" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+  <header class="sticky top-0 z-50 border-b border-white/10 bg-base-900/85 backdrop-blur-xl">
+    <div class="max-w-[1800px] mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-10 h-10 rounded-2xl bg-accent/15 border border-accent/30 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" class="w-6 h-6 text-accent"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5L12 2z" stroke="currentColor" stroke-width="1.6"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
         <div>
-          <div class="text-base font-bold text-white tracking-wide">IShield 安全态势大屏</div>
-          <div class="text-xs text-slate-500 font-mono">AI Agent Security Operations Center</div>
+          <div class="text-xl font-extrabold tracking-wide text-white">IShield 威胁情报可视化大屏</div>
+          <div class="text-xs text-slate-400 font-mono">REAL SANDBOX · LIVE INTERCEPT · SOC DEMO MODE</div>
         </div>
       </div>
       <div class="flex items-center gap-4">
-        <div id="connStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-safe/10 border border-safe/20">
-          <div class="w-2 h-2 rounded-full bg-safe live-dot"></div>
-          <span class="text-xs font-medium text-safe font-mono">LIVE</span>
+        <div id="connStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-safe/10 border border-safe/20 text-safe text-xs font-mono">
+          <span class="w-2 h-2 rounded-full bg-safe pulse-dot"></span>
+          <span>LIVE</span>
         </div>
-        <div id="clock" class="text-sm font-mono text-slate-400 tabular-nums"></div>
-        <button onclick="location.reload()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-base-800/60 border border-white/[0.06] text-xs font-mono text-slate-400 hover:text-accent hover:border-accent/30 transition-all">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round"/></svg>
-          刷新
-        </button>
-        <a href="frontend.html" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs font-mono text-accent hover:bg-accent/20 transition-all">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-width="2" stroke-linecap="round"/></svg>
-          控制台
-        </a>
+        <div id="clock" class="font-mono text-sm text-slate-400"></div>
+        <a href="frontend.html" class="px-3 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-medium hover:bg-accent/20 transition">控制台</a>
       </div>
     </div>
   </header>
 
-  <!-- Main content -->
-  <main class="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
+  <main class="max-w-[1800px] mx-auto px-6 py-6 space-y-5">
+    <section class="grid grid-cols-2 xl:grid-cols-6 gap-4">
+      <div class="card p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">威胁总数</div><div id="kpiTotal" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-500">累计安全事件</div></div>
+      <div class="card p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">今日新增</div><div id="kpiToday" class="mt-3 text-4xl font-bold font-mono text-accent">0</div><div class="mt-2 text-xs text-slate-500">当日事件总量</div></div>
+      <div class="card p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">已拦截</div><div id="kpiBlocked" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-500">拦截/阻断事件</div></div>
+      <div class="card p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">拦截率</div><div id="kpiRate" class="mt-3 text-4xl font-bold font-mono text-warning">0%</div><div class="mt-3 h-2 rounded-full bg-white/5 overflow-hidden"><div id="kpiRateBar" class="h-full bg-warning rounded-full transition-all" style="width:0%"></div></div></div>
+      <div class="card p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">高危事件</div><div id="kpiHigh" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-500">high / critical</div></div>
+      <div class="card p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">综合威胁指数</div><div id="kpiThreat" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-500">按最近事件加权</div></div>
+    </section>
 
-    <!-- Row 1: 4 KPI cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 fade-in">
-      <!-- Threat Total -->
-      <div class="card p-5 glow-pulse">
-        <div class="flex items-start justify-between">
+    <section class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div class="card p-4 xl:col-span-2">
+        <div class="flex flex-col gap-3 mb-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <div class="text-4xl font-bold font-mono text-white tabular-nums" id="kpi-total">0</div>
-            <div class="text-xs font-medium text-slate-500 mt-1 tracking-wide uppercase">威胁总数</div>
+            <div class="text-white font-semibold">全球攻击来源演示</div>
+            <div class="text-xs text-slate-500">演示模式：卫星地球、全球飞线、来源详情与区域筛选</div>
           </div>
-          <div class="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center">
-            <svg class="w-5 h-5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </div>
-        </div>
-        <div class="mt-3 flex items-center gap-2">
-          <span class="text-xs font-mono text-danger">+<span id="kpi-today">0</span></span>
-          <span class="text-xs text-slate-600">今日新增</span>
-        </div>
-      </div>
-      <!-- Blocked -->
-      <div class="card p-5">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="text-4xl font-bold font-mono text-danger tabular-nums" id="kpi-blocked">0</div>
-            <div class="text-xs font-medium text-slate-500 mt-1 tracking-wide uppercase">已拦截</div>
-          </div>
-          <div class="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center">
-            <svg class="w-5 h-5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="text-xs font-mono text-slate-500 mr-2" id="mapCount">12 个国家 · DEMO MODE</div>
+            <button class="region-filter-btn px-3 py-1.5 rounded-full border border-accent/30 bg-accent/15 text-accent text-xs font-mono" data-region="global">全球</button>
+            <button class="region-filter-btn px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-slate-300 text-xs font-mono hover:border-accent/30 hover:text-accent transition" data-region="apac">亚太</button>
+            <button class="region-filter-btn px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-slate-300 text-xs font-mono hover:border-accent/30 hover:text-accent transition" data-region="euro-atlantic">欧美</button>
           </div>
         </div>
-        <div class="mt-3 flex items-center gap-2">
-          <span class="text-xs font-mono text-danger">+<span id="kpi-blocked-today">0</span></span>
-          <span class="text-xs text-slate-600">今日拦截</span>
-        </div>
-      </div>
-      <!-- Pass Rate -->
-      <div class="card p-5">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="text-4xl font-bold font-mono text-safe tabular-nums" id="kpi-rate">0%</div>
-            <div class="text-xs font-medium text-slate-500 mt-1 tracking-wide uppercase">拦截率</div>
+        <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_340px] 2xl:grid-cols-[minmax(0,1.5fr)_360px] gap-4">
+          <div class="relative rounded-3xl border border-white/[0.08] bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),rgba(2,6,23,0.3)_35%,rgba(2,6,23,0.95)_70%)] overflow-hidden min-h-[500px] xl:min-h-[540px]">
+            <div class="absolute inset-0 pointer-events-none opacity-70" style="background-image: radial-gradient(circle at 20% 20%, rgba(96,165,250,0.18), transparent 28%), radial-gradient(circle at 78% 24%, rgba(59,130,246,0.12), transparent 22%), radial-gradient(circle at 50% 80%, rgba(239,68,68,0.08), transparent 26%);"></div>
+            <div id="globeChart" class="absolute inset-0"></div>
+            <div class="absolute left-4 top-4 rounded-2xl border border-accent/20 bg-base-900/70 px-3 py-2 backdrop-blur-sm z-10">
+              <div class="text-[10px] font-mono text-accent uppercase tracking-[0.24em]">Focus Target</div>
+              <div class="mt-1 text-sm font-semibold text-white">IShield SOC · Hangzhou</div>
+              <div class="text-[11px] text-slate-400">全球模拟攻击流汇聚至演示目标节点</div>
+            </div>
+            <div class="absolute right-4 top-4 rounded-2xl border border-white/10 bg-base-900/70 px-3 py-2 backdrop-blur-sm z-10">
+              <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Orbit Status</div>
+              <div class="mt-1 text-xs font-mono text-slate-200" id="globeOrbitHint">DRAG · ROTATE · ZOOM</div>
+            </div>
           </div>
-          <div class="w-10 h-10 rounded-xl bg-safe/10 flex items-center justify-center">
-            <svg class="w-5 h-5 text-safe" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </div>
-        </div>
-        <div class="mt-3 flex items-center gap-2">
-          <div class="flex-1 h-1.5 bg-base-800 rounded-full overflow-hidden">
-            <div id="kpi-rate-bar" class="h-full bg-safe rounded-full transition-all duration-1000" style="width:0%"></div>
-          </div>
-        </div>
-      </div>
-      <!-- Active Threats -->
-      <div class="card p-5">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="text-4xl font-bold font-mono text-warning tabular-nums" id="kpi-high">0</div>
-            <div class="text-xs font-medium text-slate-500 mt-1 tracking-wide uppercase">高危事件</div>
-          </div>
-          <div class="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
-            <svg class="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </div>
-        </div>
-        <div class="mt-3 text-xs text-slate-600">近 7 天高危累计</div>
-      </div>
-    </div>
+          <div class="rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(2,6,23,0.94))] p-4 xl:p-5 flex flex-col min-h-[500px] xl:min-h-[540px] overflow-hidden">
+            <div class="relative rounded-[24px] border border-accent/15 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),rgba(15,23,42,0.86)_46%,rgba(2,6,23,0.96)_100%)] px-4 py-4 overflow-hidden">
+              <div class="absolute inset-y-0 right-0 w-32 bg-[radial-gradient(circle_at_center,rgba(96,165,250,0.18),transparent_68%)] pointer-events-none"></div>
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                  <div class="text-[10px] font-mono text-accent uppercase tracking-[0.32em]">Threat Detail</div>
+                  <div class="mt-2 flex items-center gap-3 min-w-0">
+                    <span id="globeCountryFlag" class="text-3xl leading-none shrink-0">🇺🇸</span>
+                    <div class="min-w-0">
+                      <div id="globeActiveCountry" class="text-[22px] leading-tight font-semibold text-white truncate">美国 · 弗吉尼亚</div>
+                      <div class="mt-1 flex flex-wrap items-center gap-2 text-xs font-mono text-slate-300/90">
+                        <span id="globeCountryCode">US-EAST</span>
+                        <span class="w-1 h-1 rounded-full bg-slate-500"></span>
+                        <span id="globeRiskIcon">▲ HIGH RISK</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                  <button id="globeLockToggle" class="px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] text-[11px] font-mono text-slate-300 hover:border-accent/30 hover:text-accent transition">锁定查看</button>
+                  <span id="globeRiskBadge" class="px-3 py-1 rounded-full border text-[11px] font-mono bg-danger/10 text-danger border-danger/20">CRITICAL</span>
+                </div>
+              </div>
+            </div>
 
-    <!-- Row 2: Charts row -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 fade-in" style="animation-delay:0.1s">
+            <div class="mt-4 grid grid-cols-2 gap-3">
+              <div class="rounded-3xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">攻击次数</div>
+                <div id="globeEventCount" class="mt-2 text-3xl font-bold font-mono text-white">428</div>
+              </div>
+              <div class="rounded-3xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">主要类型</div>
+                <div id="globeAttackType" class="mt-2 text-sm font-semibold text-warning leading-6">Prompt Injection</div>
+              </div>
+              <div class="rounded-3xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">最近活跃</div>
+                <div id="globeLastSeen" class="mt-2 text-sm font-mono text-slate-200">13:58:12 UTC+8</div>
+              </div>
+              <div class="rounded-3xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">目标节点</div>
+                <div id="globeTargetName" class="mt-2 text-sm font-semibold text-accent-light">SOC-CORE-01</div>
+              </div>
+            </div>
 
-      <!-- Pie: Attack Type Distribution -->
-      <div class="chart-card">
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" stroke-width="1.5" stroke-linecap="round"/><path d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span class="text-sm font-medium text-white">攻击类型分布</span>
-          </div>
-        </div>
-        <div id="pieChart" style="height:240px"></div>
-      </div>
-
-      <!-- Line: 7-day Trend -->
-      <div class="chart-card">
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span class="text-sm font-medium text-white">7日拦截趋势</span>
-          </div>
-          <div class="flex items-center gap-3 text-xs font-mono">
-            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-danger"></span>拦截</span>
-            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-safe"></span>通过</span>
-          </div>
-        </div>
-        <div id="trendChart" style="height:240px"></div>
-      </div>
-
-      <!-- Bar: Top Attack Types -->
-      <div class="chart-card">
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span class="text-sm font-medium text-white">TOP 5 攻击类型</span>
-          </div>
-        </div>
-        <div id="barChart" style="height:240px"></div>
-      </div>
-    </div>
-
-    <!-- Row 3: Real-time log + threat level gauge -->
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 fade-in" style="animation-delay:0.2s">
-
-      <!-- Real-time intercept list -->
-      <div class="chart-card lg:col-span-3">
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="1.5"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span class="text-sm font-medium text-white">实时拦截事件</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-danger/10 text-danger border border-danger/20">LIVE</span>
-          </div>
-          <span class="text-xs font-mono text-slate-500" id="live-count">0 条记录</span>
-        </div>
-        <div id="liveFeed" class="max-h-[260px] overflow-y-auto divide-y divide-white/[0.03]">
-          <div class="px-5 py-12 text-center">
-            <div class="inline-flex flex-col items-center gap-2">
-              <svg class="w-8 h-8 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="1.5"/></svg>
-              <div class="text-xs text-slate-600 font-mono">// AWAITING_EVENTS</div>
+            <div class="mt-4 grid grid-cols-1 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-3 flex-1 min-h-0">
+              <div class="rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-3 min-h-[170px]">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">状态标签</div>
+                  <div class="text-[11px] font-mono text-slate-500" id="globeRotationStatus">AUTO HIGHLIGHT</div>
+                </div>
+                <div id="globeStatusTags" class="mt-4 flex flex-wrap gap-2"></div>
+              </div>
+              <div class="rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-3 min-h-[170px] flex flex-col">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                  <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Top 来源榜</div>
+                  <div class="text-[11px] font-mono text-slate-500">按模拟攻击量排序</div>
+                </div>
+                <div id="globeTopList" class="space-y-2 flex-1 overflow-y-auto pr-1"></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- Threat Level Gauge -->
-      <div class="chart-card">
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span class="text-sm font-medium text-white">威胁等级</span>
-          </div>
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div><div class="text-white font-semibold">实时攻击拦截滚动列表</div><div class="text-xs text-slate-500">展示来源 IP / 工具 / 目标 / 规则</div></div>
+          <div class="text-xs font-mono text-slate-500" id="liveCount">0 条</div>
         </div>
-        <div id="gaugeChart" style="height:260px"></div>
+        <div id="liveFeed" class="h-[380px] overflow-y-auto pr-1 space-y-2"></div>
       </div>
-    </div>
+    </section>
 
-    <!-- Row 4: Analytics + Top tools -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 fade-in" style="animation-delay:0.3s">
-      <!-- Attack categories breakdown -->
-      <div class="chart-card">
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span class="text-sm font-medium text-white">分类防御效果</span>
-          </div>
-        </div>
-        <div id="categoryChart" style="height:220px"></div>
+    <section class="grid grid-cols-1 xl:grid-cols-4 gap-5">
+      <div class="card p-4"><div class="text-white font-semibold mb-3">威胁等级仪表盘</div><div id="gaugeChart" style="height: 280px;"></div></div>
+      <div class="card p-4 xl:col-span-2"><div class="text-white font-semibold mb-3">威胁趋势</div><div id="trendChart" style="height: 280px;"></div></div>
+      <div class="card p-4"><div class="text-white font-semibold mb-3">置信度分布直方图</div><div id="confidenceChart" style="height: 280px;"></div></div>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div class="card p-4"><div class="text-white font-semibold mb-3">TOP 攻击类型排行榜</div><div id="threatTypeChart" style="height: 300px;"></div></div>
+      <div class="card p-4"><div class="text-white font-semibold mb-3">高危工具 TOP</div><div id="toolChart" style="height: 300px;"></div></div>
+      <div class="card p-4"><div class="text-white font-semibold mb-3">威胁等级占比</div><div id="severityChart" style="height: 300px;"></div></div>
+    </section>
+
+    <section class="card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div><div class="text-white font-semibold">安全建议</div><div class="text-xs text-slate-500">用于现场答辩的辅助说明</div></div>
+        <div class="text-xs font-mono text-slate-500" id="generatedAt">--</div>
       </div>
-
-      <!-- Top attacked tools -->
-      <div class="chart-card">
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="12" r="3" stroke-width="1.5"/></svg>
-            <span class="text-sm font-medium text-white">高危工具 TOP</span>
-          </div>
-        </div>
-        <div id="toolChart" style="height:220px"></div>
-      </div>
-    </div>
-
+      <div id="recommendations" class="grid grid-cols-1 xl:grid-cols-3 gap-3"></div>
+    </section>
   </main>
 
-  <footer class="border-t border-white/[0.04] mt-4">
-    <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between text-xs font-mono text-slate-600">
-      <span>IShield Security Operations Center</span>
-      <span>Powered by IShield Security Team</span>
-    </div>
-  </footer>
+  <script>
+    const API = 'http://localhost:5000/api';
+    const charts = {};
+    const DEMO_GLOBE_TARGET = { name: 'IShield SOC 杭州', short: 'SOC-CORE-01', lat: 30.2741, lng: 120.1551 };
+    const DEMO_ATTACK_SOURCES = [
+      { country: '美国', country_code: 'US-EAST', flag: '🇺🇸', city: '弗吉尼亚', lat: 37.4316, lng: -78.6569, event_count: 428, risk_level: 'critical', attack_type: 'Prompt Injection', last_seen: '13:58:12 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#ef4444', tags: ['高危', '持续攻击', '自动拦截中'], region: 'euro-atlantic' },
+      { country: '英国', country_code: 'UK-LON', flag: '🇬🇧', city: '伦敦', lat: 51.5072, lng: -0.1276, event_count: 301, risk_level: 'high', attack_type: 'Policy Bypass', last_seen: '13:57:44 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#f97316', tags: ['高频探测', '策略试探'], region: 'euro-atlantic' },
+      { country: '德国', country_code: 'DE-FRA', flag: '🇩🇪', city: '法兰克福', lat: 50.1109, lng: 8.6821, event_count: 264, risk_level: 'high', attack_type: 'Tool Escalation', last_seen: '13:56:03 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#fb7185', tags: ['权限尝试', '横向渗透'], region: 'euro-atlantic' },
+      { country: '法国', country_code: 'FR-PAR', flag: '🇫🇷', city: '巴黎', lat: 48.8566, lng: 2.3522, event_count: 176, risk_level: 'medium', attack_type: 'Data Exfiltration', last_seen: '13:54:29 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#f59e0b', tags: ['数据探测', '中危'], region: 'euro-atlantic' },
+      { country: '俄罗斯', country_code: 'RU-MOW', flag: '🇷🇺', city: '莫斯科', lat: 55.7558, lng: 37.6173, event_count: 333, risk_level: 'critical', attack_type: 'Credential Replay', last_seen: '13:58:57 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#dc2626', tags: ['高危', '凭证复用', '持续攻击'], region: 'euro-atlantic' },
+      { country: '印度', country_code: 'IN-BOM', flag: '🇮🇳', city: '孟买', lat: 19.076, lng: 72.8777, event_count: 148, risk_level: 'medium', attack_type: 'Workflow Abuse', last_seen: '13:50:18 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#22c55e', tags: ['自动化探测', '低速渗透'], region: 'apac' },
+      { country: '日本', country_code: 'JP-TYO', flag: '🇯🇵', city: '东京', lat: 35.6762, lng: 139.6503, event_count: 289, risk_level: 'high', attack_type: 'Jailbreak Chain', last_seen: '13:57:01 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#e879f9', tags: ['链式注入', '高频'], region: 'apac' },
+      { country: '韩国', country_code: 'KR-SEL', flag: '🇰🇷', city: '首尔', lat: 37.5665, lng: 126.978, event_count: 138, risk_level: 'medium', attack_type: 'Prompt Leak Probe', last_seen: '13:49:55 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#38bdf8', tags: ['提示词探测', '中危'], region: 'apac' },
+      { country: '新加坡', country_code: 'SG-SIN', flag: '🇸🇬', city: '新加坡', lat: 1.3521, lng: 103.8198, event_count: 212, risk_level: 'high', attack_type: 'Plugin Pivot', last_seen: '13:55:41 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#6366f1', tags: ['插件越权', '持续调用'], region: 'apac' },
+      { country: '澳大利亚', country_code: 'AU-SYD', flag: '🇦🇺', city: '悉尼', lat: -33.8688, lng: 151.2093, event_count: 119, risk_level: 'medium', attack_type: 'Phishing Automation', last_seen: '13:44:02 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#14b8a6', tags: ['邮件钓鱼', '自动化'], region: 'apac' },
+      { country: '巴西', country_code: 'BR-SAO', flag: '🇧🇷', city: '圣保罗', lat: -23.5505, lng: -46.6333, event_count: 168, risk_level: 'high', attack_type: 'SSRF Abuse', last_seen: '13:53:12 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#8b5cf6', tags: ['外联扫描', '接口穿透'], region: 'euro-atlantic' },
+      { country: '南非', country_code: 'ZA-JNB', flag: '🇿🇦', city: '约翰内斯堡', lat: -26.2041, lng: 28.0473, event_count: 92, risk_level: 'medium', attack_type: 'Recon Burst', last_seen: '13:40:26 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#0ea5e9', tags: ['侦察阶段', '间歇攻击'], region: 'euro-atlantic' }
+    ];
+    let globeRotationIndex = 0;
+    let globeRotationTimer = null;
+    let globeInstance = null;
+    let activeRegionFilter = 'global';
+    let globeLocked = false;
+    let globePreviewIndex = null;
+    let globeClickTimer = null;
+    let suppressNextPointClick = false;
+    let lastFocusedPointKey = '';
 
-<script>
-"use strict";
-
-const API = "http://localhost:5000/api";
-
-// ── Clock ──
-function tick() {
-  const n = new Date();
-  const el = document.getElementById('clock');
-  if (el) el.textContent = [n.getHours(),n.getMinutes(),n.getSeconds()].map(v => String(v).padStart(2,'0')).join(':');
-}
-setInterval(tick, 1000);
-tick();
-
-// ── ECharts theme ──
-const CHART_DARK = {
-  backgroundColor: 'transparent',
-  textStyle: { color: '#64748b', fontFamily: 'JetBrains Mono, monospace' },
-};
-
-// ── Init charts ──
-const pieChart = echarts.init(document.getElementById('pieChart'));
-const trendChart = echarts.init(document.getElementById('trendChart'));
-const barChart = echarts.init(document.getElementById('barChart'));
-const gaugeChart = echarts.init(document.getElementById('gaugeChart'));
-const categoryChart = echarts.init(document.getElementById('categoryChart'));
-const toolChart = echarts.init(document.getElementById('toolChart'));
-
-const chartInstances = [pieChart, trendChart, barChart, gaugeChart, categoryChart, toolChart];
-window.addEventListener('resize', () => chartInstances.forEach(c => c.resize()));
-
-// ── KPI counters ──
-let prevStats = {};
-function animateKPI(id, target, suffix) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const start = parseInt(el.textContent.replace(/[^0-9]/g,'')) || 0;
-  const end = typeof target === 'number' ? target : parseInt(target) || 0;
-  if (start === end) return;
-  const duration = 800;
-  const startTime = performance.now();
-  function step(now) {
-    const progress = Math.min((now - startTime) / duration, 1);
-    const ease = 1 - Math.pow(1 - progress, 3);
-    el.textContent = Math.round(start + (end - start) * ease) + (suffix || '');
-    if (progress < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
-
-// ── Load all data ──
-let liveEvents = [];
-const MAX_LIVE = 50;
-
-async function loadAll() {
-  try {
-    const [statsRes, analyticsRes, eventsRes] = await Promise.all([
-      fetch(API+'/stats'),
-      fetch(API+'/analytics?days=7'),
-      fetch(API+'/events?limit=100')
-    ]);
-
-    const statsRaw = await statsRes.json();
-    const stats = statsRaw.data || statsRaw;
-    const analyticsRaw = await analyticsRes.json();
-    const analytics = analyticsRaw.data || analyticsRaw;
-    const dataRaw = await eventsRes.json();
-    const data = dataRaw.data || dataRaw;
-    const events = data.events || [];
-
-    // ── KPI cards ──
-    const total = stats.total || 0;
-    const blocked = stats.blocked || 0;
-    const rate = stats.block_rate || 0;
-
-    animateKPI('kpi-total', total);
-    animateKPI('kpi-blocked', blocked);
-    animateKPI('kpi-rate', Math.round(rate), '%');
-    document.getElementById('kpi-rate-bar').style.width = rate + '%';
-
-    // Today stats from analytics
-    const todayStats = analytics.today_stats || {};
-    animateKPI('kpi-today', todayStats.total || 0);
-    animateKPI('kpi-blocked-today', todayStats.blocked || 0);
-
-    // High threats
-    const highCount = events.filter(e => e.threat_level === 'high').length;
-    animateKPI('kpi-high', highCount);
-
-    // ── Pie chart: attack type distribution ──
-    const typeMap = {};
-    events.forEach(e => {
-      const t = e.type || '未知';
-      typeMap[t] = (typeMap[t] || 0) + 1;
-    });
-    const pieData = Object.entries(typeMap).map(([name, value]) => ({ name, value }));
-    if (pieData.length === 0) {
-      pieData.push({ name: '暂无数据', value: 1 });
+    function tick() {
+      const now = new Date();
+      document.getElementById('clock').textContent = [now.getHours(), now.getMinutes(), now.getSeconds()].map(v => String(v).padStart(2, '0')).join(':');
     }
-    pieChart.setOption({
-      ...CHART_DARK,
-      tooltip: { trigger: 'item', backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#94a3b8' } },
-      legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#64748b', fontSize: 11 }, itemWidth: 10, itemHeight: 10 },
-      series: [{
-        type: 'pie',
-        radius: ['45%', '72%'],
-        center: ['38%', '50%'],
-        avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 6, borderColor: '#0f172a', borderWidth: 2 },
-        label: { show: false },
-        emphasis: { label: { show: true, fontSize: 13, fontWeight: 'bold', color: '#fff' } },
-        data: pieData.map((d, i) => ({
-          ...d,
-          itemStyle: { color: ['#ef4444','#f59e0b','#3b82f6','#10b981','#8b5cf6','#ec4899','#14b8a6','#f97316'][i % 8] }
-        }))
-      }]
-    });
+    setInterval(tick, 1000); tick();
 
-    // ── Trend chart: 7-day line ──
-    const trend = analytics.trend || [];
-    const days = trend.map(d => d.date ? d.date.substring(5) : '');
-    const blockedTrend = trend.map(d => d.blocked || 0);
-    const passedTrend = trend.map(d => (d.total || 0) - (d.blocked || 0));
-
-    trendChart.setOption({
-      ...CHART_DARK,
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: '#1e293b',
-        borderColor: 'rgba(255,255,255,0.08)',
-        textStyle: { color: '#94a3b8' },
-        axisPointer: { type: 'cross', crossStyle: { color: '#334155' } }
-      },
-      legend: { show: false },
-      grid: { top: 20, right: 20, bottom: 30, left: 50 },
-      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#1e293b' } }, axisTick: { show: false }, axisLabel: { color: '#475569', fontSize: 10 } },
-      yAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLabel: { color: '#475569', fontSize: 10 } },
-      series: [
-        { name: '拦截', type: 'line', smooth: true, data: blockedTrend, lineStyle: { color: '#ef4444', width: 2 }, itemStyle: { color: '#ef4444' }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(239,68,68,0.25)' }, { offset: 1, color: 'rgba(239,68,68,0)' }] } } },
-        { name: '通过', type: 'line', smooth: true, data: passedTrend, lineStyle: { color: '#10b981', width: 2 }, itemStyle: { color: '#10b981' } }
-      ]
-    });
-
-    // ── Bar chart: TOP 5 attack types ──
-    const sortedTypes = Object.entries(typeMap).sort((a,b) => b[1]-a[1]).slice(0,5);
-    barChart.setOption({
-      ...CHART_DARK,
-      tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#94a3b8' }, axisPointer: { type: 'shadow' } },
-      grid: { top: 10, right: 20, bottom: 10, left: 10 },
-      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLabel: { color: '#475569', fontSize: 10 } },
-      yAxis: { type: 'category', data: sortedTypes.map(t => t[0]).reverse(), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#64748b', fontSize: 11 } },
-      series: [{
-        type: 'bar',
-        data: sortedTypes.map(t => t[1]).reverse(),
-        itemStyle: {
-          borderRadius: [0, 4, 4, 0],
-          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: '#3b82f6' },
-            { offset: 1, color: '#60a5fa' }
-          ])
-        },
-        barWidth: 14,
-        label: { show: true, position: 'right', color: '#64748b', fontSize: 11 }
-      }]
-    });
-
-    // ── Gauge: threat level ──
-    const highEvents = events.filter(e => e.threat_level === 'high').length;
-    const mediumEvents = events.filter(e => e.threat_level === 'medium').length;
-    const threatScore = total > 0 ? Math.min(100, Math.round(((highEvents * 2 + mediumEvents) / Math.max(total, 1)) * 100)) : 0;
-    gaugeChart.setOption({
-      ...CHART_DARK,
-      series: [{
-        type: 'gauge',
-        center: ['50%', '60%'],
-        radius: '90%',
-        startAngle: 200,
-        endAngle: -20,
-        min: 0,
-        max: 100,
-        splitNumber: 5,
-        axisLine: {
-          lineStyle: {
-            width: 14,
-            color: [
-              [0.3, '#10b981'],
-              [0.7, '#f59e0b'],
-              [1, '#ef4444']
-            ]
-          }
-        },
-        pointer: { icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z', length: '60%', width: 6, offsetCenter: [0, '-10%'], itemStyle: { color: '#94a3b8' } },
-        axisTick: { distance: -16, length: 4, lineStyle: { color: '#1e293b', width: 1 } },
-        splitLine: { distance: -20, length: 10, lineStyle: { color: '#1e293b', width: 1.5 } },
-        axisLabel: { color: '#475569', fontSize: 9, distance: -30 },
-        detail: {
-          valueAnimation: true,
-          formatter: function(value) {
-            if (value < 30) return '{a|安全}';
-            if (value < 70) return '{b|警戒}';
-            return '{c|危险}';
-          },
-          rich: {
-            a: { color: '#10b981', fontSize: 14, fontWeight: 'bold' },
-            b: { color: '#f59e0b', fontSize: 14, fontWeight: 'bold' },
-            c: { color: '#ef4444', fontSize: 14, fontWeight: 'bold' }
-          },
-          offsetCenter: [0, '40%']
-        },
-        data: [{ value: threatScore }]
-      }]
-    });
-
-    // ── Category breakdown (horizontal bar) ──
-    const catMap = {};
-    events.forEach(e => {
-      const cat = e.category || e.type || '其他';
-      if (!catMap[cat]) catMap[cat] = { total: 0, blocked: 0 };
-      catMap[cat].total++;
-      if (/已拦截|已阻断/.test(e.status)) catMap[cat].blocked++;
-    });
-    const catEntries = Object.entries(catMap).slice(0, 6);
-    categoryChart.setOption({
-      ...CHART_DARK,
-      tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#94a3b8' }, axisPointer: { type: 'shadow' } },
-      grid: { top: 5, right: 60, bottom: 5, left: 10 },
-      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLabel: { color: '#475569', fontSize: 9 } },
-      yAxis: { type: 'category', data: catEntries.map(c => c[0]), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#64748b', fontSize: 10 } },
-      series: [
-        {
-          name: '已拦截',
-          type: 'bar',
-          stack: 'total',
-          data: catEntries.map(c => c[1].blocked),
-          itemStyle: { color: '#ef4444', borderRadius: c => c.dataIndex === catEntries.length - 1 ? [4,4,0,0] : 0 },
-          barWidth: 10,
-        },
-        {
-          name: '已放行',
-          type: 'bar',
-          stack: 'total',
-          data: catEntries.map(c => c[1].total - c[1].blocked),
-          itemStyle: { color: '#10b981', borderRadius: c => c.dataIndex === catEntries.length - 1 ? [0,4,4,0] : 0 },
-          barWidth: 10,
+    function initCharts() {
+      charts.gauge = echarts.init(document.getElementById('gaugeChart'));
+      charts.trend = echarts.init(document.getElementById('trendChart'));
+      charts.confidence = echarts.init(document.getElementById('confidenceChart'));
+      charts.types = echarts.init(document.getElementById('threatTypeChart'));
+      charts.tools = echarts.init(document.getElementById('toolChart'));
+      charts.severity = echarts.init(document.getElementById('severityChart'));
+      window.addEventListener('resize', () => {
+        Object.values(charts).forEach(chart => chart.resize());
+        if (globeInstance) {
+          globeInstance.width(document.getElementById('globeChart').clientWidth);
+          globeInstance.height(document.getElementById('globeChart').clientHeight);
         }
-      ]
-    });
-
-    // ── Top attacked tools ──
-    const toolMap = {};
-    events.forEach(e => {
-      const match = e.detail ? e.detail.match(/工具=([^,，]+)/) : null;
-      const tool = match ? match[1] : '未知工具';
-      if (!toolMap[tool]) toolMap[tool] = { total: 0, blocked: 0 };
-      toolMap[tool].total++;
-      if (/已拦截|已阻断/.test(e.status)) toolMap[tool].blocked++;
-    });
-    const topTools = Object.entries(toolMap).sort((a,b) => b[1].total - a[1].total).slice(0, 5);
-    toolChart.setOption({
-      ...CHART_DARK,
-      tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#94a3b8' }, axisPointer: { type: 'shadow' } },
-      grid: { top: 10, right: 20, bottom: 10, left: 90 },
-      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLabel: { color: '#475569', fontSize: 10 } },
-      yAxis: { type: 'category', data: topTools.map(t => t[0]), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' } },
-      series: [{
-        type: 'bar',
-        data: topTools.map(t => ({
-          value: t[1].blocked,
-          itemStyle: { color: '#ef4444', borderRadius: [0, 4, 4, 0] }
-        })),
-        barWidth: 12,
-        label: { show: true, position: 'right', color: '#64748b', fontSize: 10 }
-      }]
-    });
-
-    // ── Live feed ──
-    const newEvents = events.filter(e => /已拦截|已阻断/.test(e.status)).slice(0, MAX_LIVE);
-    const feed = document.getElementById('liveFeed');
-    const countEl = document.getElementById('live-count');
-    if (countEl) countEl.textContent = newEvents.length + ' 条记录';
-
-    if (newEvents.length === 0) {
-      feed.innerHTML = '<div class="px-5 py-12 text-center"><div class="inline-flex flex-col items-center gap-2"><svg class="w-8 h-8 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="1.5"/></svg><div class="text-xs text-slate-600 font-mono">// ALL_CLEAR — 系统安全</div></div></div>';
-      return;
+      });
     }
 
-    feed.innerHTML = newEvents.map((ev, i) => {
-      const time = ev.time ? ev.time.substring(11, 19) : '--:--:--';
-      const level = ev.threat_level || 'medium';
-      const levelColor = level === 'high' ? '#ef4444' : level === 'medium' ? '#f59e0b' : '#3b82f6';
-      const levelBg = level === 'high' ? 'rgba(239,68,68,0.08)' : level === 'medium' ? 'rgba(245,158,11,0.08)' : 'rgba(59,130,246,0.08)';
-      const levelBorder = level === 'high' ? 'rgba(239,68,68,0.15)' : level === 'medium' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)';
+    function setText(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; }
 
-      return `<div class="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors fade-in" style="animation-delay:${i*30}ms">
-        <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:${levelColor};box-shadow:0 0 6px ${levelColor}50"></div>
-        <div class="flex-shrink-0 text-xs font-mono text-slate-600 w-20">${time}</div>
-        <div class="flex-1 min-w-0">
-          <div class="text-xs font-mono text-slate-300 truncate">${ev.detail || ev.type || '未知事件'}</div>
-        </div>
-        <div class="flex-shrink-0">
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium border" style="color:${levelColor};background:${levelBg};border-color:${levelBorder}">
-            ${level === 'high' ? '高危' : level === 'medium' ? '中危' : '低危'}
-          </span>
-        </div>
-        <div class="flex-shrink-0 text-xs font-mono text-danger font-medium">
-          ${ev.confidence ? ev.confidence + '%' : '已拦截'}
-        </div>
-      </div>`;
-    }).join('');
+    function renderKpis(kpis) {
+      setText('kpiTotal', kpis.total || 0);
+      setText('kpiToday', kpis.today_total || 0);
+      setText('kpiBlocked', kpis.blocked || 0);
+      setText('kpiRate', `${Math.round(kpis.block_rate || 0)}%`);
+      setText('kpiHigh', kpis.high_risk || 0);
+      setText('kpiThreat', kpis.threat_score || 0);
+      document.getElementById('kpiRateBar').style.width = `${Math.min(100, kpis.block_rate || 0)}%`;
+    }
 
-  } catch(e) {
-    console.warn('Dashboard data fetch failed:', e.message);
-  }
-}
+    function getFilteredSources() {
+      if (activeRegionFilter === 'global') return DEMO_ATTACK_SOURCES;
+      return DEMO_ATTACK_SOURCES.filter(item => item.region === activeRegionFilter);
+    }
 
-// ── SSE real-time updates ──
-let evtSource = null;
+    function riskBadgeClass(level) {
+      if (level === 'critical') return 'bg-danger/10 text-danger border-danger/20';
+      if (level === 'high') return 'bg-warning/10 text-warning border-warning/20';
+      return 'bg-safe/10 text-safe border-safe/20';
+    }
 
-function connectSSE() {
-  if (evtSource) evtSource.close();
-  evtSource = new EventSource(API + '/events/stream');
+    function riskIconText(level) {
+      if (level === 'critical') return '▲ CRITICAL RISK';
+      if (level === 'high') return '▲ HIGH RISK';
+      return '● MEDIUM RISK';
+    }
 
-  evtSource.addEventListener('message', function(e) {
-    try {
-      const data = JSON.parse(e.data);
-      if (data && data.type === 'alert') {
-        loadAll();
+    function updateGlobeLockButton() {
+      const button = document.getElementById('globeLockToggle');
+      if (!button) return;
+      button.textContent = globeLocked ? '恢复自动' : '锁定查看';
+      button.className = globeLocked
+        ? 'px-2.5 py-1 rounded-full border border-warning/30 bg-warning/10 text-[11px] font-mono text-warning hover:border-warning/40 transition'
+        : 'px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.03] text-[11px] font-mono text-slate-300 hover:border-accent/30 hover:text-accent transition';
+    }
+
+    function setGlobeLocked(nextLocked) {
+      globeLocked = nextLocked;
+      if (globeClickTimer) {
+        clearTimeout(globeClickTimer);
+        globeClickTimer = null;
       }
-    } catch(ex) {}
-  });
-
-  evtSource.addEventListener('error', function() {
-    const connEl = document.getElementById('connStatus');
-    if (connEl) {
-      connEl.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-warning/10 border border-warning/20';
-      connEl.innerHTML = '<div class="w-2 h-2 rounded-full bg-warning live-dot"></div><span class="text-xs font-medium text-warning font-mono">RECONNECTING</span>';
+      if (!globeLocked) {
+        suppressNextPointClick = false;
+      }
+      updateGlobeLockButton();
+      setText('globeOrbitHint', globeLocked ? 'LOCKED VIEW · DRAG · ZOOM' : activeRegionFilter === 'apac' ? 'APAC FOCUS · DRAG · ZOOM' : activeRegionFilter === 'euro-atlantic' ? 'EU/US FOCUS · DRAG · ZOOM' : 'DRAG · ROTATE · ZOOM');
     }
-    setTimeout(connectSSE, 5000);
-  });
 
-  evtSource.addEventListener('open', function() {
-    const connEl = document.getElementById('connStatus');
-    if (connEl) {
-      connEl.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-safe/10 border border-safe/20';
-      connEl.innerHTML = '<div class="w-2 h-2 rounded-full bg-safe live-dot"></div><span class="text-xs font-medium text-safe font-mono">LIVE</span>';
+    function focusPointKey(item) {
+      return item ? `${item.country}__${item.city}` : '';
     }
-  });
-}
 
-// ── Init ──
-loadAll();
-connectSSE();
+    function renderGlobeDetails(activeIndex, options = {}) {
+      const { preview = false } = options;
+      const currentSources = getFilteredSources();
+      const item = currentSources[activeIndex] || currentSources[0] || DEMO_ATTACK_SOURCES[0];
+      setText('globeActiveCountry', `${item.country} · ${item.city}`);
+      setText('globeEventCount', item.event_count);
+      setText('globeAttackType', item.attack_type);
+      setText('globeLastSeen', item.last_seen);
+      setText('globeTargetName', item.target_name);
+      setText('globeRotationStatus', preview ? `PREVIEW · ${item.country}` : globeLocked ? `LOCKED · ${item.country}` : `AUTO HIGHLIGHT · ${Math.min(activeIndex + 1, currentSources.length)}/${currentSources.length || 1}`);
+      setText('globeCountryFlag', item.flag || '🌐');
+      setText('globeCountryCode', item.country_code || item.country);
+      setText('globeRiskIcon', riskIconText(item.risk_level));
+      const badge = document.getElementById('globeRiskBadge');
+      if (badge) {
+        badge.className = `px-2.5 py-1 rounded-full border text-[11px] font-mono ${riskBadgeClass(item.risk_level)}`;
+        badge.textContent = item.risk_level.toUpperCase();
+      }
+      const tagsEl = document.getElementById('globeStatusTags');
+      if (tagsEl) {
+        tagsEl.innerHTML = item.tags.map(tag => `<span class="px-2.5 py-1 rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] font-mono text-slate-300">${tag}</span>`).join('');
+      }
+      const ranking = [...currentSources].sort((a, b) => b.event_count - a.event_count);
+      const topList = document.getElementById('globeTopList');
+      if (topList) {
+        topList.innerHTML = ranking.map((entry, index) => `
+          <button data-country="${entry.country}" data-city="${entry.city}" class="globe-rank-item w-full text-left rounded-2xl border ${entry.country === item.country && entry.city === item.city ? 'border-accent/30 bg-accent/10' : 'border-white/[0.06] bg-white/[0.02]'} px-3 py-2.5 hover:border-accent/25 transition">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="text-xl leading-none">${entry.flag || '🌐'}</div>
+                <div class="w-7 h-7 shrink-0 rounded-xl ${index < 3 ? 'bg-white/10 text-white' : 'bg-base-900/80 text-slate-400'} flex items-center justify-center text-xs font-mono">${String(index + 1).padStart(2, '0')}</div>
+                <div class="min-w-0">
+                  <div class="text-sm font-medium text-white truncate">${entry.country}</div>
+                  <div class="text-[11px] text-slate-500 font-mono truncate">${entry.city} · ${entry.attack_type}</div>
+                </div>
+              </div>
+              <div class="text-right shrink-0">
+                <div class="text-sm font-bold font-mono text-white">${entry.event_count}</div>
+                <div class="text-[11px] ${entry.risk_level === 'critical' ? 'text-danger' : entry.risk_level === 'high' ? 'text-warning' : 'text-safe'} font-mono uppercase">${entry.risk_level}</div>
+              </div>
+            </div>
+          </button>
+        `).join('');
+        topList.querySelectorAll('.globe-rank-item').forEach((button) => {
+          button.addEventListener('mouseenter', () => {
+            const idx = currentSources.findIndex(item => item.country === button.dataset.country && item.city === button.dataset.city);
+            if (idx >= 0 && !globeLocked) {
+              globePreviewIndex = idx;
+              renderGlobeDetails(idx, { preview: true });
+            }
+          });
+          button.addEventListener('mouseleave', () => {
+            if (!globeLocked) {
+              globePreviewIndex = null;
+              renderGlobeDetails(globeRotationIndex, { preview: false });
+            }
+          });
+          button.addEventListener('click', () => {
+            const idx = currentSources.findIndex(item => item.country === button.dataset.country && item.city === button.dataset.city);
+            if (idx >= 0) {
+              globeRotationIndex = idx;
+              setGlobeLocked(true);
+              renderMap(globeRotationIndex);
+            }
+          });
+          button.addEventListener('dblclick', () => {
+            const idx = currentSources.findIndex(item => item.country === button.dataset.country && item.city === button.dataset.city);
+            if (idx >= 0) {
+              globeRotationIndex = idx;
+              setGlobeLocked(false);
+              renderMap(globeRotationIndex);
+            }
+          });
+        });
+      }
+    }
 
-// Refresh all data every 10 seconds
-setInterval(loadAll, 10000);
-</script>
+    function createArcsForSources(items) {
+      return items.map(item => ({
+        startLat: item.lat,
+        startLng: item.lng,
+        endLat: DEMO_GLOBE_TARGET.lat,
+        endLng: DEMO_GLOBE_TARGET.lng,
+        color: [item.pulse_color, '#fde047'],
+        dashLength: item.risk_level === 'critical' ? 0.48 : 0.32,
+        dashGap: 0.6,
+        dashAnimateTime: item.risk_level === 'critical' ? 900 : item.risk_level === 'high' ? 1300 : 1700,
+        altitude: item.risk_level === 'critical' ? 0.28 : item.risk_level === 'high' ? 0.22 : 0.16,
+        country: item.country,
+        city: item.city
+      }));
+    }
 
+    function createPointsForSources(items, activeItem) {
+      const points = items.map(item => ({
+        lat: item.lat,
+        lng: item.lng,
+        size: item.country === activeItem.country && item.city === activeItem.city ? 0.7 : 0.38,
+        color: item.pulse_color,
+        country: item.country,
+        city: item.city,
+        event_count: item.event_count,
+        attack_type: item.attack_type,
+        risk_level: item.risk_level,
+        last_seen: item.last_seen,
+        flag: item.flag,
+        country_code: item.country_code,
+        target_name: item.target_name,
+        tags: item.tags
+      }));
+      points.push({
+        lat: DEMO_GLOBE_TARGET.lat,
+        lng: DEMO_GLOBE_TARGET.lng,
+        size: 0.85,
+        color: '#fde047',
+        country: DEMO_GLOBE_TARGET.name,
+        city: 'Target',
+        event_count: 999,
+        attack_type: 'SOC Target',
+        risk_level: 'high',
+        last_seen: 'always-on',
+        flag: '🎯',
+        country_code: 'TARGET',
+        target_name: DEMO_GLOBE_TARGET.short,
+        tags: ['目标节点', '汇聚中心']
+      });
+      return points;
+    }
+
+    function createRingsForSources(items, activeItem) {
+      const sourceRings = items.map(item => ({
+        lat: item.lat,
+        lng: item.lng,
+        color: item.country === activeItem.country && item.city === activeItem.city ? item.pulse_color : 'rgba(255,255,255,0.22)',
+        maxR: item.country === activeItem.country && item.city === activeItem.city ? 4.4 : 2.6,
+        propagationSpeed: item.country === activeItem.country && item.city === activeItem.city ? 2.4 : 1.5,
+        repeatPeriod: item.country === activeItem.country && item.city === activeItem.city ? 900 : 1500
+      }));
+      sourceRings.push({
+        lat: DEMO_GLOBE_TARGET.lat,
+        lng: DEMO_GLOBE_TARGET.lng,
+        color: '#fde047',
+        maxR: 5,
+        propagationSpeed: 2.8,
+        repeatPeriod: 700
+      });
+      return sourceRings;
+    }
+
+    function ensureGlobe() {
+      if (globeInstance) return globeInstance;
+      const container = document.getElementById('globeChart');
+      globeInstance = Globe()(container)
+        .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+        .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+        .backgroundColor('rgba(0,0,0,0)')
+        .showAtmosphere(true)
+        .atmosphereColor('#60a5fa')
+        .atmosphereAltitude(0.18)
+        .width(container.clientWidth)
+        .height(container.clientHeight)
+        .pointAltitude('size')
+        .pointRadius('size')
+        .pointColor('color')
+        .pointLabel(point => `
+          <div style="min-width:190px;padding:2px 0;">
+            <div style="font-weight:700;color:#fff;margin-bottom:6px;">${point.flag || ''} ${point.country || ''} · ${point.city || ''}</div>
+            <div>攻击次数：${point.event_count || 0}</div>
+            <div>攻击类型：${point.attack_type || '-'}</div>
+            <div>风险等级：${String(point.risk_level || '').toUpperCase()}</div>
+            <div>最近活跃：${point.last_seen || '-'}</div>
+          </div>
+        `)
+        .arcColor('color')
+        .arcDashLength('dashLength')
+        .arcDashGap('dashGap')
+        .arcDashAnimateTime('dashAnimateTime')
+        .arcStroke(0.8)
+        .arcAltitude('altitude')
+        .ringColor('color')
+        .ringMaxRadius('maxR')
+        .ringPropagationSpeed('propagationSpeed')
+        .ringRepeatPeriod('repeatPeriod');
+
+      globeInstance.controls().autoRotate = false;
+      globeInstance.controls().enableDamping = true;
+      globeInstance.controls().dampingFactor = 0.08;
+      globeInstance.controls().minDistance = 180;
+      globeInstance.controls().maxDistance = 420;
+      globeInstance.controls().rotateSpeed = 0.75;
+      globeInstance.controls().zoomSpeed = 0.85;
+      globeInstance.controls().enablePan = false;
+      globeInstance.onPointHover(point => {
+        if (globeLocked) return;
+        const currentSources = getFilteredSources();
+        if (!point) {
+          globePreviewIndex = null;
+          renderGlobeDetails(globeRotationIndex, { preview: false });
+          return;
+        }
+        const idx = currentSources.findIndex(item => item.country === point.country && item.city === point.city);
+        if (idx >= 0) {
+          globePreviewIndex = idx;
+          renderGlobeDetails(idx, { preview: true });
+        }
+      });
+      globeInstance.onPointClick(point => {
+        if (suppressNextPointClick) {
+          suppressNextPointClick = false;
+          return;
+        }
+        const currentSources = getFilteredSources();
+        const idx = currentSources.findIndex(item => item.country === point.country && item.city === point.city);
+        if (idx < 0) return;
+        globeRotationIndex = idx;
+        setGlobeLocked(true);
+        renderMap(globeRotationIndex, { preserveView: false });
+      });
+
+      container.addEventListener('dblclick', () => {
+        if (globePreviewIndex !== null) {
+          globeRotationIndex = globePreviewIndex;
+        }
+        suppressNextPointClick = true;
+        setGlobeLocked(false);
+        renderMap(globeRotationIndex, { preserveView: true });
+      });
+
+      return globeInstance;
+    }
+
+    function updateRegionFilterButtons() {
+      document.querySelectorAll('.region-filter-btn').forEach(button => {
+        const active = button.dataset.region === activeRegionFilter;
+        button.className = active
+          ? 'region-filter-btn px-3 py-1.5 rounded-full border border-accent/30 bg-accent/15 text-accent text-xs font-mono'
+          : 'region-filter-btn px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-slate-300 text-xs font-mono hover:border-accent/30 hover:text-accent transition';
+      });
+    }
+
+    function bindRegionFilters() {
+      document.querySelectorAll('.region-filter-btn').forEach(button => {
+        button.addEventListener('click', () => {
+          activeRegionFilter = button.dataset.region || 'global';
+          globeRotationIndex = 0;
+          setGlobeLocked(false);
+          updateRegionFilterButtons();
+          renderMap(globeRotationIndex);
+        });
+      });
+    }
+
+    function bindGlobeLockToggle() {
+      const button = document.getElementById('globeLockToggle');
+      if (!button) return;
+      button.addEventListener('click', () => {
+        setGlobeLocked(!globeLocked);
+        renderMap(globeRotationIndex);
+      });
+    }
+
+    function renderMap(activeIndex = globeRotationIndex, options = {}) {
+      const { preserveView = false } = options;
+      const currentSources = getFilteredSources();
+      const activeItem = currentSources[activeIndex] || currentSources[0] || DEMO_ATTACK_SOURCES[0];
+      setText('mapCount', `${currentSources.length} 个国家 · ${activeRegionFilter === 'global' ? 'DEMO MODE' : activeRegionFilter.toUpperCase()}`);
+      if (!globeLocked) {
+        setText('globeOrbitHint', activeRegionFilter === 'apac' ? 'APAC FOCUS · DRAG · ZOOM' : activeRegionFilter === 'euro-atlantic' ? 'EU/US FOCUS · DRAG · ZOOM' : 'DRAG · ROTATE · ZOOM');
+      }
+      const globe = ensureGlobe();
+      globe
+        .pointsData(createPointsForSources(currentSources, activeItem))
+        .arcsData(createArcsForSources(currentSources))
+        .ringsData(createRingsForSources(currentSources, activeItem));
+      const nextPointKey = focusPointKey(activeItem);
+      if (!preserveView && nextPointKey !== lastFocusedPointKey) {
+        globe.pointOfView({ lat: activeItem.lat, lng: activeItem.lng, altitude: activeRegionFilter === 'global' ? 2.0 : 1.65 }, 900);
+        lastFocusedPointKey = nextPointKey;
+      }
+      renderGlobeDetails(activeIndex);
+    }
+
+    function startGlobeRotation() {
+      clearInterval(globeRotationTimer);
+      globeRotationTimer = setInterval(() => {
+        const currentSources = getFilteredSources();
+        if (!currentSources.length || globeLocked) return;
+        globeRotationIndex = (globeRotationIndex + 1) % currentSources.length;
+        renderMap(globeRotationIndex);
+      }, 3200);
+    }
+
+    function renderGauge(score) {
+      charts.gauge.setOption({
+        series: [{
+          type: 'gauge',
+          startAngle: 200,
+          endAngle: -20,
+          min: 0,
+          max: 100,
+          axisLine: { lineStyle: { width: 14, color: [[0.3, '#10b981'], [0.7, '#f59e0b'], [1, '#ef4444']] } },
+          pointer: { width: 6 },
+          splitLine: { distance: -16, length: 10, lineStyle: { color: '#1f2937' } },
+          axisTick: { distance: -14, length: 5, lineStyle: { color: '#1f2937' } },
+          axisLabel: { color: '#64748b' },
+          detail: { valueAnimation: true, formatter: '{value}', color: '#fff', fontSize: 30, offsetCenter: [0, '50%'] },
+          title: { color: '#94a3b8', offsetCenter: [0, '78%'], fontSize: 12 },
+          data: [{ value: score || 0, name: 'THREAT SCORE' }]
+        }]
+      });
+    }
+
+    function renderTrend(trend7d, trend60m) {
+      charts.trend.setOption({
+        tooltip: { trigger: 'axis', backgroundColor: '#111827', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#cbd5e1' } },
+        legend: { data: ['7日拦截', '60分钟拦截'], textStyle: { color: '#94a3b8' } },
+        grid: { left: 48, right: 20, top: 30, bottom: 30 },
+        xAxis: [
+          { type: 'category', data: trend7d.map(i => i.date.slice(5)), axisLabel: { color: '#64748b' }, axisLine: { lineStyle: { color: '#1f2937' } } },
+          { type: 'category', data: trend60m.map(i => i.time), axisLabel: { show: false }, axisLine: { show: false } }
+        ],
+        yAxis: { type: 'value', axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+        series: [
+          { name: '7日拦截', type: 'line', smooth: true, data: trend7d.map(i => i.blocked), lineStyle: { color: '#ef4444', width: 3 }, itemStyle: { color: '#ef4444' }, areaStyle: { color: 'rgba(239,68,68,0.10)' } },
+          { name: '60分钟拦截', type: 'line', smooth: true, xAxisIndex: 1, data: trend60m.map(i => i.blocked), lineStyle: { color: '#3b82f6', width: 2 }, itemStyle: { color: '#3b82f6' } }
+        ]
+      });
+    }
+
+    function renderConfidence(items) {
+      charts.confidence.setOption({
+        tooltip: { trigger: 'axis', backgroundColor: '#111827', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#cbd5e1' } },
+        grid: { left: 36, right: 10, top: 16, bottom: 30 },
+        xAxis: { type: 'category', data: items.map(i => i.range), axisLabel: { color: '#64748b' }, axisLine: { lineStyle: { color: '#1f2937' } } },
+        yAxis: { type: 'value', axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+        series: [{ type: 'bar', barWidth: 24, data: items.map(i => i.count), itemStyle: { color: '#60a5fa', borderRadius: [8,8,0,0] } }]
+      });
+    }
+
+    function renderTypes(items) {
+      charts.types.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#111827', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#cbd5e1' } },
+        grid: { left: 110, right: 20, top: 12, bottom: 20 },
+        xAxis: { type: 'value', axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+        yAxis: { type: 'category', data: items.map(i => i.type).reverse(), axisLabel: { color: '#cbd5e1' }, axisTick: { show: false }, axisLine: { show: false } },
+        series: [{ type: 'bar', data: items.map(i => i.count).reverse(), barWidth: 18, itemStyle: { color: '#ef4444', borderRadius: [0,8,8,0] }, label: { show: true, position: 'right', color: '#94a3b8' } }]
+      });
+    }
+
+    function renderTools(items) {
+      charts.tools.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#111827', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#cbd5e1' } },
+        legend: { data: ['已拦截', '已放行'], textStyle: { color: '#94a3b8' } },
+        grid: { left: 60, right: 10, top: 26, bottom: 20 },
+        xAxis: { type: 'value', axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+        yAxis: { type: 'category', data: items.map(i => i.tool), axisLabel: { color: '#cbd5e1' }, axisTick: { show: false }, axisLine: { show: false } },
+        series: [
+          { name: '已拦截', type: 'bar', stack: 'tool', data: items.map(i => i.blocked), itemStyle: { color: '#ef4444' } },
+          { name: '已放行', type: 'bar', stack: 'tool', data: items.map(i => i.passed), itemStyle: { color: '#10b981' } }
+        ]
+      });
+    }
+
+    function renderSeverity(items) {
+      charts.severity.setOption({
+        tooltip: { trigger: 'item', backgroundColor: '#111827', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#cbd5e1' } },
+        legend: { bottom: 0, textStyle: { color: '#94a3b8' } },
+        series: [{
+          type: 'pie',
+          radius: ['45%', '75%'],
+          center: ['50%', '45%'],
+          label: { color: '#cbd5e1' },
+          data: items.map(i => ({ name: i.level, value: i.count, itemStyle: { color: ({ low:'#10b981', medium:'#3b82f6', high:'#f59e0b', critical:'#ef4444' })[i.level] || '#94a3b8' } }))
+        }]
+      });
+    }
+
+    function renderRecommendations(items, generatedAt) {
+      setText('generatedAt', generatedAt ? generatedAt.replace('T', ' ').slice(0, 19) : '--');
+      document.getElementById('recommendations').innerHTML = (items.length ? items : ['暂无建议']).map(text => `
+        <div class="rounded-2xl border border-white/8 bg-white/[0.02] p-4 text-sm text-slate-300 leading-6">
+          <div class="text-xs font-mono text-accent mb-2">RECOMMENDATION</div>
+          <div>${text}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderLive(events) {
+      setText('liveCount', `${events.length} 条`);
+      const feed = document.getElementById('liveFeed');
+      if (!events.length) {
+        feed.innerHTML = '<div class="h-full flex items-center justify-center text-slate-500 text-sm font-mono">NO LIVE EVENTS</div>';
+        return;
+      }
+      feed.innerHTML = events.map((ev, index) => {
+        const level = (ev.threat_level || 'low').toLowerCase();
+        const badge = level === 'critical' || level === 'high' ? 'text-danger bg-danger/10 border-danger/20' : level === 'medium' ? 'text-warning bg-warning/10 border-warning/20' : 'text-safe bg-safe/10 border-safe/20';
+        const detail = ev.detail || ev.type || '未知事件';
+        return `
+          <div class="ticker-item rounded-2xl border border-white/8 bg-white/[0.02] p-3" style="animation-delay:${index * 40}ms">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="text-sm font-medium text-white">${detail}</div>
+                <div class="mt-1 text-xs text-slate-400 font-mono">${ev.time || '--'} · ${ev.source_ip || 'unknown'} · ${ev.tool_name || ev.action || '-'}</div>
+                <div class="mt-1 text-xs text-slate-500 break-all">目标: ${ev.target || '-'} ${ev.rule_id ? `· 规则: ${ev.rule_id}` : ''}</div>
+              </div>
+              <div class="shrink-0 flex flex-col items-end gap-2">
+                <span class="px-2 py-1 rounded-full border text-[11px] font-mono ${badge}">${level.toUpperCase()}</span>
+                <span class="text-xs font-mono text-slate-500">${ev.confidence || 0}%</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadDashboard() {
+      try {
+        const [overviewRes, liveRes] = await Promise.all([
+          fetch(`${API}/dashboard/overview`),
+          fetch(`${API}/dashboard/live?limit=25`)
+        ]);
+        const overviewRaw = await overviewRes.json();
+        const liveRaw = await liveRes.json();
+        const overview = overviewRaw.data || {};
+        const live = (liveRaw.data || {}).events || [];
+
+        renderKpis(overview.kpis || {});
+        renderMap(globeRotationIndex);
+        renderGauge((overview.kpis || {}).threat_score || 0);
+        renderTrend(overview.trend_7d || [], overview.trend_60m || []);
+        renderConfidence(overview.confidence_distribution || []);
+        renderTypes(overview.top_threats || []);
+        renderTools(overview.top_tools || []);
+        renderSeverity(overview.severity_distribution || []);
+        renderRecommendations(overview.recommendations || [], overview.generated_at);
+        renderLive(live);
+      } catch (error) {
+        console.warn('dashboard load failed', error);
+      }
+    }
+
+    function connectSSE() {
+      const source = new EventSource(`${API}/events/stream`);
+      source.addEventListener('message', event => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'alert' || payload.type === 'tool_executed' || payload.type === 'detection') {
+            loadDashboard();
+          }
+        } catch (_) {}
+      });
+      source.addEventListener('open', () => {
+        document.getElementById('connStatus').className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-safe/10 border border-safe/20 text-safe text-xs font-mono';
+        document.getElementById('connStatus').innerHTML = '<span class="w-2 h-2 rounded-full bg-safe pulse-dot"></span><span>LIVE</span>';
+      });
+      source.addEventListener('error', () => {
+        document.getElementById('connStatus').className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-warning/10 border border-warning/20 text-warning text-xs font-mono';
+        document.getElementById('connStatus').innerHTML = '<span class="w-2 h-2 rounded-full bg-warning pulse-dot"></span><span>RETRY</span>';
+      });
+    }
+
+    initCharts();
+    bindRegionFilters();
+    bindGlobeLockToggle();
+    updateRegionFilterButtons();
+    updateGlobeLockButton();
+    renderMap(globeRotationIndex);
+    startGlobeRotation();
+    loadDashboard();
+    connectSSE();
+    setInterval(loadDashboard, 10000);
+  </script>
 </body>
 </html>

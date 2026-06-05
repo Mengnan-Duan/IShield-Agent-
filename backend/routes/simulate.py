@@ -16,6 +16,34 @@ from tools.tool_runner import run_tool
 simulate_bp = Blueprint("simulate", __name__, url_prefix="/api")
 
 
+def _request_source_ip() -> str:
+    forwarded = request.headers.get("X-Forwarded-For", "").strip()
+    simulated = request.headers.get("X-Demo-Source-IP", "").strip()
+    if simulated:
+        return simulated.split(",")[0].strip()
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return (request.remote_addr or "127.0.0.1").strip()
+
+
+def _build_target(action: str, params: str) -> str:
+    if not params:
+        return ""
+    if action == "send_email":
+        for key in ["to=", '"to":', "'to':"]:
+            if key in params:
+                return params.split(key, 1)[1].split("&", 1)[0].split(",", 1)[0].strip(' "\'')
+    if action in {"read_file", "write_file"}:
+        for key in ["path=", "file=", "filename=", '"path":', '"file":', '"filename":']:
+            if key in params:
+                return params.split(key, 1)[1].split("&", 1)[0].split(",", 1)[0].strip(' "\'')
+    if action == "http_request":
+        for key in ["url=", "endpoint=", '"url":', '"endpoint":']:
+            if key in params:
+                return params.split(key, 1)[1].split("&", 1)[0].split(",", 1)[0].strip(' "\'')
+    return params[:120]
+
+
 @simulate_bp.route("/simulate", methods=["POST"])
 def simulate():
     if not request.is_json:
@@ -31,25 +59,41 @@ def simulate():
     if not action:
         raise ValidationError("action 参数不能为空")
 
-    # ── 第1层：上下文注入检测 ───────────────────────────────
+    source_ip = _request_source_ip()
+    target = _build_target(action, params)
     context = f"执行工具：{action}，参数：{params}"
-    is_malicious, reason, _ = hybrid_detect(context)
+    is_malicious, reason, confidence = hybrid_detect(context)
+    confidence_score = confidence.get("combined", 0) if isinstance(confidence, dict) else 0
+    threat_level = confidence.get("threat_level", "high") if isinstance(confidence, dict) else "high"
 
     if is_malicious:
         add_event(
             event_type="沙箱拦截",
             detail=f"工具={action}, 参数={params[:50]}, 原因={reason}",
             status="已阻断",
+            source_ip=source_ip,
+            action=action,
+            tool_name=action,
+            target=target,
+            category="prompt_injection",
+            threat_level=threat_level,
+            confidence=confidence_score,
+            metadata={"stage": "detection", "reason": reason, "params": params[:200]},
         )
-        broadcast_alert("沙箱拦截", f"工具={action}", "已阻断", "high", 80)
+        broadcast_alert(
+            "沙箱拦截", f"工具={action}", "已阻断", threat_level, confidence_score,
+            source_ip=source_ip, action=action, tool_name=action, target=target,
+            category="prompt_injection", metadata={"reason": reason},
+        )
         return make_response({
-            "result":  "blocked",
-            "reason":  f"检测到注入攻击：{reason}",
+            "result": "blocked",
+            "reason": f"检测到注入攻击：{reason}",
             "context": "sandbox",
-            "action":  action,
+            "action": action,
+            "source_ip": source_ip,
+            "target": target,
         })
 
-    # ── 第2层：可配置策略引擎评估 ──────────────────────────
     engine = get_policy_engine()
     policy_result = engine.evaluate(action, params)
 
@@ -58,15 +102,31 @@ def simulate():
             event_type="策略拦截",
             detail=f"工具={action}, 参数={params[:50]}, 策略={policy_result.triggered_rule}",
             status="已阻断",
+            source_ip=source_ip,
+            action=action,
+            tool_name=action,
+            target=target,
+            rule_id=policy_result.triggered_rule,
+            category="policy_violation",
+            threat_level="high",
+            confidence=policy_result.severity,
+            metadata={"stage": "policy", "message": policy_result.message},
         )
-        broadcast_alert("策略拦截", f"工具={action}", "已阻断", "high", policy_result.severity)
+        broadcast_alert(
+            "策略拦截", f"工具={action}", "已阻断", "high", policy_result.severity,
+            source_ip=source_ip, action=action, tool_name=action, target=target,
+            rule_id=policy_result.triggered_rule, category="policy_violation",
+            metadata={"message": policy_result.message},
+        )
         return make_response({
-            "result":         "blocked",
-            "reason":         policy_result.message,
-            "context":        "policy",
+            "result": "blocked",
+            "reason": policy_result.message,
+            "context": "policy",
             "triggered_rule": policy_result.triggered_rule,
-            "severity":       policy_result.severity,
-            "action":         action,
+            "severity": policy_result.severity,
+            "action": action,
+            "source_ip": source_ip,
+            "target": target,
         })
 
     if policy_result.action == Action.CONFIRM:
@@ -74,49 +134,55 @@ def simulate():
             event_type="策略确认",
             detail=f"工具={action}, 参数={params[:50]}, 策略={policy_result.triggered_rule}",
             status="需确认",
+            source_ip=source_ip,
+            action=action,
+            tool_name=action,
+            target=target,
+            rule_id=policy_result.triggered_rule,
+            category="policy_confirmation",
+            threat_level="medium",
+            confidence=policy_result.severity,
+            metadata={"stage": "policy", "message": policy_result.message},
         )
         return make_response({
-            "result":         "confirm",
-            "reason":         policy_result.message,
-            "context":        "policy",
+            "result": "confirm",
+            "reason": policy_result.message,
+            "context": "policy",
             "triggered_rule": policy_result.triggered_rule,
-            "severity":       policy_result.severity,
-            "action":         action,
+            "severity": policy_result.severity,
+            "action": action,
+            "source_ip": source_ip,
+            "target": target,
         })
 
-    # Action.ALLOW — 真实执行工具（沙箱内）
-    tool_result = run_tool(action, params)
+    tool_result = run_tool(action, params, source_ip=source_ip, action=action)
     tool_status = tool_result.get("status", "unknown")
 
-    if tool_status == "executed":
-        add_event(
-            event_type="沙箱放行",
-            detail=f"工具={action}, 参数={params[:50]}, 执行成功",
-            status="已放行",
-        )
+    if tool_status in {"executed", "mock"}:
         return make_response({
-            "result":  "allowed",
-            "message": f"工具 {action} 执行成功（{tool_result.get('_meta',{}).get('tool','')}沙箱）",
+            "result": "allowed",
+            "message": tool_result.get("summary", f"工具 {action} 执行成功"),
             "tool_result": tool_result,
-            "action":  action,
-            "sandbox_mode": "real" if tool_result.get("_meta",{}).get("status") == "executed" else "mock",
+            "action": action,
+            "source_ip": source_ip,
+            "target": target,
+            "sandbox_mode": tool_result.get("mode", "mock"),
         })
-    elif tool_status == "timeout":
+    if tool_status == "timeout":
         return make_response({
             "result": "timeout",
             "reason": f"工具 {action} 执行超时",
             "tool_result": tool_result,
             "action": action,
+            "source_ip": source_ip,
+            "target": target,
         })
-    else:
-        add_event(
-            event_type="工具错误",
-            detail=f"工具={action}, 错误={tool_status}",
-            status="已出错",
-        )
-        return make_response({
-            "result":  "error",
-            "reason":  f"工具执行失败: {tool_status}",
-            "tool_result": tool_result,
-            "action":  action,
-        })
+
+    return make_response({
+        "result": "error",
+        "reason": f"工具执行失败: {tool_result.get('summary', tool_status)}",
+        "tool_result": tool_result,
+        "action": action,
+        "source_ip": source_ip,
+        "target": target,
+    })

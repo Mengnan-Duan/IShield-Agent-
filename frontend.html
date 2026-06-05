@@ -296,7 +296,12 @@
         </div>
 
         <!-- Right: Status + Clock + Shortcuts -->
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
+          <a href="/dashboard" class="hidden md:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-accent/12 border border-accent/25 text-accent-light text-sm font-semibold hover:bg-accent/18 hover:border-accent/40 transition-all duration-200 shadow-[0_0_0_rgba(59,130,246,0)] hover:shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M3 13h8V3H3zm10 8h8v-6h-8zm0-10h8V3h-8zM3 21h8v-6H3z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            进入分析看板
+          </a>
+
           <!-- API Status -->
           <div id="apiStatusBadge" class="hidden sm:flex items-center gap-1.5 text-xs font-mono">
             <div class="w-1.5 h-1.5 rounded-full bg-slate-600 transition-colors duration-500"></div>
@@ -334,7 +339,7 @@
         </button>
         <button class="tab-btn px-5 py-3.5 text-sm font-medium flex items-center gap-2 text-slate-400" data-tab="dashboard" onclick="showTab('dashboard')">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round"/></svg>
-          事件日志
+          事件中心
         </button>
         <button class="tab-btn px-5 py-3.5 text-sm font-medium flex items-center gap-2 text-slate-400" data-tab="redteam" onclick="showTab('redteam')">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" stroke-linecap="round"/></svg>
@@ -355,6 +360,43 @@
 
     <!-- ══ TAB: DETECT ══ -->
     <div id="detect" class="tab-content">
+
+      <div class="mb-6 grid grid-cols-1 xl:grid-cols-[1.4fr_0.8fr] gap-4">
+        <div class="bg-gradient-to-r from-accent-dim via-base-900/90 to-base-900/90 border border-accent/20 rounded-2xl p-5 shadow-card">
+          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-accent/10 border border-accent/20 text-[11px] font-mono text-accent-light mb-3">
+                <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+                VISUAL INSIGHTS
+              </div>
+              <h2 class="text-xl font-semibold text-white">当前页为功能控制台，分析看板可单独查看</h2>
+              <p class="mt-2 text-sm text-slate-400 leading-6 max-w-3xl">
+                这里适合进行检测、模拟和红队操作；如果你希望从全局视角查看实时热力图、攻击滚动流和趋势图表，可以进入独立的分析看板。
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <a href="/dashboard" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-accent text-white text-sm font-semibold shadow-glow hover:bg-accent-light transition-all duration-200 btn-scale">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M3 13h8V3H3zm10 8h8v-6h-8zm0-10h8V3h-8zM3 21h8v-6H3z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                打开分析看板
+              </a>
+              <button onclick="showTab('dashboard')" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-white/10 text-slate-300 text-sm font-medium hover:border-accent/30 hover:text-accent-light hover:bg-accent-dim transition-all duration-200 btn-scale">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                查看事件中心
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-2xl p-5 shadow-card">
+          <div class="text-sm font-semibold text-white mb-3">功能概览</div>
+          <div class="space-y-2.5 text-sm text-slate-400">
+            <div class="flex items-start gap-2"><span class="mt-1 w-1.5 h-1.5 rounded-full bg-accent"></span><span>独立分析看板入口</span></div>
+            <div class="flex items-start gap-2"><span class="mt-1 w-1.5 h-1.5 rounded-full bg-danger"></span><span>实时攻击拦截滚动列表</span></div>
+            <div class="flex items-start gap-2"><span class="mt-1 w-1.5 h-1.5 rounded-full bg-warning"></span><span>威胁趋势、等级与置信度图表</span></div>
+            <div class="flex items-start gap-2"><span class="mt-1 w-1.5 h-1.5 rounded-full bg-safe"></span><span>控制台与分析看板双视图</span></div>
+          </div>
+        </div>
+      </div>
 
       <!-- Stats bar -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -595,7 +637,7 @@
         <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
           <div class="text-sm font-medium text-white flex items-center gap-2">
             <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="1.5" stroke-linecap="round"/></svg>
-            事件日志
+            事件中心
           </div>
           <div class="flex items-center gap-3">
             <button onclick="exportEvents()" class="text-xs font-mono text-slate-500 hover:text-accent transition-colors">导出 CSV</button>

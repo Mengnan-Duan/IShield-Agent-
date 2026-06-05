@@ -1,19 +1,35 @@
-"""邮件沙箱 — Mock + 真实SMTP双模式"""
-import smtplib, json, os, sys
+"""邮件沙箱 — 测试邮箱白名单下的真实安全发送"""
+import smtplib, os, sys, time
+from collections import deque
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.header import Header
+from threading import Lock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import SANDBOX_MODE, EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASSWORD, EMAIL_FROM, EMAIL_USE_TLS
+from config import (
+    SANDBOX_MODE,
+    EMAIL_HOST,
+    EMAIL_PORT,
+    EMAIL_USER,
+    EMAIL_PASSWORD,
+    EMAIL_FROM,
+    EMAIL_USE_TLS,
+    EMAIL_ALLOWED_RECIPIENTS,
+    EMAIL_ALLOWED_DOMAINS,
+    EMAIL_MAX_PER_MINUTE,
+    EMAIL_MAX_BODY_LENGTH,
+)
 
 
 class EmailSandbox:
-    """邮件发送沙箱，支持Mock模式和真实SMTP模式"""
+    """邮件发送沙箱，默认仅允许测试邮箱白名单。"""
 
     def __init__(self):
         self.mode = SANDBOX_MODE
         self.log = []
+        self._sent_window = deque()
+        self._lock = Lock()
 
     def _log(self, event: str, **kwargs):
         entry = {"event": event, "mode": self.mode, **kwargs}
@@ -21,41 +37,58 @@ class EmailSandbox:
         print(f"[EmailSandbox:{self.mode}] {event}", kwargs)
 
     def send(self, to: str, subject: str = "", body: str = "",
-             cc: str = None, bcc: str = None) -> dict:
-        """
-        发送邮件。
-
-        Mock模式：记录日志，返回模拟响应，不真实发送。
-        Real模式：真实通过SMTP发送（需正确配置 config.py）。
-
-        参数:
-            to:      收件人（支持逗号分隔多地址）
-            subject: 邮件主题
-            body:    邮件正文
-            cc:      抄送（可选）
-            bcc:     密送（可选）
-
-        返回:
-            {"status": "sent"|"mock_sent"|"error", "to": str, "message_id": str}
-        """
+             cc: str = None, bcc: str = None, source_ip: str = None) -> dict:
         if not to or not to.strip():
-            return {"status": "error", "message": "收件人地址不能为空"}
+            return self._result("error", to=to, summary="收件人地址不能为空", reason="missing_recipient")
 
-        to = to.strip()
-        self._log("send_attempt", to=to, subject=subject)
+        recipients = self._parse_recipients(to, cc, bcc)
+        if not recipients:
+            return self._result("error", to=to, summary="未解析到有效收件人", reason="invalid_recipient")
 
-        if self.mode == "mock":
-            self._log("mock_sent", to=to, subject=subject)
-            return {
-                "status": "mock_sent",
-                "to": to,
-                "subject": subject,
-                "message_id": f"<mock-{hash(to)}@ishield.local>",
-                "mode": "mock",
-                "note": "Mock模式：邮件未真实发送，仅作记录"
-            }
+        if len((body or "").encode("utf-8")) > EMAIL_MAX_BODY_LENGTH:
+            return self._result("blocked", to=to, summary="邮件正文超过长度限制", reason="body_too_large", severity=80)
 
-        # Real模式
+        blocked = self._check_recipient_policy(recipients)
+        if blocked:
+            return self._result(
+                "blocked",
+                to=to,
+                summary="收件人不在测试邮箱白名单内，已阻断",
+                reason=blocked,
+                severity=90,
+                data={"recipients": recipients, "source_ip": source_ip},
+            )
+
+        if self._rate_limited():
+            return self._result(
+                "blocked",
+                to=to,
+                summary="邮件发送频率超限，已阻断",
+                reason="rate_limited",
+                severity=85,
+                data={"limit_per_minute": EMAIL_MAX_PER_MINUTE},
+            )
+
+        if self.mode != "real":
+            return self._result(
+                "mock",
+                to=to,
+                summary="当前为 mock 模式，邮件未真实发送",
+                reason="mock_mode",
+                data={"recipients": recipients, "subject": subject},
+                mode="mock",
+            )
+
+        if not self._smtp_configured():
+            return self._result(
+                "blocked",
+                to=to,
+                summary="SMTP 配置缺失，已阻止真实发送",
+                reason="smtp_not_configured",
+                severity=75,
+            )
+
+        self._log("send_attempt", to=to, subject=subject, source_ip=source_ip)
         try:
             msg = MIMEMultipart("alternative")
             msg["Subject"] = Header(subject, "utf-8") if subject else "(无主题)"
@@ -63,10 +96,6 @@ class EmailSandbox:
             msg["To"] = to
             if cc:
                 msg["Cc"] = cc
-            recipients = [r.strip() for r in to.replace(",", ";").split(";") if r.strip()]
-            if cc:
-                recipients += [r.strip() for r in cc.replace(",", ";").split(";") if r.strip()]
-
             part = MIMEText(body or "(无正文)", "plain", "utf-8")
             msg.attach(part)
 
@@ -77,35 +106,80 @@ class EmailSandbox:
                     server.login(EMAIL_USER, EMAIL_PASSWORD)
                 server.sendmail(EMAIL_FROM, recipients, msg.as_string())
 
+            self._mark_sent()
             self._log("real_sent", to=to, subject=subject)
-            return {
-                "status": "sent",
-                "to": to,
-                "subject": subject,
-                "message_id": f"<real-{hash(to + str(hash(body)))}@{EMAIL_HOST}>",
-                "mode": "real",
-                "sent_at": self._now(),
-            }
-        except smtplib.SMTPConnectError as e:
-            self._log("smtp_connect_error", to=to, error=str(e))
-            return {"status": "error", "message": f"SMTP连接失败: {e}", "mode": "real"}
+            return self._result(
+                "executed",
+                to=to,
+                summary="测试邮箱白名单校验通过，邮件已真实发送",
+                data={
+                    "to": to,
+                    "subject": subject,
+                    "message_id": f"<real-{hash(to + str(hash(body)))}@{EMAIL_HOST}>",
+                    "sent_at": self._now(),
+                    "recipients": recipients,
+                },
+                severity=20,
+            )
         except smtplib.SMTPAuthenticationError:
-            self._log("smtp_auth_error", to=to)
-            return {"status": "error", "message": "SMTP认证失败，请检查 EMAIL_USER/EMAIL_PASSWORD 配置", "mode": "real"}
+            return self._result("error", to=to, summary="SMTP认证失败", reason="smtp_auth_error", severity=65)
+        except smtplib.SMTPConnectError as e:
+            return self._result("error", to=to, summary=f"SMTP连接失败: {e}", reason="smtp_connect_error", severity=60)
         except Exception as e:
-            self._log("send_error", to=to, error=str(e))
-            return {"status": "error", "message": f"发送失败: {e}", "mode": "real"}
+            return self._result("error", to=to, summary=f"发送失败: {e}", reason="send_error", severity=60)
 
-    def send_phishing_test(self, to: str, test_body: str = "") -> dict:
-        """发送钓鱼测试邮件（演示用）"""
-        phishing_subject = "=?utf-8?b?5aSn5rC4556h6LSn5L+h5oCN6LSn5L+h6LSn6KGM5bCK6bKq?= [IT Security Test]"
-        phishing_body = test_body or (
-            "【安全测试邮件】\n\n"
-            "这是一封由IShield安全系统发送的钓鱼邮件测试。\n"
-            "如果您收到此邮件，说明IShield的邮件沙箱检测功能正常工作。\n"
-            "如有任何疑问请联系安全团队。"
-        )
-        return self.send(to, phishing_subject, phishing_body)
+    def _parse_recipients(self, to: str, cc: str = None, bcc: str = None):
+        all_values = [to or "", cc or "", bcc or ""]
+        recipients = []
+        for raw in all_values:
+            for item in raw.replace(",", ";").split(";"):
+                addr = item.strip().lower()
+                if addr:
+                    recipients.append(addr)
+        return recipients
+
+    def _check_recipient_policy(self, recipients):
+        allowed_recipients = {r.lower() for r in EMAIL_ALLOWED_RECIPIENTS}
+        allowed_domains = {d.lower() for d in EMAIL_ALLOWED_DOMAINS}
+        for addr in recipients:
+            if addr in allowed_recipients:
+                continue
+            domain = addr.split("@")[-1] if "@" in addr else ""
+            if domain and domain in allowed_domains:
+                continue
+            return f"recipient_not_allowed:{addr}"
+        return None
+
+    def _smtp_configured(self) -> bool:
+        placeholders = {"smtp.example.com", "your@email.com", "your_password", "ishield@yourdomain.com"}
+        return all([EMAIL_HOST, EMAIL_FROM]) and EMAIL_HOST not in placeholders and EMAIL_FROM not in placeholders
+
+    def _rate_limited(self) -> bool:
+        now = time.time()
+        with self._lock:
+            while self._sent_window and now - self._sent_window[0] > 60:
+                self._sent_window.popleft()
+            return len(self._sent_window) >= EMAIL_MAX_PER_MINUTE
+
+    def _mark_sent(self):
+        with self._lock:
+            self._sent_window.append(time.time())
+
+    def _result(self, status: str, to: str = "", summary: str = "", reason: str = None,
+                data: dict = None, severity: int = 50, mode: str = None) -> dict:
+        return {
+            "status": status,
+            "tool": "send_email",
+            "mode": mode or ("real" if self.mode == "real" else "mock"),
+            "summary": summary,
+            "audit": {
+                "target": to,
+                "reason": reason,
+                "severity": severity,
+                "threat_level": "high" if status == "blocked" else "low",
+            },
+            "data": data or {"to": to},
+        }
 
     def get_log(self) -> list:
         return list(self.log)
@@ -115,8 +189,8 @@ class EmailSandbox:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-# ── 全局单例 ────────────────────────────────────────────────────────────────
 _sandbox = None
+
 
 def get_sandbox() -> EmailSandbox:
     global _sandbox
