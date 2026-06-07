@@ -49,13 +49,13 @@ def setup_error_handlers(app):
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(e: HTTPException):
-        code_map = {
+        error_tuple = {
             404: Err.NOT_FOUND,
             405: Err.BAD_REQUEST,
-        }
-        code, status = code_map.get(e.code, (Err.BAD_REQUEST, e.code))
+            429: Err.RATE_LIMITED,
+        }.get(e.code, Err.INTERNAL_ERR if (e.code or 500) >= 500 else Err.BAD_REQUEST)
         return make_error(
-            code,
+            error_tuple,
             e.description or f"HTTP {e.code}",
             request_id=getattr(g, "request_id", ""),
         )

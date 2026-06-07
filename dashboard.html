@@ -74,7 +74,16 @@
       <div class="flex items-center gap-4">
         <div id="connStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-safe/10 border border-safe/20 text-safe text-xs font-mono">
           <span class="w-2 h-2 rounded-full bg-safe pulse-dot"></span>
-          <span>LIVE</span>
+          <span id="connStatusText">LIVE</span>
+        </div>
+        <!-- Server Control (Phase 4) -->
+        <div id="dashboardServerStatus" class="flex items-center gap-1.5">
+          <div id="dashServerDot" class="w-2 h-2 rounded-full bg-slate-500 transition-colors duration-500"></div>
+          <span id="dashServerText" class="text-xs font-mono text-slate-500">检测中</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button id="dashBtnStart" onclick="dashServerStart()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-safe/10 border border-safe/30 text-safe hover:bg-safe/20 transition whitespace-nowrap" style="display:none">启动服务</button>
+          <button id="dashBtnRestart" onclick="dashServerRestart()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-warning/10 border border-warning/30 text-warning hover:bg-warning/20 transition whitespace-nowrap" style="display:none">重启</button>
         </div>
         <div id="clock" class="font-mono text-sm text-slate-400"></div>
         <a href="frontend.html" class="px-3 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-medium hover:bg-accent/20 transition">控制台</a>
@@ -237,6 +246,53 @@
       <div class="card p-4"><div class="text-white font-semibold mb-3">威胁等级占比</div><div id="severityChart" style="height: 300px;"></div></div>
     </section>
 
+    <!-- Phase 4: 行为安全 & UEBA -->
+    <section class="card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="text-white font-semibold text-lg">行为安全监控</div>
+          <div class="text-xs text-slate-400 mt-1">UEBA · 供应链审计 · 异常关联</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-safe/10 border border-safe/20 text-safe">UEBA 活跃</span>
+          <button onclick="loadBehaviorSecurity()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-base-800 border border-white/10 text-slate-400 hover:text-white transition">刷新</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+        <div class="bg-base-900/60 border border-white/6 rounded-xl p-4">
+          <div class="text-2xl font-bold font-mono text-accent" id="dashUebaIps">-</div>
+          <div class="text-xs text-slate-500 mt-1">跟踪中的 IP</div>
+        </div>
+        <div class="bg-base-900/60 border border-white/6 rounded-xl p-4">
+          <div class="text-2xl font-bold font-mono text-warning" id="dashSuspiciousDomains">-</div>
+          <div class="text-xs text-slate-500 mt-1">可疑域名</div>
+        </div>
+        <div class="bg-base-900/60 border border-white/6 rounded-xl p-4">
+          <div class="text-2xl font-bold font-mono text-danger" id="dashCrossIpAlerts">-</div>
+          <div class="text-xs text-slate-500 mt-1">跨 IP 告警</div>
+        </div>
+        <div class="bg-base-900/60 border border-white/6 rounded-xl p-4">
+          <div class="text-2xl font-bold font-mono text-safe" id="dashSupplyChainSafe">-</div>
+          <div class="text-xs text-slate-500 mt-1">安全域名</div>
+        </div>
+      </div>
+      <!-- Charts row -->
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div class="bg-base-900/40 border border-white/6 rounded-xl p-4">
+          <div class="text-white font-medium mb-3 text-sm">Top 异常 IP（UEBA）</div>
+          <div id="uebaIpsTable" class="space-y-2 max-h-[220px] overflow-y-auto"></div>
+        </div>
+        <div class="bg-base-900/40 border border-white/6 rounded-xl p-4">
+          <div class="text-white font-medium mb-3 text-sm">可疑供应链域名</div>
+          <div id="supplyChainTable" class="space-y-2 max-h-[220px] overflow-y-auto"></div>
+        </div>
+        <div class="bg-base-900/40 border border-white/6 rounded-xl p-4">
+          <div class="text-white font-medium mb-3 text-sm">Token 异常使用</div>
+          <div id="tokenAnomalyTable" class="space-y-2 max-h-[220px] overflow-y-auto"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="card p-4">
       <div class="flex items-center justify-between mb-3">
         <div><div class="text-white font-semibold">安全建议</div><div class="text-xs text-slate-300/75 tracking-[0.08em]">用于现场答辩的辅助说明</div></div>
@@ -247,7 +303,7 @@
   </main>
 
   <script>
-    const API = 'http://localhost:5000/api';
+    const API = window.location.origin + '/api';
     const charts = {};
     const DEMO_GLOBE_TARGET = { name: 'IShield SOC 杭州', short: 'SOC-CORE-01', lat: 30.2741, lng: 120.1551 };
     const DEMO_ATTACK_SOURCES = [
@@ -822,7 +878,156 @@
     startGlobeRotation();
     loadDashboard();
     connectSSE();
+    loadBehaviorSecurity();
     setInterval(loadDashboard, 10000);
+  </script>
+
+  <!-- Phase 4: Behavior Security & UEBA -->
+  <script>
+  function _esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function loadBehaviorSecurity() {
+    var prom1 = fetch(API + '/ueba/summary')
+      .then(function(r) { return r.json(); })
+      .then(function(resp) {
+        var d = resp.data || resp;
+        var ips = d.total_tracked_ips || 0;
+        document.getElementById('dashUebaIps').textContent = ips || '0';
+        renderUebaIps(d.top_ips || []);
+      }).catch(function() {
+        document.getElementById('dashUebaIps').textContent = '0';
+      });
+
+    var prom2 = fetch(API + '/supply/summary')
+      .then(function(r) { return r.json(); })
+      .then(function(resp) {
+        var d = resp.data || resp;
+        document.getElementById('dashSuspiciousDomains').textContent = d.suspicious_domains || 0;
+        var safe = (d.total_domains_accessed || 0) - (d.suspicious_domains || 0);
+        document.getElementById('dashSupplyChainSafe').textContent = safe;
+        renderSupplyChain(d.top_domains || []);
+      }).catch(function() {
+        document.getElementById('dashSuspiciousDomains').textContent = '0';
+        document.getElementById('dashSupplyChainSafe').textContent = '0';
+      });
+
+    Promise.all([prom1, prom2]).catch(function() {});
+  }
+
+  function renderUebaIps(ips) {
+    var el = document.getElementById('uebaIpsTable');
+    if (!el) return;
+    if (!ips.length) {
+      el.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">暂无数据</div>';
+      return;
+    }
+    el.innerHTML = ips.slice(0, 10).map(function(ip) {
+      var scoreColor = ip.avg_rate > 10 ? 'text-danger' : ip.avg_rate > 5 ? 'text-warning' : 'text-slate-400';
+      return '<div class="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">' +
+        '<span class="text-xs font-mono text-white">' + _esc(ip.ip || 'unknown') + '</span>' +
+        '<span class="text-xs font-mono ' + scoreColor + '">' + ip.requests + ' req · ' + ip.avg_rate + '/min</span></div>';
+    }).join('');
+  }
+
+  function renderSupplyChain(domains) {
+    var el = document.getElementById('supplyChainTable');
+    if (!el) return;
+    if (!domains.length) {
+      el.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">暂无数据</div>';
+      return;
+    }
+    el.innerHTML = domains.slice(0, 10).map(function(d) {
+      var badge = d.suspicious
+        ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-danger/20 text-danger">可疑</span>'
+        : '<span class="px-1.5 py-0.5 rounded text-[10px] bg-safe/20 text-safe">安全</span>';
+      var risk = d.risk_score > 0 ? '<span class="text-[10px] text-danger ml-1">⚠' + d.risk_score + '</span>' : '';
+      return '<div class="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">' +
+        '<span class="text-xs font-mono text-white max-w-[120px] truncate">' + _esc(d.domain || '-') + '</span>' +
+        '<span class="flex items-center gap-1">' + badge + risk + '</span></div>';
+    }).join('');
+  }
+
+  function renderTokenAnomalies(anomalies) {
+    var el = document.getElementById('tokenAnomalyTable');
+    if (!el) return;
+    if (!anomalies || !anomalies.length) {
+      el.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">暂无异常</div>';
+      return;
+    }
+    el.innerHTML = anomalies.slice(0, 10).map(function(a) {
+      return '<div class="py-1.5 border-b border-white/5 last:border-0">' +
+        '<div class="text-xs font-mono text-warning truncate">' + _esc(a.token || a.name || '-') + '</div>' +
+        '<div class="text-[11px] text-slate-500 mt-0.5">' + _esc(a.type || '') + ' · ' + _esc(a.detail || '') + '</div></div>';
+    }).join('');
+  }
+  </script>
+
+  <!-- Phase 4: Server Manager JS -->
+  <script>
+  var DASH_MANAGER_API = 'http://127.0.0.1:5001';
+
+  function getDashServerStatus() {
+    return fetch(API + '/__internal__/status', { method: 'GET', cache: 'no-cache' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data && data.running) return data;
+        return { running: false };
+      })
+      .catch(function() { return { running: false }; });
+  }
+
+  function initDashboardServerStatus() {
+    getDashServerStatus().then(function(status) {
+      updateDashServerUI(status);
+      if (status.running) {
+        document.getElementById('connStatusText').textContent = 'LIVE';
+      } else {
+        document.getElementById('connStatusText').textContent = 'OFFLINE';
+      }
+    });
+  }
+
+  function updateDashServerUI(status) {
+    var running = status && status.running;
+    var dot = document.getElementById('dashServerDot');
+    var text = document.getElementById('dashServerText');
+    var btnStart = document.getElementById('dashBtnStart');
+    var btnRestart = document.getElementById('dashBtnRestart');
+
+    if (running) {
+      dot.style.background = '#10b981';
+      dot.style.boxShadow = '0 0 6px #10b981';
+      text.textContent = '后端在线';
+      text.style.color = '#10b981';
+      btnStart.style.display = 'none';
+      btnRestart.style.display = '';
+    } else {
+      dot.style.background = '#ef4444';
+      dot.style.boxShadow = '0 0 6px #ef4444';
+      text.textContent = '后端离线';
+      text.style.color = '#ef4444';
+      btnStart.style.display = '';
+      btnRestart.style.display = 'none';
+    }
+  }
+
+  function dashServerStart() {
+    toast('后端应在主控台（frontend.html）中启动', 'info');
+  }
+
+  function dashServerRestart() {
+    fetch(API + '/__internal__/stop', { method: 'POST', cache: 'no-cache' })
+      .then(function() {
+        toast('后端已停止，请双击"启动 Phase4.bat"重启', 'info');
+        updateDashServerUI({ running: false });
+      })
+      .catch(function() {
+        toast('操作失败', 'error');
+      });
+  }
   </script>
 </body>
 </html>

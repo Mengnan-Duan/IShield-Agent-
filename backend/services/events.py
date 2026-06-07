@@ -1,4 +1,4 @@
-"""事件存储服务 — SQLite + 内存缓存双写，检测缓存，DB 索引"""
+"""事件存储服务 — SQLite + 内存缓存双写，检测缓存，DB 索引，攻击链审计"""
 import sqlite3
 import os
 import json
@@ -59,6 +59,8 @@ def init_db():
                 rule_id TEXT,
                 category TEXT,
                 metadata_json TEXT,
+                chain_id TEXT,
+                stage TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -95,6 +97,8 @@ def init_db():
             "rule_id": "ALTER TABLE events ADD COLUMN rule_id TEXT",
             "category": "ALTER TABLE events ADD COLUMN category TEXT",
             "metadata_json": "ALTER TABLE events ADD COLUMN metadata_json TEXT",
+            "chain_id": "ALTER TABLE events ADD COLUMN chain_id TEXT",
+            "stage": "ALTER TABLE events ADD COLUMN stage TEXT",
         }
         for column_name, sql in column_migrations.items():
             if column_name not in existing_columns:
@@ -108,6 +112,8 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_events_source_ip ON events(source_ip)",
             "CREATE INDEX IF NOT EXISTS idx_events_tool_name ON events(tool_name)",
             "CREATE INDEX IF NOT EXISTS idx_events_category ON events(category)",
+            "CREATE INDEX IF NOT EXISTS idx_events_chain_id ON events(chain_id)",
+            "CREATE INDEX IF NOT EXISTS idx_events_stage ON events(stage)",
             "CREATE INDEX IF NOT EXISTS idx_cache_hash ON detect_cache(text_hash)",
             "CREATE INDEX IF NOT EXISTS idx_cache_expires ON detect_cache(expires_at)",
         ]:
@@ -123,39 +129,45 @@ def add_event(event_type: str, detail: str, status: str,
               confidence: int = None, source_ip: str = None,
               action: str = None, tool_name: str = None,
               target: str = None, rule_id: str = None,
-              category: str = None, metadata: Dict[str, Any] = None):
+              category: str = None, metadata: Dict[str, Any] = None,
+              chain_id: str = None, stage: str = None):
     """添加事件记录，同时更新 DB 和内存缓存失效标记。"""
     time_str = _local_now().strftime("%Y-%m-%d %H:%M:%S")
     with _db_lock:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute(
-            "INSERT INTO events (time, type, detail, status, text_hash, threat_level, confidence, source_ip, action, tool_name, target, rule_id, category, metadata_json) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO events (time, type, detail, status, text_hash, threat_level, confidence, source_ip, action, tool_name, target, rule_id, category, metadata_json, chain_id, stage) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 time_str, event_type, detail, status, text_hash, threat_level, confidence,
-                source_ip, action, tool_name, target, rule_id, category, _json_dumps(metadata)
+                source_ip, action, tool_name, target, rule_id, category, _json_dumps(metadata),
+                chain_id, stage
             )
         )
+        event_id = c.lastrowid
         conn.commit()
         conn.close()
     invalidate_events_cache()
+    return event_id
 
 
 def get_events_from_db(limit: int = 200, offset: int = 0,
                         status_filter: str = None,
                         type_filter: str = None,
                         date_from: str = None,
-                        date_to: str = None) -> List[dict]:
+                        date_to: str = None,
+                        chain_id: str = None) -> List[dict]:
     """从数据库查询事件列表，支持筛选。"""
-    if not any([status_filter, type_filter, date_from, date_to]):
+    use_cache = not any([status_filter, type_filter, date_from, date_to, chain_id])
+    if use_cache:
         cached = get_cached_events()
         if cached is not None:
             return cached[offset: offset + limit]
 
     query = (
-        "SELECT time, type, detail, status, threat_level, confidence, source_ip, action, "
-        "tool_name, target, rule_id, category, metadata_json FROM events WHERE 1=1"
+        "SELECT id, time, type, detail, status, threat_level, confidence, source_ip, action, "
+        "tool_name, target, rule_id, category, metadata_json, chain_id, stage FROM events WHERE 1=1"
     )
     params = []
 
@@ -171,6 +183,9 @@ def get_events_from_db(limit: int = 200, offset: int = 0,
     if date_to:
         query += " AND time <= ?"
         params.append(date_to)
+    if chain_id:
+        query += " AND chain_id = ?"
+        params.append(chain_id)
 
     query += " ORDER BY id DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
@@ -189,10 +204,99 @@ def get_events_from_db(limit: int = 200, offset: int = 0,
         item["metadata"] = _json_loads(item.pop("metadata_json", None))
         events.append(item)
 
-    if not any([status_filter, type_filter, date_from, date_to]) and events:
+    if use_cache and events:
         set_cached_events(events, ttl=30)
 
     return events
+
+
+def get_event_detail(event_id: int) -> Optional[dict]:
+    with _db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute(
+            "SELECT id, time, type, detail, status, text_hash, threat_level, confidence, source_ip, action, tool_name, target, rule_id, category, metadata_json, chain_id, stage "
+            "FROM events WHERE id = ?",
+            (event_id,),
+        )
+        row = c.fetchone()
+        conn.close()
+
+    if not row:
+        return None
+
+    event = dict(row)
+    event["metadata"] = _json_loads(event.pop("metadata_json", None))
+    return event
+
+
+def get_chain_events(chain_id: str) -> List[dict]:
+    if not chain_id:
+        return []
+
+    with _db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute(
+            "SELECT id, time, type, detail, status, text_hash, threat_level, confidence, source_ip, action, tool_name, target, rule_id, category, metadata_json, chain_id, stage "
+            "FROM events WHERE chain_id = ? ORDER BY id ASC",
+            (chain_id,),
+        )
+        rows = c.fetchall()
+        conn.close()
+
+    chain_events = []
+    for row in rows:
+        item = dict(row)
+        item["metadata"] = _json_loads(item.pop("metadata_json", None))
+        chain_events.append(item)
+    return chain_events
+
+
+def get_chain_summary(limit: int = 50) -> List[dict]:
+    with _db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT
+                chain_id,
+                MIN(time) AS started_at,
+                MAX(time) AS ended_at,
+                COUNT(*) AS event_count,
+                MAX(COALESCE(confidence, 0)) AS max_confidence,
+                MAX(CASE WHEN status LIKE '%拦截%' OR status LIKE '%阻断%' THEN 1 ELSE 0 END) AS blocked,
+                MAX(CASE WHEN status LIKE '%确认%' THEN 1 ELSE 0 END) AS requires_confirmation,
+                MAX(COALESCE(source_ip, '')) AS source_ip,
+                MAX(COALESCE(action, '')) AS action,
+                MAX(COALESCE(tool_name, '')) AS tool_name,
+                MAX(COALESCE(target, '')) AS target
+            FROM events
+            WHERE chain_id IS NOT NULL AND chain_id != ''
+            GROUP BY chain_id
+            ORDER BY MAX(id) DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        rows = c.fetchall()
+        conn.close()
+
+    summaries = []
+    for row in rows:
+        item = dict(row)
+        item["stages"] = [
+            e.get("stage") or e.get("type")
+            for e in get_chain_events(item["chain_id"])
+        ]
+        item["status"] = "已阻断" if item.get("blocked") else (
+            "需确认" if item.get("requires_confirmation") else "已放行"
+        )
+        summaries.append(item)
+    return summaries
 
 
 def get_stats() -> dict:
@@ -229,6 +333,9 @@ def get_stats() -> dict:
 
         c.execute("SELECT status FROM events ORDER BY id DESC LIMIT 20")
         recent = [r[0] for r in c.fetchall()]
+        c.execute("SELECT COUNT(DISTINCT chain_id) FROM events WHERE chain_id IS NOT NULL AND chain_id != ''")
+        chain_total_row = c.fetchone()
+        chain_total = chain_total_row[0] or 0
         conn.close()
 
     recent_trend = "stable"
@@ -250,6 +357,7 @@ def get_stats() -> dict:
         "high_risk": high_risk,
         "today_total": today_total,
         "today_blocked": today_blocked,
+        "chain_total": chain_total,
     }
 
 

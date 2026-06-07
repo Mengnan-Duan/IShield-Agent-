@@ -6,7 +6,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.response import make_response
 from middleware.error_handler import ValidationError
-from services.events import get_events_from_db, get_stats, cleanup_old_events
+from services.events import (
+    get_events_from_db,
+    get_stats,
+    cleanup_old_events,
+    get_event_detail,
+    get_chain_events,
+    get_chain_summary,
+)
 from services.analytics import get_analytics, get_dashboard_overview
 
 events_bp = Blueprint("events", __name__, url_prefix="/api")
@@ -20,14 +27,57 @@ def get_events():
 
     status_filter = request.args.get("status", None)
     type_filter = request.args.get("type", None)
+    chain_id = request.args.get("chain_id", None)
 
     events = get_events_from_db(
         limit=limit,
         offset=offset,
         status_filter=status_filter,
         type_filter=type_filter,
+        chain_id=chain_id,
     )
     return make_response({"events": events, "count": len(events)})
+
+
+@events_bp.route("/events/<int:event_id>", methods=["GET"])
+def event_detail(event_id: int):
+    event = get_event_detail(event_id)
+    if not event:
+        raise ValidationError(f"未找到事件: {event_id}")
+
+    related_chain = get_chain_events(event.get("chain_id")) if event.get("chain_id") else []
+    return make_response({
+        "event": event,
+        "chain": related_chain,
+        "chain_count": len(related_chain),
+    })
+
+
+@events_bp.route("/chains", methods=["GET"])
+def chains():
+    limit = request.args.get("limit", 50, type=int)
+    limit = min(limit, 200)
+    summaries = get_chain_summary(limit=limit)
+    return make_response({"chains": summaries, "count": len(summaries)})
+
+
+@events_bp.route("/chains/<chain_id>", methods=["GET"])
+def chain_detail(chain_id: str):
+    chain_events = get_chain_events(chain_id)
+    if not chain_events:
+        raise ValidationError(f"未找到攻击链: {chain_id}")
+
+    primary = chain_events[0]
+    return make_response({
+        "chain_id": chain_id,
+        "status": "已阻断" if any("阻断" in (e.get("status") or "") or "拦截" in (e.get("status") or "") for e in chain_events) else "已放行",
+        "source_ip": primary.get("source_ip"),
+        "action": primary.get("action"),
+        "tool_name": primary.get("tool_name"),
+        "target": primary.get("target"),
+        "events": chain_events,
+        "count": len(chain_events),
+    })
 
 
 @events_bp.route("/stats", methods=["GET"])
@@ -46,13 +96,16 @@ def export_events():
         events = get_events_from_db(limit=10000, date_from=date_from, date_to=date_to)
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["时间", "事件类型", "详情", "处理状态", "威胁等级", "置信度", "来源IP", "工具", "目标"])
+        writer.writerow(["ID", "时间", "事件类型", "处理状态", "阶段", "攻击链ID", "详情", "威胁等级", "置信度", "来源IP", "工具", "目标"])
         for ev in events:
             writer.writerow([
+                ev.get("id", ""),
                 ev.get("time", ""),
                 ev.get("type", ""),
-                ev.get("detail", ""),
                 ev.get("status", ""),
+                ev.get("stage", ""),
+                ev.get("chain_id", ""),
+                ev.get("detail", ""),
                 ev.get("threat_level", ""),
                 ev.get("confidence", ""),
                 ev.get("source_ip", ""),
@@ -93,6 +146,7 @@ def dashboard_live():
     events = get_events_from_db(limit=limit)
     live_events = [
         {
+            "id": e.get("id"),
             "time": e.get("time"),
             "type": e.get("type"),
             "status": e.get("status"),
@@ -106,6 +160,8 @@ def dashboard_live():
             "rule_id": e.get("rule_id"),
             "category": e.get("category"),
             "metadata": e.get("metadata"),
+            "chain_id": e.get("chain_id"),
+            "stage": e.get("stage"),
         }
         for e in events[:limit]
     ]

@@ -32,6 +32,7 @@ def run_tool(tool_name: str, params: str, **kwargs) -> dict:
 
     source_ip = kwargs.get("source_ip")
     action = kwargs.get("action") or tool_name
+    chain_id = kwargs.get("chain_id")
     audit_context = {
         "source_ip": source_ip,
         "action": action,
@@ -39,6 +40,7 @@ def run_tool(tool_name: str, params: str, **kwargs) -> dict:
         "target": _extract_target(tool_name, parsed_params),
         "category": "tool_execution",
         "metadata": {"params": parsed_params},
+        "chain_id": chain_id,
     }
 
     add_event(
@@ -51,6 +53,8 @@ def run_tool(tool_name: str, params: str, **kwargs) -> dict:
         target=audit_context["target"],
         category="tool_execution",
         metadata={"stage": "started", "params": parsed_params},
+        chain_id=chain_id,
+        stage="tool_started",
     )
 
     started_at = time.perf_counter()
@@ -118,6 +122,8 @@ def _record_tool_result(result: dict, audit_context: dict):
             "data": result.get("data"),
             **(audit_context.get("metadata") or {}),
         },
+        chain_id=audit_context.get("chain_id"),
+        stage="tool_finished",
     )
 
     broadcast_event("tool_executed", result)
@@ -134,7 +140,7 @@ def _record_tool_result(result: dict, audit_context: dict):
             target=audit_context.get("target"),
             rule_id=audit.get("rule_id"),
             category=audit_context.get("category"),
-            metadata=audit,
+            metadata={**audit, "chain_id": audit_context.get("chain_id")},
         )
 
 
@@ -218,10 +224,8 @@ def _handle_file_write(params: dict, **kwargs) -> dict:
     from .sandbox_file import get_sandbox
     sandbox = get_sandbox()
     return sandbox.write(
-        filename=params.get("file") or params.get("filename") or params.get("path", "untitled.txt"),
-        content=params.get("content") or params.get("body") or params.get("text", ""),
-        append=bool(params.get("append", False)),
-        overwrite=bool(params.get("overwrite", False)),
+        params.get("file") or params.get("filename") or params.get("path", ""),
+        params.get("content", ""),
         source_ip=kwargs.get("source_ip"),
     )
 
@@ -229,29 +233,78 @@ def _handle_file_write(params: dict, **kwargs) -> dict:
 def _handle_http(params: dict, **kwargs) -> dict:
     from .sandbox_http import get_sandbox
     sandbox = get_sandbox()
-    method = params.get("method", "GET").upper()
-    url = params.get("url") or params.get("endpoint") or params.get("href", "")
-    body = params.get("body") or params.get("data")
-    return sandbox.request(method, url, json=body if body else None, source_ip=kwargs.get("source_ip"))
+    return sandbox.request(
+        url=params.get("url") or params.get("endpoint") or "",
+        method=params.get("method", "GET"),
+        data=params.get("data"),
+        headers=params.get("headers"),
+        source_ip=kwargs.get("source_ip"),
+    )
 
 
-register_tool("send_email")(lambda p, **k: _handle_email(p, **k))
-register_tool("read_file")(lambda p, **k: _handle_file_read(p, **k))
-register_tool("write_file")(lambda p, **k: _handle_file_write(p, **k))
-register_tool("http_request")(lambda p, **k: _handle_http(p, **k))
-register_tool("query_db")(lambda p, **k: {
-    "status": "mock",
-    "tool": "query_db",
-    "mode": "mock",
-    "summary": "query_db 当前仍为演示模式",
-    "audit": {"reason": "database_not_configured"},
-    "data": {"message": "query_db 需要连接真实数据库，请在 config.py 中配置数据库连接"},
-})
-register_tool("post_social")(lambda p, **k: {
-    "status": "mock",
-    "tool": "post_social",
-    "mode": "mock",
-    "summary": "post_social 在沙箱模式下被禁用",
-    "audit": {"reason": "sandbox_disabled"},
-    "data": {"message": "post_social 在沙箱模式下被禁用"},
-})
+def _handle_query_db(params: dict, **kwargs) -> dict:
+    query = params.get("query") or params.get("sql") or ""
+    query_lower = query.lower()
+    blocked_keywords = ["drop ", "truncate ", "delete from", "update "]
+    if any(kw in query_lower for kw in blocked_keywords):
+        return {
+            "status": "blocked",
+            "tool": "query_db",
+            "mode": "mock",
+            "summary": "数据库沙箱阻止了危险写操作",
+            "audit": {
+                "reason": "dangerous_sql",
+                "rule_id": "DB-SANDBOX-001",
+                "severity": 92,
+                "threat_level": "high",
+            },
+            "data": {"query": query[:200]},
+        }
+    return {
+        "status": "mock",
+        "tool": "query_db",
+        "mode": "mock",
+        "summary": "数据库查询已在沙箱中模拟执行",
+        "audit": {"severity": 18, "threat_level": "low"},
+        "data": {
+            "query": query[:200],
+            "rows": [
+                {"id": 1, "name": "demo_user", "role": "analyst"},
+                {"id": 2, "name": "sandbox_bot", "role": "service"},
+            ],
+        },
+    }
+
+
+def _handle_post_social(params: dict, **kwargs) -> dict:
+    content = params.get("content", "")
+    if any(k in content.lower() for k in ["api_key", "password", "secret", "token"]):
+        return {
+            "status": "blocked",
+            "tool": "post_social",
+            "mode": "mock",
+            "summary": "社交平台沙箱阻止了敏感信息外发",
+            "audit": {
+                "reason": "sensitive_content",
+                "rule_id": "SOCIAL-SANDBOX-001",
+                "severity": 88,
+                "threat_level": "high",
+            },
+            "data": {"content_preview": content[:120]},
+        }
+    return {
+        "status": "mock",
+        "tool": "post_social",
+        "mode": "mock",
+        "summary": "社交平台发布已在沙箱中模拟执行",
+        "audit": {"severity": 12, "threat_level": "low"},
+        "data": {"content_preview": content[:120]},
+    }
+
+
+register_tool("send_email")(_handle_email)
+register_tool("read_file")(_handle_file_read)
+register_tool("write_file")(_handle_file_write)
+register_tool("http_request")(_handle_http)
+register_tool("query_db")(_handle_query_db)
+register_tool("post_social")(_handle_post_social)

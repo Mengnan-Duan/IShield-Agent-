@@ -1,15 +1,17 @@
 {
-  "version": "1.0",
-  "name": "IShield 默认安全策略",
-  "description": "工具调用安全策略配置，定义 allow/block/confirm 三种动作",
-  "updated_at": "2026-06-03",
+  "version": "1.1",
   "rules": [
     {
       "id": "POL-001",
       "name": "危险表操作拦截",
       "tool": "query_db",
       "params_pattern": "drop|delete|truncate|alter",
-      "threat_keywords": ["drop table", "delete from", "truncate", "alter table"],
+      "threat_keywords": [
+        "drop table",
+        "delete from",
+        "truncate",
+        "alter table"
+      ],
       "action": "block",
       "severity": 90,
       "message": "检测到危险的数据库操作：DROP/DELETE/TRUNCATE/ALTER",
@@ -20,7 +22,12 @@
       "name": "SQL注入模式拦截",
       "tool": "query_db",
       "params_pattern": "union|select.*from|or 1=1|--|;.*drop",
-      "threat_keywords": ["union select", "or 1=1", "'; --", "'; drop"],
+      "threat_keywords": [
+        "union select",
+        "or 1=1",
+        "'; --",
+        "'; drop"
+      ],
       "action": "block",
       "severity": 95,
       "message": "检测到 SQL 注入模式，拦截执行",
@@ -31,7 +38,13 @@
       "name": "密码字段查询确认",
       "tool": "query_db",
       "params_pattern": "password|passwd|pwd|secret|api_key|token",
-      "threat_keywords": ["password", "passwd", "pwd", "api_key", "token"],
+      "threat_keywords": [
+        "password",
+        "passwd",
+        "pwd",
+        "api_key",
+        "token"
+      ],
       "action": "confirm",
       "severity": 60,
       "message": "查询包含敏感字段（密码/API Key），请确认是否放行",
@@ -42,7 +55,14 @@
       "name": "钓鱼邮件拦截",
       "tool": "send_email",
       "params_pattern": "evil|steal|hack|钓鱼|fake|钓鱼网站",
-      "threat_keywords": ["evil", "steal", "hack", "钓鱼", "fake", "钓鱼网站"],
+      "threat_keywords": [
+        "evil",
+        "steal",
+        "hack",
+        "钓鱼",
+        "fake",
+        "钓鱼网站"
+      ],
       "action": "block",
       "severity": 95,
       "message": "检测到疑似钓鱼内容，邮件发送被拦截",
@@ -53,7 +73,12 @@
       "name": "外部恶意链接拦截",
       "tool": "send_email",
       "params_pattern": "http://|https://.*(evil|hack|phish|steal|钓鱼)",
-      "threat_keywords": ["evil-site", "hack", "phish", "steal"],
+      "threat_keywords": [
+        "evil-site",
+        "hack",
+        "phish",
+        "steal"
+      ],
       "action": "block",
       "severity": 90,
       "message": "检测到恶意外部链接，禁止发送",
@@ -64,7 +89,11 @@
       "name": "路径遍历攻击拦截",
       "tool": "read_file|write_file",
       "params_pattern": "..|../|../..",
-      "threat_keywords": ["../", "..\\", "%2e%2e"],
+      "threat_keywords": [
+        "../",
+        "..\\",
+        "%2e%2e"
+      ],
       "action": "block",
       "severity": 90,
       "message": "检测到路径遍历攻击模式，文件操作被拦截",
@@ -75,7 +104,11 @@
       "name": "系统文件访问拦截",
       "tool": "read_file",
       "params_pattern": "passwd|shadow|etc/passwd",
-      "threat_keywords": ["passwd", "shadow", "/etc/"],
+      "threat_keywords": [
+        "passwd",
+        "shadow",
+        "/etc/"
+      ],
       "action": "block",
       "severity": 95,
       "message": "禁止访问系统敏感文件（/etc/passwd 等）",
@@ -86,7 +119,11 @@
       "name": "API密钥暴露拦截",
       "tool": "post_social|http_request",
       "params_pattern": "api_key|apikey|secret.*token",
-      "threat_keywords": ["api_key", "apikey", "secret"],
+      "threat_keywords": [
+        "api_key",
+        "apikey",
+        "secret"
+      ],
       "action": "block",
       "severity": 95,
       "message": "禁止在外部请求中暴露密钥或令牌",
@@ -97,7 +134,11 @@
       "name": "管理员账户操作确认",
       "tool": "query_db",
       "params_pattern": "admin|root|administrator",
-      "threat_keywords": ["admin", "root", "administrator"],
+      "threat_keywords": [
+        "admin",
+        "root",
+        "administrator"
+      ],
       "action": "confirm",
       "severity": 70,
       "message": "涉及管理员/root 账户操作，请确认是否放行",
@@ -108,7 +149,12 @@
       "name": "社会工程钓鱼确认",
       "tool": "send_email",
       "params_pattern": "恭喜|获奖|激活|账户异常|点击链接|紧急",
-      "threat_keywords": ["恭喜", "获奖", "激活", "紧急修复"],
+      "threat_keywords": [
+        "恭喜",
+        "获奖",
+        "激活",
+        "紧急修复"
+      ],
       "action": "confirm",
       "severity": 65,
       "message": "疑似社会工程钓鱼内容，请确认是否放行",
@@ -119,7 +165,12 @@
       "name": "XSS注入拦截",
       "tool": "write_file|post_social",
       "params_pattern": "<script|javascript:|onerror=|onclick=",
-      "threat_keywords": ["<script", "javascript:", "onerror=", "onclick="],
+      "threat_keywords": [
+        "<script",
+        "javascript:",
+        "onerror=",
+        "onclick="
+      ],
       "action": "block",
       "severity": 90,
       "message": "检测到 XSS 注入模式，拦截写入",
@@ -130,7 +181,12 @@
       "name": "内部接口越权访问",
       "tool": "http_request",
       "params_pattern": "/admin|/internal|/debug|/env|/config",
-      "threat_keywords": ["/admin", "/internal", "/debug", "/env"],
+      "threat_keywords": [
+        "/admin",
+        "/internal",
+        "/debug",
+        "/env"
+      ],
       "action": "confirm",
       "severity": 80,
       "message": "尝试访问内部管理接口，请确认是否放行",

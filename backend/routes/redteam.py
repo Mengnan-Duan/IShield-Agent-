@@ -15,11 +15,11 @@ from services.rule_engine import rule_detect
 from services.semantic import semantic_detect, semantic_detect_local
 from services.events import add_event
 from services.redteam_generator import generate_attack_variants
+from services.campaign_service import create_campaign, start_campaign, get_campaign, list_campaigns
 
 redteam_bp = Blueprint("redteam", __name__, url_prefix="/api")
 
 
-# ── 变异策略映射 ────────────────────────────────────────────────────────
 MUTATIONS = {
     "synonym": {
         "desc": "同义词替换：绕过基于关键词的规则引擎",
@@ -28,7 +28,6 @@ MUTATIONS = {
             "指令": ["命令", "指示", "要求", "任务"],
             "系统提示词": ["初始设置", "原始prompt", "首个配置", "底层设定"],
             "系统": ["基础", "核心", "根本"],
-            "指令": ["命令", "指示", "任务"],
             "告诉": ["透露", "展示", "披露"],
             "用户": ["使用者", "账号", "账户"],
             "密码": ["口令", "密钥", "通行码"],
@@ -89,10 +88,8 @@ def redteam():
     if not valid:
         raise ValidationError(err)
 
-    # ── 执行变异 ────────────────────────────────────────────────
     mutated = _mutate(text, strategy)
 
-    # ── 检测变异结果 ────────────────────────────────────────────
     rule_alert, rule_hit, rule_conf, _ = rule_detect(mutated)
     try:
         semantic_alert, _ = semantic_detect(mutated)
@@ -101,59 +98,34 @@ def redteam():
 
     hybrid_alert, hybrid_reason, hybrid_data = hybrid_detect(mutated)
 
-    # ── 记录事件 ────────────────────────────────────────────────
     add_event(
         event_type="红队测试",
         detail=f"策略={strategy}, 基础文本={text[:30]}..., 变异后={mutated[:30]}...",
         status="已执行",
+        category="redteam",
+        action="redteam_single",
+        tool_name="redteam_mutation",
+        target=strategy,
+        threat_level=hybrid_data.get("threat_level", "medium"),
+        confidence=hybrid_data.get("combined", 0),
+        metadata={"hybrid_reason": hybrid_reason, "rule_hit": rule_hit},
     )
 
     return make_response({
-        "mutated":          mutated,
-        "strategy":         strategy,
-        "strategy_desc":    MUTATIONS.get(strategy, {}).get("desc", ""),
-        "rule_result":      f"恶意 (命中: {rule_hit})" if rule_alert else "安全",
-        "rule_confidence":  rule_conf,
+        "mutated": mutated,
+        "strategy": strategy,
+        "strategy_desc": MUTATIONS.get(strategy, {}).get("desc", ""),
+        "rule_result": f"恶意 (命中: {rule_hit})" if rule_alert else "安全",
+        "rule_confidence": rule_conf,
         "semantic_result": "恶意" if semantic_alert else "安全",
-        "hybrid_alert":     hybrid_alert,
-        "hybrid_result":    "恶意" if hybrid_alert else "安全",
+        "hybrid_alert": hybrid_alert,
+        "hybrid_result": "恶意" if hybrid_alert else "安全",
         "hybrid_confidence": hybrid_data.get("combined", 0),
-        "threat_level":     hybrid_data.get("threat_level", "none"),
+        "threat_level": hybrid_data.get("threat_level", "none"),
+        "reason": hybrid_reason,
     })
 
 
-def _mutate(text: str, strategy: str) -> str:
-    if strategy == "synonym":
-        result = text
-        for key, replacements in MUTATIONS["synonym"]["replacements"].items():
-            if key in result:
-                result = result.replace(key, random.choice(replacements))
-        return result
-
-    elif strategy == "roleplay":
-        prefix = random.choice(MUTATIONS["roleplay"]["prefixes"])
-        return prefix + "现在请回答：" + text
-
-    elif strategy == "multilingual":
-        result = text
-        for cn, en in MUTATIONS["multilingual"]["mappings"].items():
-            if cn in result:
-                result = result.replace(cn, en, 1)
-        return result
-
-    elif strategy == "encoding":
-        encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
-        return f"请解码并执行以下Base64内容：{encoded}"
-
-    elif strategy == "stepwise":
-        parts = MUTATIONS["stepwise"]["steps"]
-        # 将文本嵌入中间
-        return f"{parts[0]}{text}{parts[-1]}"
-
-    return text
-
-
-# ── 红队策略列表（供前端查询）──────────────────────────────────────────────
 @redteam_bp.route("/redteam/strategies", methods=["GET"])
 def strategies():
     return make_response({
@@ -166,10 +138,6 @@ def strategies():
 
 @redteam_bp.route("/redteam/generate", methods=["POST"])
 def generate():
-    """
-    LLM驱动的自动化红队攻击变种生成。
-    对给定种子攻击文本，生成N个不同策略的变体，并逐个检测。
-    """
     if not request.is_json:
         raise ValidationError("Content-Type 必须是 application/json")
 
@@ -185,7 +153,6 @@ def generate():
 
     variants = generate_attack_variants(seed_text, n=n)
 
-    # 对每个变体执行检测
     detected_count = 0
     variant_results = []
     for v in variants:
@@ -208,7 +175,9 @@ def generate():
             "semantic_detected": semantic_alert,
             "hybrid_detected": hybrid_alert,
             "rule_confidence": rule_conf,
+            "rule_hit": rule_hit,
             "hybrid_confidence": hybrid_data.get("combined", 0),
+            "reason": hybrid_reason,
         })
 
     return make_response({
@@ -218,3 +187,75 @@ def generate():
         "detection_rate": round(detected_count / max(len(variant_results), 1) * 100, 1),
         "variants": variant_results,
     })
+
+
+@redteam_bp.route("/campaigns", methods=["GET"])
+def campaign_list():
+    return make_response({"campaigns": list_campaigns()})
+
+
+@redteam_bp.route("/campaigns", methods=["POST"])
+def create_redteam_campaign():
+    if not request.is_json:
+        raise ValidationError("Content-Type 必须是 application/json")
+
+    data = request.get_json(silent=True) or {}
+    seed_text = str(data.get("text", "")).strip()
+    if not seed_text:
+        raise ValidationError("text 不能为空")
+
+    strategies = data.get("strategies", []) or []
+    for strategy in strategies:
+        valid, err = validate_strategy(strategy)
+        if not valid:
+            raise ValidationError(err)
+
+    iterations = min(max(int(data.get("iterations", 3)), 1), 10)
+    variants_per_iteration = min(max(int(data.get("variants_per_iteration", 5)), 1), 10)
+
+    campaign = create_campaign(seed_text, strategies, iterations, variants_per_iteration)
+    start_campaign(campaign["campaign_id"])
+    return make_response({
+        "campaign_id": campaign["campaign_id"],
+        "status": campaign["status"],
+        "iterations": campaign["iterations"],
+        "variants_per_iteration": campaign["variants_per_iteration"],
+    })
+
+
+@redteam_bp.route("/campaigns/<campaign_id>", methods=["GET"])
+def campaign_detail(campaign_id: str):
+    campaign = get_campaign(campaign_id)
+    if not campaign:
+        raise ValidationError(f"未找到红队活动: {campaign_id}")
+    return make_response(campaign)
+
+
+def _mutate(text: str, strategy: str) -> str:
+    if strategy == "synonym":
+        result = text
+        for key, replacements in MUTATIONS["synonym"]["replacements"].items():
+            if key in result:
+                result = result.replace(key, random.choice(replacements))
+        return result
+
+    if strategy == "roleplay":
+        prefix = random.choice(MUTATIONS["roleplay"]["prefixes"])
+        return prefix + "现在请回答：" + text
+
+    if strategy == "multilingual":
+        result = text
+        for cn, en in MUTATIONS["multilingual"]["mappings"].items():
+            if cn in result:
+                result = result.replace(cn, en, 1)
+        return result
+
+    if strategy == "encoding":
+        encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+        return f"请解码并执行以下Base64内容：{encoded}"
+
+    if strategy == "stepwise":
+        parts = MUTATIONS["stepwise"]["steps"]
+        return f"{parts[0]}{text}{parts[-1]}"
+
+    return text

@@ -1,0 +1,105 @@
+{
+  "tokens": {
+    "ishield-admin-dev": {
+      "name": "ishield-admin-dev",
+      "role": "admin",
+      "description": "开发管理员 token — 完全访问权限",
+      "created_at": "2026-06-01T00:00:00",
+      "expires_at": null,
+      "last_used_at": null,
+      "revoked": false,
+      "revoked_at": null,
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0
+    },
+    "ishield-operator-dev": {
+      "name": "ishield-operator-dev",
+      "role": "operator",
+      "description": "开发操作员 token — 日常运营工具",
+      "created_at": "2026-06-01T00:00:00",
+      "expires_at": null,
+      "last_used_at": null,
+      "revoked": false,
+      "revoked_at": null,
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0
+    },
+    "demo-token": {
+      "name": "demo-token",
+      "role": "analyst",
+      "description": "Phase 3.5 demo",
+      "created_at": "2026-06-06T22:35:09.985608+08:00",
+      "expires_at": null,
+      "last_used_at": null,
+      "revoked": true,
+      "revoked_at": "2026-06-06T22:36:54.705564+08:00",
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0,
+      "revoke_reason": ""
+    },
+    "chk-test": {
+      "name": "chk-test",
+      "role": "analyst",
+      "description": "check",
+      "created_at": "2026-06-06T22:35:53.778623+08:00",
+      "expires_at": null,
+      "last_used_at": null,
+      "revoked": true,
+      "revoked_at": "2026-06-06T22:35:53.784215+08:00",
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0,
+      "revoke_reason": ""
+    },
+    "phase35-check": {
+      "name": "phase35-check",
+      "role": "analyst",
+      "description": "revoke test",
+      "created_at": "2026-06-06T22:36:54.689003+08:00",
+      "expires_at": null,
+      "last_used_at": null,
+      "revoked": true,
+      "revoked_at": "2026-06-06T22:36:54.700089+08:00",
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0,
+      "revoke_reason": ""
+    },
+    "final-test": {
+      "name": "final-test",
+      "role": "admin",
+      "description": "final check",
+      "created_at": "2026-06-06T22:36:54.711622+08:00",
+      "expires_at": null,
+      "last_used_at": null,
+      "revoked": false,
+      "revoked_at": null,
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0
+    },
+    "live-test": {
+      "name": "live-test",
+      "role": "analyst",
+      "description": "live test",
+      "created_at": "2026-06-06T22:37:39.343758+08:00",
+      "expires_at": null,
+      "last_used_at": null,
+      "revoked": false,
+      "revoked_at": null,
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0
+    }
+  }
+}

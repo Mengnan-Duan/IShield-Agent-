@@ -1,56 +1,41 @@
 """安全策略管理路由 — 查询/更新/评估安全策略"""
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 import json, os
 
 import sys as _sys
 import os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 
-from middleware.error_handler import ValidationError, BusinessError
-from middleware.logger import get_logger
-from utils.response import make_response, make_error, Err
+from middleware.error_handler import ValidationError
+from utils.response import make_response
+from services.policy import get_policy_engine
 
-from services.policy import get_policy_engine, Action
-
-logger = get_logger()
 policy_bp = Blueprint("policy", __name__, url_prefix="/api/policies")
 
 
-# ── 查询 ───────────────────────────────────────────────────────────────────────
+def _serialize_rule(rule):
+    return {
+        "id": rule.id,
+        "name": rule.name,
+        "tool": rule.tool,
+        "params_pattern": rule.params_pattern,
+        "threat_keywords": rule.threat_keywords,
+        "action": rule.action.value,
+        "severity": rule.severity,
+        "message": rule.message,
+        "enabled": rule.enabled,
+    }
+
+
 @policy_bp.route("", methods=["GET"])
 def list_policies():
-    """
-    GET /api/policies
-    返回当前所有启用的策略规则列表。
-    """
     engine = get_policy_engine()
-    rules = [
-        {
-            "id": r.id,
-            "name": r.name,
-            "tool": r.tool,
-            "params_pattern": r.params_pattern,
-            "threat_keywords": r.threat_keywords,
-            "action": r.action.value,
-            "severity": r.severity,
-            "message": r.message,
-            "enabled": r.enabled,
-        }
-        for r in engine.rules
-    ]
+    rules = [_serialize_rule(r) for r in engine.all_rules]
     return make_response({"rules": rules, "total": len(rules)})
 
 
-# ── 评估 ───────────────────────────────────────────────────────────────────────
 @policy_bp.route("/evaluate", methods=["POST"])
 def evaluate_call():
-    """
-    POST /api/policies/evaluate
-    评估单个或多个工具调用。
-    body: {"tool": "...", "params": "..."}  或
-          {"calls": [{"tool": "...", "params": "..."}, ...]}
-    返回: action (allow / block / confirm), severity, message
-    """
     if not request.is_json:
         raise ValidationError("Content-Type 必须是 application/json")
 
@@ -59,16 +44,16 @@ def evaluate_call():
         raise ValidationError("无效的 JSON body")
 
     engine = get_policy_engine()
+    include_disabled = bool(data.get("include_disabled", False))
 
-    # 批量模式
     calls = data.get("calls", [])
     if calls:
-        results = engine.evaluate_batch(calls)
+        results = engine.evaluate_batch(calls, include_disabled=include_disabled)
         return make_response({
             "results": [
                 {
-                    "tool": c["tool"],
-                    "params_preview": c.get("params", "")[:100],
+                    "tool": c.get("tool", ""),
+                    "params_preview": str(c.get("params", ""))[:100],
                     "action": r.action.value,
                     "triggered_rule": r.triggered_rule,
                     "message": r.message,
@@ -79,13 +64,12 @@ def evaluate_call():
             ]
         })
 
-    # 单条模式
-    tool = data.get("tool", "").strip()
-    params = data.get("params", "")
+    tool = str(data.get("tool", "")).strip()
+    params = str(data.get("params", ""))
     if not tool:
         raise ValidationError("tool 参数不能为空")
 
-    result = engine.evaluate(tool, params)
+    result = engine.evaluate(tool, params, include_disabled=include_disabled)
     return make_response({
         "tool": tool,
         "params_preview": params[:100],
@@ -97,13 +81,8 @@ def evaluate_call():
     })
 
 
-# ── 热重载 ─────────────────────────────────────────────────────────────────────
 @policy_bp.route("/reload", methods=["POST"])
 def reload_policies():
-    """
-    POST /api/policies/reload
-    热重载策略文件，无需重启服务。
-    """
     engine = get_policy_engine()
     engine.reload()
     return make_response({
@@ -112,28 +91,37 @@ def reload_policies():
     })
 
 
-# ── 导出/导入 ─────────────────────────────────────────────────────────────────
+@policy_bp.route("/toggle", methods=["POST"])
+def toggle_policy_rule():
+    if not request.is_json:
+        raise ValidationError("Content-Type 必须是 application/json")
+
+    data = request.get_json(silent=True)
+    if data is None:
+        raise ValidationError("无效的 JSON body")
+
+    rule_id = str(data.get("rule_id", "")).strip()
+    enabled = data.get("enabled", None)
+    if not rule_id:
+        raise ValidationError("rule_id 不能为空")
+    if enabled is None:
+        raise ValidationError("enabled 不能为空")
+
+    engine = get_policy_engine()
+    rule = engine.toggle_rule(rule_id, bool(enabled))
+    if not rule:
+        raise ValidationError(f"未找到策略规则: {rule_id}")
+
+    return make_response({
+        "updated": True,
+        "rule": _serialize_rule(rule),
+    })
+
+
 @policy_bp.route("/export", methods=["GET"])
 def export_policy():
-    """
-    GET /api/policies/export
-    导出当前策略配置为 JSON。
-    """
     engine = get_policy_engine()
-    rules = [
-        {
-            "id": r.id,
-            "name": r.name,
-            "tool": r.tool,
-            "params_pattern": r.params_pattern,
-            "threat_keywords": r.threat_keywords,
-            "action": r.action.value,
-            "severity": r.severity,
-            "message": r.message,
-            "enabled": r.enabled,
-        }
-        for r in engine.rules
-    ]
+    rules = [_serialize_rule(r) for r in engine.all_rules]
     return jsonify({
         "success": True,
         "data": {
@@ -147,10 +135,6 @@ def export_policy():
 
 @policy_bp.route("/import", methods=["POST"])
 def import_policy():
-    """
-    POST /api/policies/import
-    导入新策略配置（覆盖写入 policies/default_policy.json）。
-    """
     if not request.is_json:
         raise ValidationError("Content-Type 必须是 application/json")
 
@@ -170,9 +154,8 @@ def import_policy():
     policy_file = os.path.join(policy_dir, "default_policy.json")
 
     with open(policy_file, "w", encoding="utf-8") as f:
-        json.dump({"rules": rules, "version": "1.0"}, f, ensure_ascii=False, indent=2)
+        json.dump({"rules": rules, "version": "1.1"}, f, ensure_ascii=False, indent=2)
 
-    # 热重载
     engine = get_policy_engine()
     engine.reload()
 

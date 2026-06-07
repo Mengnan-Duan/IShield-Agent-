@@ -6,12 +6,10 @@ import time as _time
 
 # ── 限流配置 ────────────────────────────────────────────────────────────────
 RATE_LIMITS = {
-    "/api/detect":    (60, 60),
     "/api/redteam":   (10, 60),
     "/api/export":    (5, 60),
-    "/api/simulate":  (30, 60),
-    "/api/batch":     (5, 60),
-    "default":       (100, 60),
+    "/api/batch":    (20, 60),
+    "default":       (300, 60),
 }
 
 _WHITELIST = {"/", "/api/health", "/favicon.ico"}
@@ -33,10 +31,10 @@ class SlidingWindowRateLimiter:
         return RATE_LIMITS["default"]
 
     def _cleanup(self):
-        now = _time.time()
-        if now - self._cleanup_ts < self._cleanup_interval:
-            return
         with self._lock:
+            now = _time.time()
+            if now - self._cleanup_ts < self._cleanup_interval:
+                return
             self._cleanup_ts = now
             expired_ips = []
             for ip, paths in self._windows.items():

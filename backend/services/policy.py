@@ -1,10 +1,10 @@
-"""可配置安全策略引擎 — 基于 JSON 策略文件，支持 allow / block / confirm 三种动作"""
+"""可配置安全策略引擎 — 基于 JSON 策略文件，支持 allow / block / confirm / log 四种动作"""
 import os
 import json
 import re
 import fnmatch
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+from dataclasses import dataclass, field, asdict
 from enum import Enum
 
 DATA_DIR = os.path.join(
@@ -15,41 +15,38 @@ DEFAULT_POLICY_FILE = os.path.join(DATA_DIR, "default_policy.json")
 
 
 class Action(str, Enum):
-    ALLOW   = "allow"
-    BLOCK   = "block"
+    ALLOW = "allow"
+    BLOCK = "block"
     CONFIRM = "confirm"
-    LOG     = "log"
+    LOG = "log"
 
 
 @dataclass
 class PolicyRule:
     """单条策略规则"""
-    id:           str
-    name:         str
-    tool:         str                      # 工具名称（通配符支持，如 "send_*"）
-    params_pattern: str                     # 参数匹配正则
+    id: str
+    name: str
+    tool: str
+    params_pattern: str
     threat_keywords: List[str] = field(default_factory=list)
-    action:       Action = Action.BLOCK
-    severity:     int = 50                  # 1-100，决策置信度
-    message:      str = ""                  # 拦截/确认时的提示语
-    enabled:      bool = True
+    action: Action = Action.BLOCK
+    severity: int = 50
+    message: str = ""
+    enabled: bool = True
 
 
 @dataclass
 class PolicyResult:
     """策略评估结果"""
-    action:       Action
+    action: Action
     triggered_rule: Optional[str] = None
-    message:      str = ""
-    severity:     int = 0
+    message: str = ""
+    severity: int = 0
     matched_keywords: List[str] = field(default_factory=list)
 
 
 class PolicyEngine:
-    """
-    可配置策略引擎。
-    从 JSON 策略文件加载规则，支持运行时热重载。
-    """
+    """可配置策略引擎，支持运行时热重载与规则启停。"""
 
     def __init__(self, policy_file: str = None):
         self.policy_file = policy_file or DEFAULT_POLICY_FILE
@@ -57,10 +54,10 @@ class PolicyEngine:
         self._load()
 
     def _load(self):
-        """从 JSON 文件加载策略"""
         self._rules = []
         if not os.path.exists(self.policy_file):
             self._load_default()
+            self.save_rules()
             return
         with open(self.policy_file, encoding="utf-8") as f:
             data = json.load(f)
@@ -82,7 +79,6 @@ class PolicyEngine:
                 continue
 
     def _load_default(self):
-        """内置默认策略"""
         self._rules = [
             PolicyRule(
                 id="POL-DROP-TABLE",
@@ -167,42 +163,34 @@ class PolicyEngine:
         ]
 
     def reload(self):
-        """热重载策略文件"""
         self._load()
+
+    @property
+    def all_rules(self) -> List[PolicyRule]:
+        return list(self._rules)
 
     @property
     def rules(self) -> List[PolicyRule]:
         return [r for r in self._rules if r.enabled]
 
-    def evaluate(self, tool: str, params: str) -> PolicyResult:
-        """
-        评估单个工具调用。
-        返回策略结果（包含动作、触发的规则、提示信息）。
-        """
+    def evaluate(self, tool: str, params: str, include_disabled: bool = False) -> PolicyResult:
         params_lower = params.lower()
+        rules = self._rules if include_disabled else self.rules
 
-        for rule in self.rules:
-            # 工具名匹配（支持通配符）
+        for rule in rules:
             if not fnmatch.fnmatch(tool.lower(), rule.tool.lower()):
                 continue
 
-            # 参数正则匹配
             matched = False
             if rule.params_pattern:
                 try:
-                    matched = bool(
-                        re.search(rule.params_pattern, params, re.IGNORECASE)
-                    )
+                    matched = bool(re.search(rule.params_pattern, params, re.IGNORECASE))
                 except re.error:
                     matched = rule.params_pattern.lower() in params_lower
             else:
                 matched = True
 
-            # 关键词命中
-            keyword_hits = [
-                kw for kw in rule.threat_keywords
-                if kw.lower() in params_lower
-            ]
+            keyword_hits = [kw for kw in rule.threat_keywords if kw.lower() in params_lower]
 
             if matched or keyword_hits:
                 return PolicyResult(
@@ -215,17 +203,40 @@ class PolicyEngine:
 
         return PolicyResult(action=Action.ALLOW)
 
-    def evaluate_batch(self, calls: List[Dict]) -> List[PolicyResult]:
-        """
-        批量评估多个工具调用。
-        calls: [{"tool": str, "params": str}, ...]
-        """
-        return [self.evaluate(c["tool"], c.get("params", "")) for c in calls]
+    def evaluate_batch(self, calls: List[Dict], include_disabled: bool = False) -> List[PolicyResult]:
+        return [
+            self.evaluate(str(call.get("tool", "")), str(call.get("params", "")), include_disabled=include_disabled)
+            for call in calls
+        ]
+
+    def toggle_rule(self, rule_id: str, enabled: bool) -> Optional[PolicyRule]:
+        for rule in self._rules:
+            if rule.id == rule_id:
+                rule.enabled = enabled
+                self.save_rules()
+                return rule
+        return None
+
+    def save_rules(self):
+        os.makedirs(os.path.dirname(self.policy_file), exist_ok=True)
+        payload = {
+            "version": "1.1",
+            "rules": [self._serialize_rule(rule) for rule in self._rules],
+        }
+        with open(self.policy_file, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    def _serialize_rule(self, rule: PolicyRule) -> Dict:
+        data = asdict(rule)
+        data["action"] = rule.action.value
+        return data
 
 
-# 全局单例
-_policy_engine = PolicyEngine()
+_engine: Optional[PolicyEngine] = None
 
 
 def get_policy_engine() -> PolicyEngine:
-    return _policy_engine
+    global _engine
+    if _engine is None:
+        _engine = PolicyEngine()
+    return _engine

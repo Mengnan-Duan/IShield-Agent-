@@ -5,7 +5,7 @@ IShield Backend — 企业级 Flask 应用入口
 - 路由注册
 - 应用启动
 """
-from flask import Flask, send_from_directory, g
+from flask import Flask, send_from_directory, g, request
 from flask_cors import CORS
 import os
 
@@ -13,6 +13,8 @@ import os
 from middleware.logger import setup_request_logging, get_logger
 from middleware.error_handler import setup_error_handlers
 from middleware.rate_limiter import setup_rate_limiter
+from middleware.behavior_guard import setup_behavior_guard
+from middleware.auth import setup_auth
 
 # ── 导入路由蓝图 ──────────────────────────────────────────────────────────────
 from routes.detect import detect_bp
@@ -22,6 +24,12 @@ from routes.redteam import redteam_bp
 from routes.batch import batch_bp
 from routes.samples import samples_bp
 from routes.policy import policy_bp
+from routes.conversation import conversation_bp
+from routes.behavior import behavior_bp
+from routes.compliance import compliance_bp
+from routes.audit import audit_bp
+from routes.attack_chains import chains_bp
+from routes.tokens import tokens_bp
 from services.websocket import events_stream
 
 logger = get_logger()
@@ -54,7 +62,9 @@ def create_app():
     from flask import request
     setup_request_logging(app)        # 结构化日志 + request_id
     setup_error_handlers(app)         # 全局异常处理
-    setup_rate_limiter(app)             # 请求限流
+    setup_rate_limiter(app)           # 请求限流
+    setup_behavior_guard(app)         # 行为异常检测 + 自动封禁
+    setup_auth(app)                   # API Key 认证（默认关闭）
 
     # ── 蓝图注册 ─────────────────────────────────────────────────────────
     app.register_blueprint(detect_bp)
@@ -64,6 +74,12 @@ def create_app():
     app.register_blueprint(batch_bp)
     app.register_blueprint(samples_bp)
     app.register_blueprint(policy_bp)
+    app.register_blueprint(conversation_bp)
+    app.register_blueprint(behavior_bp)
+    app.register_blueprint(compliance_bp)
+    app.register_blueprint(audit_bp)
+    app.register_blueprint(chains_bp)
+    app.register_blueprint(tokens_bp)
 
     # ── SSE 实时推送端点 ─────────────────────────────────────────────────
     @app.route("/api/events/stream")

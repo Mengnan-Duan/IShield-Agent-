@@ -1,0 +1,30 @@
+{
+  "roles": {
+    "admin": {
+      "description": "管理员 — 完全访问",
+      "tools": ["*"]
+    },
+    "operator": {
+      "description": "操作员 — 日常运营工具",
+      "tools": ["detect", "simulate", "conversation", "campaign", "redteam"]
+    },
+    "analyst": {
+      "description": "分析师 — 只读检测",
+      "tools": ["detect", "simulate"]
+    },
+    "readonly": {
+      "description": "只读账户 — 仪表盘和日志",
+      "tools": ["detect"]
+    }
+  },
+  "tools": {
+    "detect": { "name": "安全检测", "description": "文本恶意检测" },
+    "simulate": { "name": "沙箱模拟", "description": "工具执行模拟" },
+    "conversation": { "name": "对话评估", "description": "多轮对话安全评估" },
+    "campaign": { "name": "红队活动", "description": "大规模变异攻击测试" },
+    "redteam": { "name": "红队单次", "description": "单次变异攻击测试" },
+    "policy": { "name": "策略管理", "description": "策略查看与修改" },
+    "samples": { "name": "样本库", "description": "恶意样本查询" },
+    "compliance": { "name": "合规自测", "description": "自动化合规评估" }
+  }
+}
