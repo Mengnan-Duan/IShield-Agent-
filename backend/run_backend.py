@@ -2,7 +2,7 @@ import sys, os, socket, signal
 
 # Resolve backend path relative to this script
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKEND_DIR = os.path.join(SCRIPT_DIR, "backend")
+BACKEND_DIR = SCRIPT_DIR
 PID_FILE = os.path.join(SCRIPT_DIR, ".backend.pid")
 
 sys.path.insert(0, BACKEND_DIR)

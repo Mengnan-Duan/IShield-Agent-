@@ -15,8 +15,8 @@ from services.detection import hybrid_detect
 logger = get_logger()
 compliance_bp = Blueprint("compliance", __name__, url_prefix="/api/compliance")
 
-REPORT_FILE = Path(__file__).parent.parent.parent / "COMPLIANCE_REPORT.md"
-RESULT_FILE = Path(__file__).parent.parent.parent / "compliance_result.json"
+REPORT_FILE = Path(__file__).parent.parent / "reports" / "compliance_report.md"
+RESULT_FILE = Path(__file__).parent.parent / "reports" / "compliance_result.json"
 
 # 攻击测试套件（对应第7/8/10条）
 ATTACK_SUITE = [
