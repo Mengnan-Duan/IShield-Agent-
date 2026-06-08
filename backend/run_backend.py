@@ -73,7 +73,7 @@ if __name__ == "__main__":
         print("  请运行以下命令安装依赖：")
         print("  pip install flask flask_cors requests pyjwt")
         print("=" * 60)
-        import sys; sys.exit(1)
+        input("按回车键退出...")
 
     print("=" * 60)
     print("  IShield Agent Security Platform")
