@@ -6,6 +6,9 @@ from typing import Any, Dict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.events import add_event
 from services.websocket import broadcast_event, broadcast_alert
+from services.supply_chain_guard import get_supply_chain_guard
+from services.risk_engine import get_risk_engine
+from services.tool_permissions import evaluate_tool_constraints
 
 TOOL_TIMEOUT = 10
 _TOOL_HANDLERS = {}
@@ -33,6 +36,7 @@ def run_tool(tool_name: str, params: str, **kwargs) -> dict:
     source_ip = kwargs.get("source_ip")
     action = kwargs.get("action") or tool_name
     chain_id = kwargs.get("chain_id")
+    token_meta = kwargs.get("token_meta") or {}
     audit_context = {
         "source_ip": source_ip,
         "action": action,
@@ -42,6 +46,28 @@ def run_tool(tool_name: str, params: str, **kwargs) -> dict:
         "metadata": {"params": parsed_params},
         "chain_id": chain_id,
     }
+
+    perm_ok, perm_reason = evaluate_tool_constraints(token_meta, tool_name, parsed_params)
+    if not perm_ok:
+        blocked = _finalize_result(tool_name, {
+            "status": "blocked",
+            "mode": "mock",
+            "summary": f"工具 {tool_name} 被身份权限策略阻断",
+            "audit": {
+                "reason": perm_reason,
+                "rule_id": "IDENTITY-SCOPE-001",
+                "severity": 86,
+                "threat_level": "high",
+            },
+            "data": {"params": parsed_params},
+        })
+        _record_tool_result(blocked, audit_context)
+        return blocked
+
+    supply_result = _precheck_supply_chain(tool_name, parsed_params, chain_id)
+    if supply_result:
+        _record_tool_result(supply_result, audit_context)
+        return supply_result
 
     add_event(
         event_type=f"工具执行:{tool_name}",
@@ -196,6 +222,65 @@ def _severity_from_status(status: str) -> int:
         "executed": 20,
         "mock": 10,
     }.get(status, 50)
+
+
+def _precheck_supply_chain(tool_name: str, params: dict, chain_id: str = None) -> dict | None:
+    if tool_name != "http_request":
+        return None
+    url = (params.get("url") or params.get("endpoint") or "").strip()
+    if not url:
+        return None
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    domain = (parsed.netloc or "").lower()
+    path = parsed.path or "/"
+    guard = get_supply_chain_guard()
+    report = guard.record_request(domain=domain, method=params.get("method", "GET"), path=path, status_code=0, response_bytes=0, chain_id=chain_id)
+    alerts = report.get("alerts", [])
+    risk_score = report.get("risk_score", 0)
+    action = "allow"
+    if risk_score >= 60:
+        action = "block"
+    elif risk_score >= 30:
+        action = "confirm"
+
+    intent_text = f"{url} {(params.get('data') or '')} {(params.get('headers') or '')}".lower()
+    suspicious_terms = ["token", "secret", "export", "db", "email", "password", "credential"]
+    if sum(1 for t in suspicious_terms if t in intent_text) >= 2:
+        risk_score += 25
+        action = "block" if risk_score >= 60 else "confirm"
+        alerts.append({"type": "data_egress_intent", "score": 25})
+
+    if action == "block":
+        get_risk_engine().record(score=40, reason=f"supply_chain_block:{domain}", source="tool_runner")
+        return _finalize_result(tool_name, {
+            "status": "blocked",
+            "mode": "mock",
+            "summary": f"供应链守卫阻断了对可疑域名 {domain} 的访问",
+            "audit": {
+                "reason": "suspicious_supply_chain_target",
+                "rule_id": "SUPPLY-CHAIN-001",
+                "severity": min(95, max(70, risk_score)),
+                "threat_level": "high",
+                "alerts": alerts,
+            },
+            "data": {"domain": domain, "path": path, "risk_score": risk_score},
+        })
+    if action == "confirm":
+        return _finalize_result(tool_name, {
+            "status": "blocked",
+            "mode": "mock",
+            "summary": f"供应链守卫要求确认后才能访问域名 {domain}",
+            "audit": {
+                "reason": "suspicious_supply_chain_target_confirm",
+                "rule_id": "SUPPLY-CHAIN-CHALLENGE-001",
+                "severity": min(88, max(45, risk_score)),
+                "threat_level": "medium",
+                "alerts": alerts,
+            },
+            "data": {"domain": domain, "path": path, "risk_score": risk_score},
+        })
+    return None
 
 
 # ── 内置工具处理器注册 ──────────────────────────────────────────────────────

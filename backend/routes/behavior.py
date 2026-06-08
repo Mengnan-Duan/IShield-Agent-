@@ -1,5 +1,5 @@
 """行为分析路由 — 异常 IP 报告、行为摘要"""
-from flask import Blueprint, g, jsonify
+from flask import Blueprint
 from middleware.logger import get_logger
 from middleware.error_handler import ValidationError
 
@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.response import make_response
 from services.behavior_analyzer import get_behavior_analyzer
+from services.risk_engine import get_risk_engine
 
 logger = get_logger()
 behavior_bp = Blueprint("behavior", __name__, url_prefix="/api/behavior")
@@ -18,6 +19,12 @@ def behavior_summary():
     """GET /api/behavior/summary — 全局异常摘要，Top 20 风险 IP"""
     analyzer = get_behavior_analyzer()
     return make_response(analyzer.get_summary())
+
+
+@behavior_bp.route("/risk-summary", methods=["GET"])
+def risk_summary():
+    """GET /api/behavior/risk-summary — 会话/IP/Token 风险闭环摘要"""
+    return make_response(get_risk_engine().get_summary())
 
 
 @behavior_bp.route("/ip/<ip>", methods=["GET"])

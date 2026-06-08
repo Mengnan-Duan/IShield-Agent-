@@ -8,8 +8,9 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 from collections import defaultdict, deque
+import json
 import time
-import threading
+from pathlib import Path
 from threading import Lock
 
 
@@ -46,11 +47,14 @@ class UebaEngine:
     UEBA 基于自学习基线（无需人工设定阈值）。
     """
 
+    SNAPSHOT_FILE = Path(__file__).parent.parent / "data" / "ueba_snapshot.json"
+
     def __init__(self):
         self._lock = Lock()
         self._ip_baselines: Dict[str, IPBaseline] = {}
         self._token_baselines: Dict[str, TokenBaseline] = {}
         self._last_cleanup = time.time()
+        self._load_snapshot()
 
     # ── 记录请求 ──────────────────────────────────────────────────────────
 
@@ -78,6 +82,7 @@ class UebaEngine:
             # 异常检测
             anomaly = self._detect_ip_anomaly(baseline, ip, endpoint, result)
             self._cleanup_if_needed(now)
+            self._save_snapshot()
             return anomaly
 
     def track_token_request(self, token: str, ip: str, endpoint: str) -> Dict:
@@ -97,6 +102,7 @@ class UebaEngine:
             self._update_token_rate(baseline, now)
 
             anomaly = self._detect_token_anomaly(baseline, token, ip, endpoint)
+            self._save_snapshot()
             return anomaly
 
     def track_cross_ip_token(self, token: str, ip: str):
@@ -246,6 +252,61 @@ class UebaEngine:
     def clear_token(self, token: str):
         with self._lock:
             self._token_baselines.pop(token, None)
+            self._save_snapshot()
+
+    def _save_snapshot(self):
+        try:
+            payload = {
+                "ips": {
+                    ip: {
+                        "first_seen": b.first_seen,
+                        "total_requests": b.total_requests,
+                        "avg_rate": b.avg_rate,
+                        "endpoints": list(b.endpoints),
+                        "tokens": list(b.tokens),
+                        "tool_usage": list(b.tool_usage),
+                    }
+                    for ip, b in self._ip_baselines.items()
+                },
+                "tokens": {
+                    token: {
+                        "first_seen": b.first_seen,
+                        "total_requests": b.total_requests,
+                        "avg_rate": b.avg_rate,
+                        "typical_hours": list(b.typical_hours),
+                        "typical_ips": list(b.typical_ips),
+                        "endpoints": list(b.endpoints),
+                    }
+                    for token, b in self._token_baselines.items()
+                },
+            }
+            self.SNAPSHOT_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+    def _load_snapshot(self):
+        try:
+            if not self.SNAPSHOT_FILE.exists():
+                return
+            payload = json.loads(self.SNAPSHOT_FILE.read_text(encoding="utf-8"))
+            for ip, data in payload.get("ips", {}).items():
+                b = IPBaseline(first_seen=data.get("first_seen", time.time()))
+                b.total_requests = data.get("total_requests", 0)
+                b.avg_rate = data.get("avg_rate", 0.0)
+                b.endpoints = set(data.get("endpoints", []))
+                b.tokens = set(data.get("tokens", []))
+                b.tool_usage = set(data.get("tool_usage", []))
+                self._ip_baselines[ip] = b
+            for token, data in payload.get("tokens", {}).items():
+                b = TokenBaseline(first_seen=data.get("first_seen", time.time()))
+                b.total_requests = data.get("total_requests", 0)
+                b.avg_rate = data.get("avg_rate", 0.0)
+                b.typical_hours = set(data.get("typical_hours", []))
+                b.typical_ips = set(data.get("typical_ips", []))
+                b.endpoints = set(data.get("endpoints", []))
+                self._token_baselines[token] = b
+        except Exception:
+            pass
 
     # ── 内部 ───────────────────────────────────────────────────────────
 

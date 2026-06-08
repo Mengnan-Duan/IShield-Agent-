@@ -896,9 +896,14 @@
         var d = resp.data || resp;
         var ips = d.total_tracked_ips || 0;
         document.getElementById('dashUebaIps').textContent = ips || '0';
+        document.getElementById('dashCrossIpAlerts').textContent = d.total_tracked_tokens || 0;
         renderUebaIps(d.top_ips || []);
+        renderTokenAnomalies((d.top_tokens || []).map(function(item) {
+          return { token: item.token, type: '风险Token', detail: '累计风险分 ' + item.score };
+        }));
       }).catch(function() {
         document.getElementById('dashUebaIps').textContent = '0';
+        document.getElementById('dashCrossIpAlerts').textContent = '0';
       });
 
     var prom2 = fetch(API + '/supply/summary')
@@ -914,7 +919,17 @@
         document.getElementById('dashSupplyChainSafe').textContent = '0';
       });
 
-    Promise.all([prom1, prom2]).catch(function() {});
+    var prom3 = fetch(API + '/behavior/risk-summary')
+      .then(function(r) { return r.json(); })
+      .then(function(resp) {
+        var d = resp.data || resp;
+        if ((!d.top_risky_tokens || !d.top_risky_tokens.length) && (!d.top_risky_ips || !d.top_risky_ips.length)) return;
+        renderTokenAnomalies((d.top_risky_tokens || []).map(function(item) {
+          return { token: item.token, type: '风险累计', detail: '风险分 ' + item.score };
+        }));
+      }).catch(function() {});
+
+    Promise.all([prom1, prom2, prom3]).catch(function() {});
   }
 
   function renderUebaIps(ips) {

@@ -1,6 +1,4 @@
 """API Key / Bearer Token 认证中间件 — 集成审计日志、Token 管理、Per-token 限流、会话指纹"""
-import hashlib
-import hmac
 import time as _time
 from functools import wraps
 from flask import request, g, jsonify
@@ -33,39 +31,31 @@ def _split_token(token: str) -> tuple[str, str]:
 
 
 def _validate_token(token: str, client_ip: str) -> dict | None:
-    """
-    完整验证：
-    1. 优先走 token_manager（registry、过期、吊销、IP 白名单）
-    2. 降级到 config 中的明文 token
-    """
-    name, sig = _split_token(token)
-
-    # 尝试 token_manager
+    """优先走 token_manager，返回权威 token 元数据。"""
+    name, _sig = _split_token(token)
     if name:
-        ok, reason = tm_validate_token(name, token, client_ip)
-        if ok:
-            return {"name": name, "role": _infer_role(name), "readonly": _is_readonly_name(name)}
+        ok, _reason, meta = tm_validate_token(name, token, client_ip)
+        if ok and meta:
+            return meta
 
-    # 降级：config 中的明文 token
     plain_tokens = getattr(config, "API_TOKENS_PLAIN", [])
     if token in plain_tokens:
-        return {"name": token, "role": "admin", "readonly": False}
+        return {
+            "name": token,
+            "subject": token,
+            "role": "admin",
+            "readonly": False,
+            "write_access": True,
+            "scopes": ["*"],
+            "allowed_tools": ["*"],
+            "constraints": {},
+            "allowed_ips": ["*"],
+            "status": "active",
+            "issue_source": "config_plain_token",
+            "requires_approval": True,
+        }
 
     return None
-
-
-def _infer_role(name: str) -> str:
-    n = name.lower()
-    if "admin" in n: return "admin"
-    if "operator" in n: return "operator"
-    if "analyst" in n: return "analyst"
-    if "readonly" in n or "read" in n: return "readonly"
-    return "guest"
-
-
-def _is_readonly_name(name: str) -> bool:
-    n = name.lower()
-    return "readonly" in n or "read" in n
 
 
 def _is_write_endpoint(method: str, path: str) -> bool:
@@ -112,15 +102,24 @@ def setup_auth(app):
         client_ip = _get_client_ip()
         g._client_ip = client_ip
 
-        # 会话指纹（在认证前就做）
         fingerprinter = get_session_fingerprinter()
         fingerprint = fingerprinter.fingerprint_request(request)
         g._fingerprint = fingerprint
         g._session = fingerprinter.get_or_create_session(fingerprint)
 
-        # 认证
         if not getattr(config, "AUTH_ENABLED", False):
-            g.token_meta = {"name": "anonymous", "role": "guest", "readonly": False}
+            g.token_meta = {
+                "name": "anonymous",
+                "subject": "anonymous",
+                "role": "guest",
+                "readonly": False,
+                "write_access": True,
+                "scopes": ["tool:detect"],
+                "allowed_tools": ["detect"],
+                "constraints": {},
+                "issue_source": "dev_mode",
+                "requires_approval": False,
+            }
         else:
             token = _get_token_from_request()
             if not token:
@@ -138,7 +137,7 @@ def setup_auth(app):
                     "message": "Invalid token.",
                 }), 401
 
-            if meta["readonly"] and _is_write_endpoint(request.method, path):
+            if not meta.get("write_access", not meta.get("readonly", False)) and _is_write_endpoint(request.method, path):
                 return jsonify({
                     "code": "FORBIDDEN",
                     "success": False,
@@ -147,7 +146,6 @@ def setup_auth(app):
 
             g.token_meta = meta
 
-        # Per-token 限流（认证后立即检查）
         meta = g.token_meta
         limiter = get_token_rate_limiter()
         allowed, count, limit = limiter.check(meta["name"], meta.get("role", "guest"))
@@ -177,7 +175,6 @@ def setup_auth(app):
 
         if meta:
             try:
-                # 审计日志（冷启动时 DB 锁竞争可能失败，不影响业务响应）
                 audit_log.log_operation(
                     meta, request, response, elapsed,
                     threat_level=_threat_from_status(response.status_code),
@@ -186,7 +183,6 @@ def setup_auth(app):
             except Exception:
                 pass
 
-            # 会话指纹追踪
             if fingerprint:
                 try:
                     fp = get_session_fingerprinter()
@@ -196,7 +192,6 @@ def setup_auth(app):
                 except Exception:
                     pass
 
-            # 行为分析
             try:
                 if response.status_code >= 400:
                     g._threat_detected = True
@@ -215,21 +210,32 @@ def setup_auth(app):
 
 
 def _threat_from_status(code: int) -> str:
-    if code >= 500: return "high"
-    if code >= 400: return "medium"
+    if code >= 500:
+        return "high"
+    if code >= 400:
+        return "medium"
     return "none"
 
 
 def _action_tag(path: str, status: int) -> str:
-    if status == 429: return "rate_limited"
-    if status == 401: return "unauthorized"
-    if status == 403: return "forbidden"
-    if status >= 500: return "server_error"
-    if path.startswith("/api/detect"): return "detect"
-    if path.startswith("/api/simulate"): return "simulate"
-    if path.startswith("/api/redteam"): return "redteam"
-    if path.startswith("/api/campaigns"): return "campaign"
-    if path.startswith("/api/tokens"): return "token_management"
+    if status == 429:
+        return "rate_limited"
+    if status == 401:
+        return "unauthorized"
+    if status == 403:
+        return "forbidden"
+    if status >= 500:
+        return "server_error"
+    if path.startswith("/api/detect"):
+        return "detect"
+    if path.startswith("/api/simulate"):
+        return "simulate"
+    if path.startswith("/api/redteam"):
+        return "redteam"
+    if path.startswith("/api/campaigns"):
+        return "campaign"
+    if path.startswith("/api/tokens"):
+        return "token_management"
     return "api_call"
 
 
@@ -254,7 +260,7 @@ def require_permission(tool: str):
             meta = getattr(g, "token_meta", None)
             if not meta:
                 return jsonify({"code": "FORBIDDEN", "success": False, "message": "No token."}), 403
-            allowed, reason = check_permission(meta["name"], tool)
+            allowed, reason = check_permission(meta, tool)
             if not allowed:
                 return jsonify({
                     "code": "FORBIDDEN",

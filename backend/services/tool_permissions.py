@@ -1,4 +1,4 @@
-"""工具权限服务 — 基于角色的工具访问控制（RBAC）"""
+"""工具权限服务 — 基于角色 + scope + 参数约束的工具访问控制"""
 import json
 import os
 from typing import Tuple
@@ -9,6 +9,21 @@ PERMISSIONS_FILE = os.path.join(
 )
 
 
+TOOL_SCOPE_ALIASES = {
+    "detect": "tool:detect",
+    "simulate": "tool:simulate",
+    "conversation": "tool:conversation",
+    "campaign": "tool:campaign",
+    "redteam": "tool:redteam",
+    "http_request": "tool:http_request",
+    "write_file": "tool:write_file",
+    "read_file": "tool:read_file",
+    "query_db": "tool:query_db",
+    "send_email": "tool:send_email",
+    "post_social": "tool:post_social",
+}
+
+
 def _load_permissions() -> dict:
     try:
         with open(PERMISSIONS_FILE, encoding="utf-8") as f:
@@ -17,54 +32,71 @@ def _load_permissions() -> dict:
         return {"roles": {}, "tools": {}}
 
 
-def check_permission(token_name: str, tool: str) -> Tuple[bool, str]:
-    """
-    检查 token_name 是否有权限使用 tool。
+def _scope_for_tool(tool: str) -> str:
+    return TOOL_SCOPE_ALIASES.get(tool, f"tool:{tool}")
 
-    返回: (allowed: bool, reason: str)
-    """
+
+def check_permission(token_meta: dict, tool: str) -> Tuple[bool, str]:
+    """检查 token_meta 是否有权限使用 tool。"""
     data = _load_permissions()
     roles = data.get("roles", {})
 
-    # 查找 token 对应的角色
-    role = _token_role(token_name)
-    if not role:
-        return False, f"Token '{token_name}' has no assigned role"
-
+    role = (token_meta or {}).get("role", "guest")
     role_def = roles.get(role, {})
-    tools = role_def.get("tools", [])
+    role_tools = role_def.get("tools", [])
+    meta_tools = (token_meta or {}).get("allowed_tools", [])
+    scopes = set((token_meta or {}).get("scopes", []) or [])
+    required_scope = _scope_for_tool(tool)
 
-    if "*" in tools:
-        return True, "admin: full access"
+    if "*" in meta_tools or "*" in role_tools or "*" in scopes:
+        return True, "full access"
 
-    if tool in tools:
-        return True, f"role '{role}' allows '{tool}'"
+    if tool in meta_tools or tool in role_tools:
+        return True, f"tool '{tool}' explicitly allowed"
 
-    return False, f"role '{role}' does not allow '{tool}' (allowed: {', '.join(tools) or 'none'})"
+    if required_scope in scopes:
+        return True, f"scope '{required_scope}' allowed"
 
-
-def _token_role(token_name: str) -> str | None:
-    """根据 token 名称推断角色"""
-    name_lower = token_name.lower()
-    if "admin" in name_lower:
-        return "admin"
-    if "operator" in name_lower:
-        return "operator"
-    if "analyst" in name_lower:
-        return "analyst"
-    if "readonly" in name_lower or "read" in name_lower:
-        return "readonly"
-    return "operator"  # 默认角色
+    return False, f"role '{role}' lacks tool '{tool}' and scope '{required_scope}'"
 
 
-def get_permissions_for_token(token_name: str) -> dict:
+def evaluate_tool_constraints(token_meta: dict, tool: str, params: dict) -> Tuple[bool, str]:
+    constraints = ((token_meta or {}).get("constraints") or {}).get(tool, {})
+    if not constraints:
+        return True, "no constraints"
+
+    if constraints.get("disabled"):
+        return False, f"tool '{tool}' disabled by token constraints"
+
+    if tool == "http_request":
+        url = (params.get("url") or params.get("endpoint") or "").lower()
+        if constraints.get("internal_only") and not any(s in url for s in ("localhost", "127.0.0.1", "/api/")):
+            return False, "http_request limited to internal targets"
+
+    if tool == "write_file":
+        path = (params.get("file") or params.get("filename") or params.get("path") or "").lower()
+        if constraints.get("sandbox_only") and not any(s in path for s in ("sandbox", "tmp", "temp", "uploads")):
+            return False, "write_file limited to sandbox paths"
+
+    if tool == "query_db":
+        query = (params.get("query") or params.get("sql") or "").lower()
+        if not constraints.get("allow_write", False) and any(k in query for k in ("update ", "delete ", "insert ", "drop ", "truncate ")):
+            return False, "query_db write operations forbidden"
+
+    return True, "constraints passed"
+
+
+def get_permissions_for_token(token_meta: dict) -> dict:
     """返回 token 的完整权限信息"""
     data = _load_permissions()
-    role = _token_role(token_name)
+    role = (token_meta or {}).get("role", "guest")
     role_def = data.get("roles", {}).get(role, {})
     return {
-        "token": token_name,
+        "token": (token_meta or {}).get("name", "unknown"),
         "role": role,
         "description": role_def.get("description", ""),
-        "tools": role_def.get("tools", []),
+        "tools": (token_meta or {}).get("allowed_tools", []) or role_def.get("tools", []),
+        "scopes": (token_meta or {}).get("scopes", []),
+        "constraints": (token_meta or {}).get("constraints", {}),
+        "write_access": (token_meta or {}).get("write_access", False),
     }

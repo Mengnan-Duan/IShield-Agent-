@@ -1,8 +1,8 @@
 """行为守卫中间件 — 在 rate_limiter 之后，对异常 IP 自动封禁"""
 from flask import request, g
 from services.behavior_analyzer import get_behavior_analyzer
+from services.risk_engine import get_risk_engine
 from middleware.logger import get_logger
-import time
 
 logger = get_logger()
 
@@ -12,14 +12,13 @@ def setup_behavior_guard(app):
 
     @app.before_request
     def check_behavior_guard():
-        # 只拦截 API 请求
         if not request.path.startswith("/api/"):
             return None
 
         ip = _get_client_ip()
         analyzer = get_behavior_analyzer()
+        risk_engine = get_risk_engine()
 
-        # 检查是否被封禁
         if analyzer.is_banned(ip):
             logger.warning(f"[BehaviorGuard] Rejected banned IP {ip} -> {request.path}")
             from flask import jsonify
@@ -30,27 +29,22 @@ def setup_behavior_guard(app):
                 "retry_after": 300,
             }), 429
 
-        # 记录请求（事后分析），只对高危端点计入行为异常分
         g._client_ip = ip
         g._behavior_analyzer = analyzer
-        # detect/simulate/audit/audit-logs 等日常端点不计入异常分
-        high_risk_prefixes = ("/api/redteam", "/api/campaigns", "/api/batch")
+        g._risk_engine = risk_engine
+        high_risk_prefixes = ("/api/redteam", "/api/campaigns", "/api/batch", "/api/simulate")
         g._count_for_behavior = request.path.startswith(high_risk_prefixes)
         return None
 
     @app.after_request
     def log_behavior(response):
-        """请求结束后记录行为"""
         ip = getattr(g, "_client_ip", None)
         if ip is None or not hasattr(g, "_behavior_analyzer"):
             return response
 
         try:
             analyzer = g._behavior_analyzer
-            result = "malicious" if (response.status_code == 200 and
-                                     getattr(g, "_threat_detected", False)) else "safe"
-
-            # 只有高危端点才计入行为异常分（避免误封日常操作）
+            result = "malicious" if (response.status_code >= 400 or getattr(g, "_threat_detected", False)) else "safe"
             if getattr(g, "_count_for_behavior", False):
                 analyzer.track_request(
                     ip=ip,
@@ -58,6 +52,19 @@ def setup_behavior_guard(app):
                     result=result,
                     threat_level=getattr(g, "_threat_level", "low"),
                 )
+                token_name = ((getattr(g, "token_meta", None) or {}).get("name"))
+                session_id = getattr(g, "_fingerprint", None)
+                severity_score = 0 if result == "safe" else 25
+                severity_score += 10 if request.path.startswith("/api/simulate") else 0
+                risk_report = g._risk_engine.record(
+                    ip=ip,
+                    token=token_name,
+                    session=session_id,
+                    score=severity_score,
+                    reason=f"{request.path}:{result}",
+                    source="behavior_guard",
+                )
+                g._risk_action = risk_report.get("action", "allow")
         except Exception:
             pass
         return response
@@ -71,16 +78,3 @@ def _get_client_ip() -> str:
     if demo:
         return demo.split(",")[0].strip()
     return (request.remote_addr or "127.0.0.1").strip()
-
-
-def _normalize_endpoint(path: str) -> str:
-    """将 /api/campaigns/abc123 -> /api/campaigns"""
-    parts = path.split("/")
-    # /api/behavior/ip/1.2.3.4 -> /api/behavior
-    if len(parts) >= 3 and parts[2] == "behavior":
-        return "/".join(parts[:3])
-    if len(parts) >= 4 and parts[2] in ("campaigns", "chains", "events"):
-        return "/".join(parts[:3])
-    if len(parts) >= 3:
-        return "/".join(parts[:3])
-    return path

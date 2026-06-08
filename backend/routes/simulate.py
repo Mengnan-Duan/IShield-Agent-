@@ -1,5 +1,5 @@
 """模拟路由 — 沙箱执行 + 策略引擎双重检查"""
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 import uuid
 
 import sys, os
@@ -203,7 +203,7 @@ def simulate():
             "chain_id": chain_id,
         })
 
-    tool_result = run_tool(action, params, source_ip=source_ip, action=action, chain_id=chain_id)
+    tool_result = run_tool(action, params, source_ip=source_ip, action=action, chain_id=chain_id, token_meta=getattr(g, 'token_meta', None))
     tool_status = tool_result.get("status", "unknown")
 
     if tool_status in {"executed", "mock"}:

@@ -5,18 +5,16 @@ IShield Backend — 企业级 Flask 应用入口
 - 路由注册
 - 应用启动
 """
-from flask import Flask, send_from_directory, g, request
+from flask import Flask, send_from_directory, request
 from flask_cors import CORS
 import os
 
-# ── 导入中间件 ────────────────────────────────────────────────────────────────
 from middleware.logger import setup_request_logging, get_logger
 from middleware.error_handler import setup_error_handlers
 from middleware.rate_limiter import setup_rate_limiter
 from middleware.behavior_guard import setup_behavior_guard
 from middleware.auth import setup_auth
 
-# ── 导入路由蓝图 ──────────────────────────────────────────────────────────────
 from routes.detect import detect_bp
 from routes.simulate import simulate_bp
 from routes.events import events_bp
@@ -30,6 +28,8 @@ from routes.compliance import compliance_bp
 from routes.audit import audit_bp
 from routes.attack_chains import chains_bp
 from routes.tokens import tokens_bp
+from routes.ueba import ueba_bp
+from routes.supply_chain import supply_bp
 from services.websocket import events_stream
 
 logger = get_logger()
@@ -38,16 +38,14 @@ logger = get_logger()
 def create_app():
     app = Flask(__name__, static_folder="..", static_url_path="")
 
-    # ── CORS ────────────────────────────────────────────────────────────────
     CORS(app, resources={
         r"/api/*": {
             "origins": "*",
             "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Admin-Approval-Code"],
         }
     })
 
-    # ── 缓存控制 ─────────────────────────────────────────────────────────
     @app.after_request
     def add_cache_headers(response):
         if request.path == "/" or request.path.endswith(".html"):
@@ -58,15 +56,12 @@ def create_app():
             response.headers["Cache-Control"] = "public, max-age=86400"
         return response
 
-    # ── 中间件装配（顺序重要）───────────────────────────────────────────────
-    from flask import request
-    setup_request_logging(app)        # 结构化日志 + request_id
-    setup_error_handlers(app)         # 全局异常处理
-    setup_rate_limiter(app)           # 请求限流
-    setup_behavior_guard(app)         # 行为异常检测 + 自动封禁
-    setup_auth(app)                   # API Key 认证（默认关闭）
+    setup_request_logging(app)
+    setup_error_handlers(app)
+    setup_rate_limiter(app)
+    setup_behavior_guard(app)
+    setup_auth(app)
 
-    # ── 蓝图注册 ─────────────────────────────────────────────────────────
     app.register_blueprint(detect_bp)
     app.register_blueprint(simulate_bp)
     app.register_blueprint(events_bp)
@@ -80,13 +75,13 @@ def create_app():
     app.register_blueprint(audit_bp)
     app.register_blueprint(chains_bp)
     app.register_blueprint(tokens_bp)
+    app.register_blueprint(ueba_bp)
+    app.register_blueprint(supply_bp)
 
-    # ── SSE 实时推送端点 ─────────────────────────────────────────────────
     @app.route("/api/events/stream")
     def sse_events():
         return events_stream()
 
-    # ── 静态文件服务 ─────────────────────────────────────────────────────
     @app.route("/")
     def index():
         return send_from_directory(
@@ -101,7 +96,6 @@ def create_app():
             "dashboard.html"
         )
 
-    # ── 未匹配路由 ───────────────────────────────────────────────────────
     @app.route("/<path:path>")
     def static_files(path):
         fpath = os.path.join(app.static_folder, path)
@@ -111,15 +105,13 @@ def create_app():
         from utils.response import Err
         raise BusinessError("资源不存在", Err.NOT_FOUND)
 
-    # ── 启动时打印 ────────────────────────────────────────────────────────
     @app.before_request
     def log_start():
-        pass  # request_id 等已在 logger.py 中处理
+        pass
 
     return app
 
 
-# ── 创建 app 实例（WSGI 服务器使用）─────────────────────────────────────────
 app = create_app()
 
 
