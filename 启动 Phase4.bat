@@ -24,6 +24,7 @@ echo.
 echo   请稍候，后端日志将显示在下方...
 echo.
 
-:: 直接启动后端
+:: 启动后端（从 backend/ 目录运行）
+cd /d "%~dp0backend"
 python run_backend.py
 pause

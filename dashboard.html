@@ -1021,7 +1021,7 @@
   function dashServerRestart() {
     fetch(API + '/__internal__/stop', { method: 'POST', cache: 'no-cache' })
       .then(function() {
-        toast('后端已停止，请双击"启动 Phase4.bat"重启', 'info');
+        toast('后端已停止，请双击"启动 Phase4.bat"重启（位于项目根目录）', 'info');
         updateDashServerUI({ running: false });
       })
       .catch(function() {

@@ -3073,7 +3073,7 @@ function serverStart() {
 }
 
 function serverStop() {
-  if (!confirm('确定要停止后端服务吗？\n\n停止后需双击"启动 Phase4.bat"重新启动。')) return;
+  if (!confirm('确定要停止后端服务吗？\n\n停止后需双击"启动 Phase4.bat"重新启动（位于项目根目录）。')) return;
   var btn = document.getElementById('btnServerStop');
   _setBtnLoading(btn, true, '停止中...');
   fetch(API + '/__internal__/stop', { method: 'POST', cache: 'no-cache' })
@@ -3090,13 +3090,13 @@ function serverStop() {
 }
 
 function serverRestart() {
-  if (!confirm('确定要重启后端吗？\n\n后端将停止，请双击"启动 Phase4.bat"重新启动。')) return;
+  if (!confirm('确定要重启后端吗？\n\n后端将停止，请双击"启动 Phase4.bat"重新启动（位于项目根目录）。')) return;
   var btn = document.getElementById('btnServerRestart');
   _setBtnLoading(btn, true, '重启中...');
   fetch(API + '/__internal__/stop', { method: 'POST', cache: 'no-cache' })
     .then(function() {
       _setBtnLoading(btn, false, '');
-      toast('后端已停止，请双击"启动 Phase4.bat"重启', 'info');
+      toast('后端已停止，请双击"启动 Phase4.bat"重启（位于项目根目录）', 'info');
       _updateServerUI({ running: false });
     })
     .catch(function() {
