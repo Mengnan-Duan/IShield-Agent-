@@ -9,6 +9,8 @@ from flask import Flask, send_from_directory, request
 from flask_cors import CORS
 import os
 
+import config
+
 from middleware.logger import setup_request_logging, get_logger
 from middleware.error_handler import setup_error_handlers
 from middleware.rate_limiter import setup_rate_limiter
@@ -45,6 +47,25 @@ def create_app():
             "allow_headers": ["Content-Type", "Authorization", "X-Admin-Approval-Code"],
         }
     })
+
+    @app.route("/api/__internal__/status")
+    def internal_status():
+        from routes.detect import _api_enabled, _api_provider
+        return {
+            "running": True,
+            "status": "ok",
+            "api_enabled": _api_enabled(),
+            "api_provider": _api_provider(),
+        }
+
+    @app.route("/api/__internal__/stop", methods=["POST"])
+    def internal_stop():
+        from flask import jsonify
+        shutdown = request.environ.get("werkzeug.server.shutdown")
+        if shutdown is None:
+            return jsonify({"success": False, "message": "shutdown unavailable"}), 503
+        shutdown()
+        return jsonify({"success": True, "message": "server stopping"})
 
     @app.after_request
     def add_cache_headers(response):
@@ -120,4 +141,4 @@ if __name__ == "__main__":
     print("  IShield Agent Security Platform")
     print("  Backend v2.0 — Enterprise Grade")
     print("=" * 60)
-    app.run(debug=False, host="0.0.0.0", port=5000, threaded=True)
+    app.run(debug=False, host=config.BACKEND_HOST, port=config.BACKEND_PORT, threaded=True)

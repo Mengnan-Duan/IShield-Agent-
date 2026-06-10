@@ -12,7 +12,7 @@ RATE_LIMITS = {
     "default":       (300, 60),
 }
 
-_WHITELIST = {"/", "/api/health", "/favicon.ico"}
+_WHITELIST = {"/", "/api/health", "/api/__internal__/status", "/api/manager/status", "/api/manager/health", "/favicon.ico"}
 
 
 class SlidingWindowRateLimiter:

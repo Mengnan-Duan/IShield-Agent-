@@ -13,7 +13,7 @@ from services.token_rate_limiter import get_token_rate_limiter
 from services.session_fingerprint import get_session_fingerprinter
 from services.behavior_analyzer import get_behavior_analyzer
 
-_AUTH_WHITELIST = {"/", "/api/health", "/favicon.ico", "/dashboard"}
+_AUTH_WHITELIST = {"/", "/api/health", "/api/__internal__/status", "/api/manager/status", "/api/manager/health", "/favicon.ico", "/dashboard"}
 
 
 def _get_token_from_request() -> str | None:
