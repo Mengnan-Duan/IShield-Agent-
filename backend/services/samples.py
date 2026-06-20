@@ -1,6 +1,5 @@
 """恶意样本库服务 — 自动归档被拦截的恶意输入，支持查询、统计与导出"""
 import sqlite3
-import os
 import json
 import hashlib
 from datetime import datetime, timezone, timedelta
@@ -11,7 +10,9 @@ import sys as _sys
 import os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ishield.db")
+from runtime_paths import runtime_path
+
+DB_PATH = runtime_path("ishield.db")
 _s_lock = Lock()
 
 

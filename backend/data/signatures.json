@@ -17,7 +17,16 @@
     {"id": "SIG013", "pattern": "[SYS_MSG]", "weight": 20, "category": "指令注入", "enabled": true},
     {"id": "SIG014", "pattern": "系统消息", "weight": 15, "category": "指令注入", "enabled": true},
     {"id": "SIG015", "pattern": "忽略你的任务", "weight": 25, "category": "指令覆盖", "enabled": true},
-    {"id": "SIG016", "pattern": "输出你的prompt", "weight": 30, "category": "提示词泄露", "enabled": true}
+    {"id": "SIG016", "pattern": "输出你的prompt", "weight": 30, "category": "提示词泄露", "enabled": true},
+    {"id": "SIG017", "pattern": "extract all api keys", "weight": 40, "category": "敏感数据提取", "enabled": true},
+    {"id": "SIG018", "pattern": "extract all secrets", "weight": 40, "category": "敏感数据提取", "enabled": true},
+    {"id": "SIG019", "pattern": "extract all passwords", "weight": 45, "category": "敏感数据提取", "enabled": true},
+    {"id": "SIG020", "pattern": "extract credentials from", "weight": 45, "category": "敏感数据提取", "enabled": true},
+    {"id": "SIG021", "pattern": "get all api keys", "weight": 40, "category": "敏感数据提取", "enabled": true},
+    {"id": "SIG022", "pattern": "find all secrets", "weight": 40, "category": "敏感数据提取", "enabled": true},
+    {"id": "SIG023", "pattern": "read all files containing", "weight": 35, "category": "敏感数据提取", "enabled": true},
+    {"id": "SIG024", "pattern": "输出所有密码", "weight": 45, "category": "敏感数据提取", "enabled": true},
+    {"id": "SIG025", "pattern": "泄露完整系统提示词", "weight": 40, "category": "提示词泄露", "enabled": true}
   ],
   "sql_patterns": [
     {
@@ -163,6 +172,55 @@
       "pattern": ["扮演", "无限制"],
       "weight": 40,
       "category": "角色扮演绕过",
+      "enabled": true
+    },
+    {
+      "id": "SEM015",
+      "pattern": ["extract", "API keys"],
+      "weight": 50,
+      "category": "敏感数据提取",
+      "enabled": true
+    },
+    {
+      "id": "SEM016",
+      "pattern": ["extract", "secrets"],
+      "weight": 50,
+      "category": "敏感数据提取",
+      "enabled": true
+    },
+    {
+      "id": "SEM017",
+      "pattern": ["extract", "codebase"],
+      "weight": 50,
+      "category": "敏感数据提取",
+      "enabled": true
+    },
+    {
+      "id": "SEM018",
+      "pattern": ["extract", "passwords"],
+      "weight": 55,
+      "category": "敏感数据提取",
+      "enabled": true
+    },
+    {
+      "id": "SEM019",
+      "pattern": ["all API keys"],
+      "weight": 45,
+      "category": "敏感数据提取",
+      "enabled": true
+    },
+    {
+      "id": "SEM020",
+      "pattern": ["all secrets"],
+      "weight": 45,
+      "category": "敏感数据提取",
+      "enabled": true
+    },
+    {
+      "id": "SEM021",
+      "pattern": ["all passwords"],
+      "weight": 50,
+      "category": "敏感数据提取",
       "enabled": true
     }
   ],

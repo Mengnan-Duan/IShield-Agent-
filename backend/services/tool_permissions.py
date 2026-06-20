@@ -1,12 +1,10 @@
 """工具权限服务 — 基于角色 + scope + 参数约束的工具访问控制"""
 import json
-import os
 from typing import Tuple
 
-PERMISSIONS_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "data", "tool_permissions.json"
-)
+from runtime_paths import backend_data_dir
+
+PERMISSIONS_FILE = backend_data_dir() / "tool_permissions.json"
 
 
 TOOL_SCOPE_ALIASES = {

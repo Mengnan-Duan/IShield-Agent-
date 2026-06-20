@@ -8,10 +8,11 @@ import json
 import time
 import threading
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-DB_PATH = Path(__file__).parent.parent / "ishield_audit.db"
+from runtime_paths import runtime_path
+
+DB_PATH = runtime_path("ishield_audit.db")
 _db_lock = threading.Lock()
 
 _UTC8 = timezone(timedelta(hours=8))

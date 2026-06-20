@@ -5,10 +5,11 @@ import json
 import secrets
 import threading
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Optional
 
-REGISTRY_FILE = Path(__file__).parent.parent / "data" / "token_registry.json"
+from runtime_paths import runtime_data_dir
+
+REGISTRY_FILE = runtime_data_dir() / "token_registry.json"
 _LOCK = threading.RLock()
 _UTC8 = timezone(timedelta(hours=8))
 _VALID_ROLES = {"admin", "operator", "analyst", "readonly", "guest"}

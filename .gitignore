@@ -29,6 +29,23 @@ Thumbs.db
 dist/
 build/
 
+# Virtual environment
+.venv/
+
+# Build artifacts
+IShield.spec
+IShield.zip
+IShield/
+build_exe.bat
+build_portable_v3/
+dist_portable_v3/
+
+# Backend runtime
+backend/.backend.pid
+
+# Backend reports & logs (generated)
+backend/reports/compliance_result.json
+
 # Temporary files
 _setup.bat
 _find_python.bat

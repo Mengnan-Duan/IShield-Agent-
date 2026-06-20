@@ -1,7 +1,6 @@
 """合规自测路由 — 自动化攻击模拟、检测能力评估"""
 import json
 import time
-from pathlib import Path
 from flask import Blueprint, jsonify, request
 
 import sys, os
@@ -11,12 +10,13 @@ from middleware.error_handler import ValidationError
 from middleware.logger import get_logger
 from utils.response import make_response
 from services.detection import hybrid_detect
+from runtime_paths import reports_dir
 
 logger = get_logger()
 compliance_bp = Blueprint("compliance", __name__, url_prefix="/api/compliance")
 
-REPORT_FILE = Path(__file__).parent.parent / "reports" / "compliance_report.md"
-RESULT_FILE = Path(__file__).parent.parent / "reports" / "compliance_result.json"
+REPORT_FILE = reports_dir() / "compliance_report.md"
+RESULT_FILE = reports_dir() / "compliance_result.json"
 
 # 攻击测试套件（对应第7/8/10条）
 ATTACK_SUITE = [

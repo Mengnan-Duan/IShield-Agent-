@@ -13,6 +13,8 @@ from middleware.logger import get_logger
 
 from services.detection import hybrid_detect, get_detection_insight
 from services.rule_engine import get_sig_manager
+from services.context_guard import check_context_integrity
+from services.output_guard import scan_output, redact_output
 from services.events import (
     add_event,
     get_cached_detection,
@@ -23,6 +25,7 @@ from services.samples import add_sample
 from services.websocket import broadcast_detection, broadcast_alert
 from utils.normalize import normalize_input, detect_homograph_attack
 from utils.sanitize import sanitize_output
+from middleware.auth import _get_client_ip
 
 logger = get_logger()
 detect_bp = Blueprint("detect", __name__, url_prefix="/api")
@@ -85,6 +88,54 @@ def detect():
     is_malicious, reason, confidence_data = hybrid_detect(normalized)
     elapsed_ms = int((time.time() - start) * 1000)
 
+    # ── Phase 2.1 增强：上下文完整性检测 ───────────────────────
+    # 将单轮输入包装为单条 turn，检测上下文注入意图
+    single_turn = [{"role": "user", "content": normalized, "turn_index": 0}]
+    ctx_check = check_context_integrity(single_turn)
+    if ctx_check.get("violations"):
+        ctx_score = ctx_check.get("score", 0)
+        ctx_conf = min(int(ctx_score * 0.6), 30)
+        # 上下文问题累积到综合置信度
+        confidence_data["combined"] = confidence_data.get("combined", 0) + ctx_conf
+        confidence_data["context_guard"] = {
+            "status": ctx_check.get("integrity_status"),
+            "score": ctx_score,
+            "violations": len(ctx_check.get("violations", [])),
+        }
+        if ctx_score >= 40:
+            is_malicious = True
+            reason = (reason + " | 上下文异常: " +
+                      "; ".join(v.get("type", "") for v in ctx_check.get("violations", [])))
+
+    # ── Phase 2.1 增强：输出内容安全扫描 ────────────────────────
+    # 在返回前扫描模型输出（如果未来模型直接返回内容）
+    # 当前记录扫描结果，由上层决定是否阻断
+    output_scan_result = scan_output(normalized)
+    if output_scan_result[0]:
+        findings = output_scan_result[1]
+        # 敏感信息在输入中出现 = 可能的提取尝试
+        secret_conf = max(f.get("confidence", 0) for f in findings) if findings else 0
+        if secret_conf >= 60:
+            confidence_data["combined"] = confidence_data.get("combined", 0) + min(secret_conf // 2, 25)
+            confidence_data["output_guard"] = {
+                "secrets_detected": len(findings),
+                "max_confidence": secret_conf,
+                "types": [f.get("type", "") for f in findings[:3]],
+            }
+            is_malicious = True
+            reason = reason + " | 检测到敏感信息提取尝试"
+
+    # 重新计算威胁等级
+    combined = confidence_data.get("combined", 0)
+    if combined >= 70:
+        confidence_data["threat_level"] = "high"
+    elif combined >= 40:
+        confidence_data["threat_level"] = "medium"
+    elif combined >= 15:
+        confidence_data["threat_level"] = "low"
+    else:
+        confidence_data["threat_level"] = "none"
+
     g._threat_detected = is_malicious
     g._confidence      = confidence_data.get("combined", 0)
 
@@ -102,12 +153,16 @@ def detect():
         "insight":         get_detection_insight(confidence_data, normalized),
         "normalized":      normalized if normalized != text else None,
         "homograph_warnings": homograph_warnings,
+        # Phase 2.1 增强字段
+        "context_guard":    confidence_data.get("context_guard"),
+        "output_guard":     confidence_data.get("output_guard"),
     }
 
     # ── 4. 缓存写入 & 事件记录 ───────────────────────────────────
     if not is_init_probe:
         set_cached_detection(h, result, ttl_seconds=600)
 
+        source_ip = _get_client_ip()
         add_event(
             event_type="检测" if is_malicious else "放行",
             detail=f"输入: {text[:50]}... | {reason}" if is_malicious else f"输入: {text[:50]}...",
@@ -115,6 +170,7 @@ def detect():
             text_hash=h,
             threat_level=confidence_data.get("threat_level", "none"),
             confidence=confidence_data.get("combined", 0),
+            source_ip=source_ip,
         )
 
         # 恶意样本自动归档

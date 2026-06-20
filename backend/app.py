@@ -7,7 +7,7 @@ IShield Backend — 企业级 Flask 应用入口
 """
 from flask import Flask, send_from_directory, request
 from flask_cors import CORS
-import os
+from pathlib import Path
 
 import config
 
@@ -16,6 +16,7 @@ from middleware.error_handler import setup_error_handlers
 from middleware.rate_limiter import setup_rate_limiter
 from middleware.behavior_guard import setup_behavior_guard
 from middleware.auth import setup_auth
+from runtime_paths import static_root
 
 from routes.detect import detect_bp
 from routes.simulate import simulate_bp
@@ -32,13 +33,25 @@ from routes.attack_chains import chains_bp
 from routes.tokens import tokens_bp
 from routes.ueba import ueba_bp
 from routes.supply_chain import supply_bp
+from routes.agent_monitor import agent_bp
 from services.websocket import events_stream
 
 logger = get_logger()
 
+# 全局退出标志（由 stop 端点设置，由 run_backend.py 的守护线程轮询并退出）
+shutdown_event = None
+
+def _get_shutdown_event():
+    global shutdown_event
+    if shutdown_event is None:
+        import threading
+        shutdown_event = threading.Event()
+    return shutdown_event
+
 
 def create_app():
-    app = Flask(__name__, static_folder="..", static_url_path="")
+    static_dir = static_root()
+    app = Flask(__name__, static_folder=str(static_dir), static_url_path="")
 
     CORS(app, resources={
         r"/api/*": {
@@ -60,12 +73,10 @@ def create_app():
 
     @app.route("/api/__internal__/stop", methods=["POST"])
     def internal_stop():
-        from flask import jsonify
-        shutdown = request.environ.get("werkzeug.server.shutdown")
-        if shutdown is None:
-            return jsonify({"success": False, "message": "shutdown unavailable"}), 503
-        shutdown()
-        return jsonify({"success": True, "message": "server stopping"})
+        import threading
+        evt = _get_shutdown_event()
+        evt.set()
+        return {"success": True, "message": "shutdown signal sent"}
 
     @app.after_request
     def add_cache_headers(response):
@@ -98,30 +109,27 @@ def create_app():
     app.register_blueprint(tokens_bp)
     app.register_blueprint(ueba_bp)
     app.register_blueprint(supply_bp)
+    app.register_blueprint(agent_bp)
 
     @app.route("/api/events/stream")
     def sse_events():
         return events_stream()
 
+    static_dir = Path(app.static_folder)
+
     @app.route("/")
     def index():
-        return send_from_directory(
-            os.path.join(os.path.dirname(__file__), ".."),
-            "frontend.html"
-        )
+        return send_from_directory(static_dir, "frontend.html")
 
     @app.route("/dashboard")
     def dashboard():
-        return send_from_directory(
-            os.path.join(os.path.dirname(__file__), ".."),
-            "dashboard.html"
-        )
+        return send_from_directory(static_dir, "dashboard.html")
 
     @app.route("/<path:path>")
     def static_files(path):
-        fpath = os.path.join(app.static_folder, path)
-        if os.path.isfile(fpath):
-            return send_from_directory(app.static_folder, path)
+        fpath = static_dir / path
+        if fpath.is_file():
+            return send_from_directory(static_dir, path)
         from middleware.error_handler import BusinessError
         from utils.response import Err
         raise BusinessError("资源不存在", Err.NOT_FOUND)

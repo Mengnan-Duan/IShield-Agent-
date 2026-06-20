@@ -1,32 +1,32 @@
 @echo off
 chcp 65001 >nul 2>&1
-title IShield — 智能体安全平台
-
+title IShield - AI Security Platform
 cd /d "%~dp0"
 
-:: 检查 Python
+:: Check Python
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo [错误] 未找到 Python，请安装 Python 3.8+
+    echo [ERROR] Python not found
     pause
     exit /b 1
 )
 
 echo.
 echo  ============================================================
-echo   IShield Phase 4 — 智能体安全平台
-echo   正在启动后端服务...
+echo   IShield Phase 2.1 - AI Agent Security Platform
+echo   Starting backend service...
 echo  ============================================================
 echo.
-echo   控制台：  http://127.0.0.1:5000/frontend.html
-echo   分析看板：http://127.0.0.1:5000/dashboard
+echo   Console:   http://127.0.0.1:5000/frontend.html
+echo   Dashboard: http://127.0.0.1:5000/dashboard
 echo.
-echo   请稍候，后端日志将显示在下方...
+echo   Please wait, backend logs below...
 echo.
 
-:: 启动后端
+:: Start backend
 cd /d "%~dp0backend"
 python run_backend.py
+
 echo.
-echo 后端已退出。按任意键关闭...
+echo Backend stopped. Press any key to close...
 pause >nul

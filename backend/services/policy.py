@@ -7,11 +7,10 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 
-DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "policies"
-)
-DEFAULT_POLICY_FILE = os.path.join(DATA_DIR, "default_policy.json")
+from runtime_paths import backend_policies_dir
+
+DATA_DIR = backend_policies_dir()
+DEFAULT_POLICY_FILE = DATA_DIR / "default_policy.json"
 
 
 class Action(str, Enum):

@@ -1,7 +1,6 @@
 """滑动窗口请求限流 — 无需 Redis，纯内存实现"""
 from flask import request, jsonify, g
 from threading import Lock
-from datetime import datetime, timezone
 import time as _time
 
 # ── 限流配置 ────────────────────────────────────────────────────────────────
@@ -9,10 +8,25 @@ RATE_LIMITS = {
     "/api/redteam":   (10, 60),
     "/api/export":    (5, 60),
     "/api/batch":    (20, 60),
-    "default":       (300, 60),
+    "default":       (500, 60),   # 提高默认阈值，避免正常轮询触发
 }
 
-_WHITELIST = {"/", "/api/health", "/api/__internal__/status", "/api/manager/status", "/api/manager/health", "/favicon.ico"}
+# 高频轮询端点精确白名单
+_WHITELIST_EXACT = {
+    "/",
+    "/api/health",
+    "/api/__internal__/status",
+    "/api/manager/status",
+    "/api/manager/health",
+    "/favicon.ico",
+}
+
+# 高频轮询端点前缀白名单（stream 等动态端点）
+_WHITELIST_PREFIX = (
+    "/api/events",
+    "/api/stream",
+    "/api/dashboard",
+)
 
 
 class SlidingWindowRateLimiter:
@@ -54,8 +68,13 @@ class SlidingWindowRateLimiter:
 
     def is_allowed(self, ip: str, path: str):
         """返回 (是否允许, 限流信息字典)"""
-        if path in _WHITELIST:
+        # 精确匹配
+        if path in _WHITELIST_EXACT:
             return True, {}
+        # 前缀匹配
+        for prefix in _WHITELIST_PREFIX:
+            if path.startswith(prefix):
+                return True, {}
 
         self._cleanup()
         max_requests, window_seconds = self._get_limit(path)
@@ -97,14 +116,14 @@ _rate_limiter = SlidingWindowRateLimiter()
 
 def setup_rate_limiter(app):
     """
-    在 create_app() 中调用，注册 before_request 和 after_request。
-    after_request 必须在请求处理前注册，不能在 before_request 里注册。
+    在 create_app() 中调用，注册 before_request 和 after_response。
     """
 
     @app.before_request
     def _limit():
         path = request.path
-        if path in _WHITELIST or not path.startswith("/api/"):
+        # 静态资源不过限流
+        if not path.startswith("/api/"):
             return None
 
         ip = request.remote_addr or "127.0.0.1"
@@ -123,7 +142,6 @@ def setup_rate_limiter(app):
             response.headers["Retry-After"]        = str(info.get("retry_after", 60))
             return response, 429
 
-        # 存入 g 供 after_request 使用（per-request 上下文安全）
         g._rate_info = info
         return None
 

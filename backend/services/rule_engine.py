@@ -4,8 +4,10 @@ import os
 import re
 from threading import Lock
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-SIG_FILE = os.path.join(DATA_DIR, "signatures.json")
+from runtime_paths import backend_data_dir
+
+DATA_DIR = backend_data_dir()
+SIG_FILE = DATA_DIR / "signatures.json"
 
 
 class SignatureManager:

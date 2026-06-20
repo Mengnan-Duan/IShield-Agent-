@@ -1,6 +1,5 @@
 """事件存储服务 — SQLite + 内存缓存双写，检测缓存，DB 索引，攻击链审计"""
 import sqlite3
-import os
 import json
 from datetime import datetime, timezone, timedelta
 from threading import Lock
@@ -8,9 +7,10 @@ from typing import List, Optional, Dict, Any
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 
+from runtime_paths import runtime_path
 from utils.cache import detect_cache, invalidate_events_cache, get_cached_events, set_cached_events
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ishield.db")
+DB_PATH = runtime_path("ishield.db")
 _db_lock = Lock()
 
 _UTC8 = timezone(timedelta(hours=8))
@@ -42,6 +42,7 @@ def init_db():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
 
+        # ── 建表（IF NOT EXISTS 不改变已有表）──────────────────────────
         c.execute("""
             CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,29 +87,53 @@ def init_db():
             )
         """)
 
-        existing_columns = {
-            row[1] for row in c.execute("PRAGMA table_info(events)").fetchall()
-        }
-        column_migrations = {
-            "source_ip": "ALTER TABLE events ADD COLUMN source_ip TEXT",
-            "action": "ALTER TABLE events ADD COLUMN action TEXT",
-            "tool_name": "ALTER TABLE events ADD COLUMN tool_name TEXT",
-            "target": "ALTER TABLE events ADD COLUMN target TEXT",
-            "rule_id": "ALTER TABLE events ADD COLUMN rule_id TEXT",
-            "category": "ALTER TABLE events ADD COLUMN category TEXT",
-            "metadata_json": "ALTER TABLE events ADD COLUMN metadata_json TEXT",
-            "chain_id": "ALTER TABLE events ADD COLUMN chain_id TEXT",
-            "stage": "ALTER TABLE events ADD COLUMN stage TEXT",
-        }
-        for column_name, sql in column_migrations.items():
-            if column_name not in existing_columns:
-                c.execute(sql)
+        # ── 迁移：确保所有新列都存在（兼容已有旧数据库）───────────────
+        existing_columns = set()
+        try:
+            for row in c.execute("PRAGMA table_info(events)").fetchall():
+                existing_columns.add(row[1])
+        except Exception:
+            pass
 
+        for col_name, col_def in [
+            ("text_hash",      "TEXT"),
+            ("threat_level",   "TEXT"),
+            ("confidence",     "INTEGER"),
+            ("source_ip",      "TEXT"),
+            ("action",         "TEXT"),
+            ("tool_name",      "TEXT"),
+            ("target",         "TEXT"),
+            ("rule_id",        "TEXT"),
+            ("category",       "TEXT"),
+            ("metadata_json",  "TEXT"),
+            ("chain_id",       "TEXT"),
+            ("stage",          "TEXT"),
+        ]:
+            if col_name not in existing_columns:
+                try:
+                    c.execute(f"ALTER TABLE events ADD COLUMN {col_name} {col_def}")
+                except sqlite3.OperationalError:
+                    pass
+
+        # ── 建索引（每个独立 try，防止列不存在时报错）────────────────
         for idx_sql in [
             "CREATE INDEX IF NOT EXISTS idx_events_time ON events(time DESC)",
             "CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)",
             "CREATE INDEX IF NOT EXISTS idx_events_type ON events(type)",
-            "CREATE INDEX IF NOT EXISTS idx_events_hash ON events(text_hash)",
+        ]:
+            try:
+                c.execute(idx_sql)
+            except sqlite3.OperationalError:
+                pass
+
+        # text_hash 索引（可能列刚被 ALTER 添加）
+        if "text_hash" in existing_columns or True:
+            try:
+                c.execute("CREATE INDEX IF NOT EXISTS idx_events_hash ON events(text_hash)")
+            except sqlite3.OperationalError:
+                pass
+
+        for idx_sql in [
             "CREATE INDEX IF NOT EXISTS idx_events_source_ip ON events(source_ip)",
             "CREATE INDEX IF NOT EXISTS idx_events_tool_name ON events(tool_name)",
             "CREATE INDEX IF NOT EXISTS idx_events_category ON events(category)",
@@ -117,7 +142,10 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_cache_hash ON detect_cache(text_hash)",
             "CREATE INDEX IF NOT EXISTS idx_cache_expires ON detect_cache(expires_at)",
         ]:
-            c.execute(idx_sql)
+            try:
+                c.execute(idx_sql)
+            except sqlite3.OperationalError:
+                pass
 
         conn.commit()
         conn.close()

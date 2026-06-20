@@ -95,3 +95,29 @@ def redact_output(text: str) -> str:
     for pattern, label, _ in SECRET_PATTERNS:
         result = pattern.sub(lambda m: f"[{label}]", result)
     return result
+
+
+def evaluate_output_guard(text: str, context: str = "") -> dict:
+    """
+    Phase 2.1 增强：输出守卫评估入口。
+    返回结构化评估结果，供路由层决定是否阻断。
+
+    返回结构:
+        has_secrets: bool    — 是否检测到敏感信息
+        findings: list       — 详细发现列表
+        should_block: bool   — 是否建议阻断
+        redacted_text: str   — 脱敏后的文本（用于替代方案）
+        max_confidence: int  — 最高置信度
+    """
+    has_secrets, findings = scan_output(text, context)
+    max_confidence = max((f["confidence"] for f in findings), default=0)
+    should_block = has_secrets and max_confidence >= 80
+
+    return {
+        "has_secrets": has_secrets,
+        "findings": findings,
+        "should_block": should_block,
+        "redacted_text": redact_output(text),
+        "max_confidence": max_confidence,
+        "secret_types": list({f["type"] for f in findings}),
+    }

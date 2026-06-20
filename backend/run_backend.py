@@ -6,18 +6,22 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import webbrowser
 from contextlib import closing
 
+from runtime_paths import executable_root, runtime_path
+
 # Resolve backend path relative to this script
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKEND_DIR = SCRIPT_DIR
-PID_FILE = os.path.join(SCRIPT_DIR, ".backend.pid")
+SCRIPT_DIR = executable_root()
+BACKEND_DIR = str(executable_root())
+PID_FILE = runtime_path(".backend.pid")
 PORT = int(os.environ.get("BACKEND_PORT", 5000))
 HOST = os.environ.get("BACKEND_HOST", "0.0.0.0")
 LOCAL_HOST = os.environ.get("BACKEND_LOCAL_HOST", "127.0.0.1")
 STOP_ENDPOINT = f"http://{LOCAL_HOST}:{PORT}/api/__internal__/stop"
 STATUS_ENDPOINT = f"http://{LOCAL_HOST}:{PORT}/api/__internal__/status"
-WARMUP_ENDPOINT = f"http://{LOCAL_HOST}:{PORT}/__internal__/warmup"
+WARMUP_ENDPOINT = STATUS_ENDPOINT
+FRONTEND_URL = f"http://{LOCAL_HOST}:{PORT}/frontend.html"
 
 sys.path.insert(0, BACKEND_DIR)
 
@@ -39,20 +43,18 @@ def wait_for_port_release(port, timeout=5.0, interval=0.2):
 
 def read_pid():
     try:
-        with open(PID_FILE, "r", encoding="utf-8") as file:
-            return int(file.read().strip())
+            return int(PID_FILE.read_text(encoding="utf-8").strip())
     except (FileNotFoundError, ValueError):
         return None
 
 
 def write_pid(pid):
-    with open(PID_FILE, "w", encoding="utf-8") as file:
-        file.write(str(pid))
+    PID_FILE.write_text(str(pid), encoding="utf-8")
 
 
 def remove_pid():
     try:
-        os.remove(PID_FILE)
+        PID_FILE.unlink()
     except FileNotFoundError:
         pass
 
@@ -192,6 +194,26 @@ def register_cleanup_hooks():
     atexit.register(cleanup_pid)
 
 
+def open_frontend_when_ready(delay=1.5, retries=10, interval=1.0):
+    def _open():
+        time.sleep(delay)
+        for _ in range(retries):
+            try:
+                with urllib.request.urlopen(STATUS_ENDPOINT, timeout=5) as response:
+                    if response.status == 200:
+                        webbrowser.open(FRONTEND_URL)
+                        print(f"[启动] 已打开前端页面：{FRONTEND_URL}")
+                        return
+            except Exception:
+                pass
+            time.sleep(interval)
+        print(f"[启动] 服务已启动，请手动打开：{FRONTEND_URL}")
+
+    import threading
+
+    threading.Thread(target=_open, daemon=True).start()
+
+
 if __name__ == "__main__":
     try:
         from app import create_app
@@ -214,10 +236,12 @@ if __name__ == "__main__":
     print("  IShield Agent Security Platform")
     print("  Backend v2.0 — Phase 4 Enhanced")
     print("=" * 60)
-    print(f"  控制台：  http://{LOCAL_HOST}:{PORT}/frontend.html")
+    print(f"  控制台：  {FRONTEND_URL}")
     print(f"  分析看板：http://{LOCAL_HOST}:{PORT}/dashboard")
     print(f"  端口 {PORT} | PID {os.getpid()}")
     print("=" * 60)
+
+    open_frontend_when_ready()
 
     import threading
 
@@ -232,4 +256,17 @@ if __name__ == "__main__":
                 time.sleep(1)
 
     threading.Thread(target=_warmup, daemon=True).start()
+
+    # 守护线程：监听 shutdown_event，超时后强制退出进程
+    import app as _app_module
+    def _shutdown_watcher():
+        evt = _app_module._get_shutdown_event()
+        evt.wait()
+        print("[关闭] 收到停止信号，正在退出...")
+        import os
+        os._exit(0)
+
+    shutdown_watchdog = threading.Thread(target=_shutdown_watcher, daemon=True)
+    shutdown_watchdog.start()
+
     app.run(debug=False, host=HOST, port=PORT, threaded=True)

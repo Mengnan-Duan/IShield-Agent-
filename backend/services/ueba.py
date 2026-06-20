@@ -10,8 +10,9 @@ from typing import Dict, List, Optional, Set
 from collections import defaultdict, deque
 import json
 import time
-from pathlib import Path
 from threading import Lock
+
+from runtime_paths import runtime_data_dir
 
 
 @dataclass
@@ -47,7 +48,7 @@ class UebaEngine:
     UEBA 基于自学习基线（无需人工设定阈值）。
     """
 
-    SNAPSHOT_FILE = Path(__file__).parent.parent / "data" / "ueba_snapshot.json"
+    SNAPSHOT_FILE = runtime_data_dir() / "ueba_snapshot.json"
 
     def __init__(self):
         self._lock = Lock()

@@ -1,6 +1,6 @@
 """安全策略管理路由 — 查询/更新/评估安全策略"""
 from flask import Blueprint, request, jsonify
-import json, os
+import json
 
 import sys as _sys
 import os as _os
@@ -9,6 +9,7 @@ _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)
 from middleware.error_handler import ValidationError
 from utils.response import make_response
 from services.policy import get_policy_engine
+from runtime_paths import backend_policies_dir
 
 policy_bp = Blueprint("policy", __name__, url_prefix="/api/policies")
 
@@ -146,12 +147,8 @@ def import_policy():
     if not rules:
         raise ValidationError("rules 不能为空")
 
-    policy_dir = os.path.join(
-        _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
-        "policies"
-    )
-    os.makedirs(policy_dir, exist_ok=True)
-    policy_file = os.path.join(policy_dir, "default_policy.json")
+    policy_dir = backend_policies_dir()
+    policy_file = policy_dir / "default_policy.json"
 
     with open(policy_file, "w", encoding="utf-8") as f:
         json.dump({"rules": rules, "version": "1.1"}, f, ensure_ascii=False, indent=2)

@@ -4,13 +4,12 @@ from datetime import datetime, timezone
 import uuid
 import json
 import logging
-import os
+
+from runtime_paths import logs_dir
 
 # ── 日志目录 ────────────────────────────────────────────────────────────────
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-
-LOG_FILE = os.path.join(LOG_DIR, "app.log")
+LOG_DIR = logs_dir()
+LOG_FILE = LOG_DIR / "app.log"
 
 
 class JSONFormatter(logging.Formatter):
