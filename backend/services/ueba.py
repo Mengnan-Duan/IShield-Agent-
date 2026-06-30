@@ -246,6 +246,71 @@ class UebaEngine:
                 ],
             }
 
+    def get_context_anomaly(self, text: str = "", client_ip: str = None,
+                            token_id: str = None) -> Dict:
+        """针对单次检测请求，返回基于基线的 UEBA 异常分（不更新基线）。
+
+        这是 hybrid_detect 融合所需的接口：
+        - 当 client_ip 已知：基于 IP 历史行为算"陌生度"
+        - 当 token_id 已知：基于 Token 历史算"陌生度"
+        - 返回 dict 含 score (0-100)、alerts、is_anomaly
+        """
+        with self._lock:
+            score = 0
+            alerts = []
+
+            if client_ip:
+                ip_baseline = self._ip_baselines.get(client_ip)
+                if ip_baseline is None:
+                    # 全新 IP：基础陌生度 5 分（不阻断，但提示）
+                    score += 5
+                    alerts.append({
+                        "type": "new_ip",
+                        "detail": f"首次出现的 IP: {client_ip}",
+                    })
+                else:
+                    # 速率异常
+                    if ip_baseline.avg_rate > 0 and len(ip_baseline.rate_samples) >= 3:
+                        if len(ip_baseline.recent_requests) >= 5:
+                            recent_dt = ip_baseline.recent_requests[-1] - ip_baseline.recent_requests[-5]
+                            recent_rate = 4 / (recent_dt / 60) if recent_dt > 0 else 0
+                            if recent_rate > ip_baseline.avg_rate * 3:
+                                score += 30
+                                alerts.append({
+                                    "type": "rate_spike",
+                                    "detail": f"IP {client_ip} 速率突增 {recent_rate:.1f}/min",
+                                })
+
+            if token_id:
+                tok_baseline = self._token_baselines.get(token_id)
+                if tok_baseline is None:
+                    score += 5
+                    alerts.append({
+                        "type": "new_token",
+                        "detail": f"首次使用的 Token",
+                    })
+                else:
+                    # 跨 IP
+                    if client_ip and client_ip not in tok_baseline.typical_ips and len(tok_baseline.typical_ips) > 0:
+                        score += 35
+                        alerts.append({
+                            "type": "cross_ip_token",
+                            "detail": f"Token 从陌生 IP {client_ip} 使用",
+                        })
+
+            # 文本长度异常（用于识别异常 payload）
+            if text and len(text) > 5000:
+                score += 10
+                alerts.append({"type": "long_payload", "detail": f"输入长度 {len(text)} 字符"})
+
+            return {
+                "score": min(score, 100),
+                "alerts": alerts,
+                "is_anomaly": score >= 30,
+                "client_ip": client_ip,
+                "token_id": token_id,
+            }
+
     def clear_ip(self, ip: str):
         with self._lock:
             self._ip_baselines.pop(ip, None)

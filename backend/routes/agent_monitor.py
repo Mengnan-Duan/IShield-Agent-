@@ -115,3 +115,68 @@ def list_agents():
             for aid, m in _registered_agents.items()
         ]
     return make_response({"agents": agents, "count": len(agents)})
+
+
+@agent_bp.route("/summary", methods=["GET"])
+def agent_summary():
+    """Agent 全局汇总 — 从 events 表聚合 agent_tool_call 类型。
+
+    返回:
+        {
+          "total_calls": int,
+          "blocked_count": int,
+          "confirmed_count": int,
+          "allowed_count": int,
+          "block_rate": float,
+          "avg_duration_ms": float,
+          "tool_distribution": {tool_name: count},
+          "agent_distribution": {agent_name: count},
+          "active_agents": int,
+        }
+    """
+    from services.events import get_events_from_db
+
+    try:
+        rows = get_events_from_db(
+            limit=1000,
+            offset=0,
+            type_filter="agent_tool_call",
+        )
+    except Exception:
+        rows = []
+
+    total = len(rows)
+    blocked = sum(1 for r in rows if r.get("status") == "已阻断")
+    confirmed = sum(1 for r in rows if r.get("status") == "待确认")
+    allowed = sum(1 for r in rows if r.get("status") == "已放行")
+    block_rate = round(blocked / max(total, 1) * 100, 1)
+
+    # 工具分布
+    tool_dist: dict = {}
+    agent_dist: dict = {}
+    durations = []
+    for r in rows:
+        tool = r.get("tool_name") or "unknown"
+        tool_dist[tool] = tool_dist.get(tool, 0) + 1
+        meta = r.get("metadata") or {}
+        agent_name = meta.get("agent_name") or "unknown"
+        agent_dist[agent_name] = agent_dist.get(agent_name, 0) + 1
+        d = meta.get("duration_ms")
+        if isinstance(d, (int, float)):
+            durations.append(int(d))
+
+    avg_duration = round(sum(durations) / max(len(durations), 1), 1) if durations else 0.0
+    active_agents = sum(1 for aid, m in _registered_agents.items() if m.enabled)
+
+    return make_response({
+        "total_calls": total,
+        "blocked_count": blocked,
+        "confirmed_count": confirmed,
+        "allowed_count": allowed,
+        "block_rate": block_rate,
+        "avg_duration_ms": avg_duration,
+        "tool_distribution": dict(sorted(tool_dist.items(), key=lambda x: -x[1])[:10]),
+        "agent_distribution": dict(sorted(agent_dist.items(), key=lambda x: -x[1])[:10]),
+        "active_agents": active_agents,
+        "recent_calls_sample": rows[:5],  # 最近 5 条样本
+    })

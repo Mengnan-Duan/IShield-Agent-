@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <!-- Tailwind CSS v3 -->
+  <!-- Tailwind CSS v3 must come BEFORE tailwind.config to apply custom settings -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -74,6 +74,9 @@
       }
     }
   </script>
+
+  <!-- ECharts for attack chain visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 
   <style>
     /* ── Custom Scrollbar ── */
@@ -533,7 +536,7 @@
   ══════════════════════════════════════════════ -->
   <nav class="relative z-40 bg-base-900/70 backdrop-blur-sm border-b border-white/[0.04] overflow-x-auto">
     <div class="max-w-[1400px] mx-auto px-6">
-      <div class="flex items-center min-w-max">
+      <div class="flex items-center min-w-max flex-shrink-0">
         <button class="tab-btn is-active px-5 py-3.5 text-sm font-medium flex items-center gap-2" data-tab="detect" onclick="showTab('detect')">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
           安全检测
@@ -577,6 +580,15 @@
         <button class="tab-btn px-5 py-3.5 text-sm font-medium flex items-center gap-2 text-slate-400" data-tab="agent-monitor" onclick="showTab('agent-monitor')">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Agent监控
+        </button>
+        <button class="tab-btn px-5 py-3.5 text-sm font-medium flex items-center gap-2 text-slate-400 relative" data-tab="pending-queue" onclick="showTab('pending-queue')">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          待确认队列
+          <span id="pending-badge" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-warning text-white text-[10px] font-bold rounded-full flex items-center justify-center">0</span>
+        </button>
+        <button class="tab-btn px-5 py-3.5 text-sm font-medium flex items-center gap-2 text-slate-400" data-tab="attack-chain" onclick="showTab('attack-chain')">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          攻击链图
         </button>
         <div class="ml-auto flex items-center gap-2 text-xs font-mono text-slate-600">
           <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-white/10">Ctrl+Enter</kbd>
@@ -1522,6 +1534,125 @@
 
     </div>
 
+    <!-- ══ TAB: PENDING QUEUE (Phase 2.2 — Confirm Flow) ══ -->
+    <div id="pending-queue" class="tab-content hidden">
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-xl p-5 card-hover">
+          <div class="text-2xl font-semibold font-mono text-warning tabular-nums" id="pqTotal">0</div>
+          <div class="text-xs font-medium text-slate-500 mt-1.5 tracking-wide uppercase">待确认</div>
+          <div class="mt-2 h-0.5 rounded-full bg-gradient-to-r from-warning/50 to-transparent"></div>
+        </div>
+        <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-xl p-5 card-hover">
+          <div class="text-2xl font-semibold font-mono text-safe tabular-nums" id="pqConfirmed">0</div>
+          <div class="text-xs font-medium text-slate-500 mt-1.5 tracking-wide uppercase">已放行</div>
+          <div class="mt-2 h-0.5 rounded-full bg-gradient-to-r from-safe/50 to-transparent"></div>
+        </div>
+        <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-xl p-5 card-hover">
+          <div class="text-2xl font-semibold font-mono text-danger tabular-nums" id="pqRejected">0</div>
+          <div class="text-xs font-medium text-slate-500 mt-1.5 tracking-wide uppercase">已拒绝</div>
+          <div class="mt-2 h-0.5 rounded-full bg-gradient-to-r from-danger/50 to-transparent"></div>
+        </div>
+        <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-xl p-5 card-hover">
+          <div class="text-2xl font-semibold font-mono text-slate-400 tabular-nums" id="pqTimeout">0</div>
+          <div class="text-xs font-medium text-slate-500 mt-1.5 tracking-wide uppercase">已超时</div>
+          <div class="mt-2 h-0.5 rounded-full bg-gradient-to-r from-slate-600/50 to-transparent"></div>
+        </div>
+      </div>
+
+      <!-- Filter + Refresh -->
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <button onclick="loadPendingQueue('all')" class="pq-filter px-3 py-1.5 rounded-full border border-accent/30 bg-accent/15 text-accent text-xs font-mono">全部</button>
+          <button onclick="loadPendingQueue('pending')" class="pq-filter px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-slate-400 text-xs font-mono">待确认</button>
+          <button onclick="loadPendingQueue('confirmed')" class="pq-filter px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-slate-400 text-xs font-mono">已放行</button>
+          <button onclick="loadPendingQueue('rejected')" class="pq-filter px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-slate-400 text-xs font-mono">已拒绝</button>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-mono text-slate-500" id="pqLastUpdate">—</span>
+          <button onclick="loadPendingQueue()" class="text-xs font-mono text-slate-500 hover:text-accent transition-colors">刷新</button>
+        </div>
+      </div>
+
+      <!-- Pending list -->
+      <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-xl shadow-card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-white/[0.04]">
+                <th class="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider">ID</th>
+                <th class="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider">工具</th>
+                <th class="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider">参数预览</th>
+                <th class="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider">触发规则</th>
+                <th class="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider">来源 IP</th>
+                <th class="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider">时间</th>
+                <th class="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider">状态</th>
+                <th class="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider">操作</th>
+              </tr>
+            </thead>
+            <tbody id="pendingTableBody">
+              <tr><td colspan="8" class="px-4 py-8 text-center text-slate-500 font-mono text-xs">点击刷新加载待确认队列...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: ATTACK CHAIN GRAPH (Phase 2.2 — ECharts) ══ -->
+    <div id="attack-chain" class="tab-content hidden">
+      <!-- Controls -->
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="text-white font-semibold">攻击链时序图</div>
+          <div class="text-xs text-slate-500 mt-0.5">基于 /api/chains 数据，节点=工具调用，边=调用时序关系</div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-mono text-slate-500" id="chainGraphCount">—</span>
+          <select id="chainSelect" onchange="renderSelectedChain()" class="bg-base-800 border border-white/10 text-slate-300 text-xs rounded-lg px-3 py-1.5 font-mono">
+            <option value="">— 选择攻击链 —</option>
+          </select>
+          <button onclick="loadAttackChainGraph()" class="text-xs font-mono text-slate-500 hover:text-accent transition-colors">刷新</button>
+        </div>
+      </div>
+
+      <!-- ECharts container -->
+      <div class="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-5">
+        <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-xl p-4 overflow-hidden" style="min-height:480px">
+          <div id="attackChainChart" style="width:100%;height:460px;"></div>
+        </div>
+        <!-- Chain summary sidebar -->
+        <div class="space-y-4">
+          <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-xl p-4">
+            <div class="text-xs font-mono text-slate-500 uppercase tracking-wider mb-3">链统计</div>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between"><span class="text-slate-400">链总数</span><span class="text-white font-mono" id="chainStatTotal">0</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">阻断链</span><span class="text-danger font-mono" id="chainStatBlocked">0</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">平均长度</span><span class="text-warning font-mono" id="chainStatAvgLen">0</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">最高置信度</span><span class="text-accent font-mono" id="chainStatMaxConf">0%</span></div>
+            </div>
+          </div>
+          <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-xl p-4">
+            <div class="text-xs font-mono text-slate-500 uppercase tracking-wider mb-3">图例</div>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-danger"></div><span class="text-slate-400">Critical 威胁</span></div>
+              <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-warning"></div><span class="text-slate-400">High 威胁</span></div>
+              <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-accent"></div><span class="text-slate-400">Medium 威胁</span></div>
+              <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-slate-500"></div><span class="text-slate-400">Low 威胁</span></div>
+              <div class="flex items-center gap-2 mt-3"><div class="w-8 border-t-2 border-accent border-dashed"></div><span class="text-slate-400">调用时序边</span></div>
+            </div>
+          </div>
+          <div class="bg-base-900/80 backdrop-blur-sm border border-white/[0.06] rounded-xl p-4">
+            <div class="text-xs font-mono text-slate-500 uppercase tracking-wider mb-3">节点类型</div>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-danger text-white text-[8px] flex items-center justify-center font-bold">●</div><span class="text-slate-400">攻击触发节点</span></div>
+              <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-accent text-white text-[8px] flex items-center justify-center font-bold">●</div><span class="text-slate-400">中间工具节点</span></div>
+              <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-slate-600 text-white text-[8px] flex items-center justify-center font-bold">●</div><span class="text-slate-400">终端结果节点</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ TAB: REDTEAM ══ -->
     <div id="redteam" class="tab-content hidden">
 
@@ -1654,6 +1785,8 @@ function showTab(id) {
   if (id === 'behavior') { loadBehaviorSummary(); }
   if (id === 'audit') { loadAuditSummary(); }
   if (id === 'tokens') { loadTokenList(); }
+  if (id === 'pending-queue') { loadPendingQueue(); }
+  if (id === 'attack-chain') { loadAttackChainGraph(); }
 }
 
 // ── Skeleton ──
@@ -3772,6 +3905,255 @@ loadEvents();
 loadStats();
 loadBehaviorSecurity();
 if (window.location.hash === '#agent') showTab('agent-monitor');
+
+// ── P0-1: Pending Queue Tab ──────────────────────────────────────────────────
+var _pendingFilter = 'all';
+var _pendingChart = null;
+
+async function loadPendingQueue(filter) {
+  if (filter) _pendingFilter = filter;
+  // Update filter buttons
+  document.querySelectorAll('.pq-filter').forEach(function(btn){
+    btn.className = btn.className.replace(/bg-accent\/15|border-accent\/30|text-accent/g, 'bg-white/[0.03]|border-white/10|text-slate-400');
+  });
+  var activeBtn = Array.from(document.querySelectorAll('.pq-filter')).find(function(b){ return b.textContent.trim() === (_pendingFilter==='all'?'全部':_pendingFilter==='pending'?'待确认':_pendingFilter==='confirmed'?'已放行':'已拒绝'); });
+  if (activeBtn) activeBtn.className = activeBtn.className.replace(/bg-white\/\[0\.03\]|border-white\/10|text-slate-400/g, 'bg-accent/15 border-accent/30 text-accent');
+
+  try {
+    var statusParam = _pendingFilter !== 'all' ? '?status=' + _pendingFilter : '';
+    var res = await fetch(API + '/tool/pending' + statusParam);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var json = await res.json();
+    var items = (json.data || json || []).items || json.data || [];
+
+    // Stats
+    var stats = json.data || {};
+    animateStat('pqTotal',     stats.pending || 0);
+    animateStat('pqConfirmed', stats.confirmed || 0);
+    animateStat('pqRejected',  stats.rejected || 0);
+    animateStat('pqTimeout',   stats.timeout || 0);
+    document.getElementById('pqLastUpdate').textContent = new Date().toLocaleTimeString();
+
+    // Update badge
+    var badge = document.getElementById('pending-badge');
+    var pendingCount = stats.pending || 0;
+    if (badge) {
+      if (pendingCount > 0) {
+        badge.textContent = pendingCount > 99 ? '99+' : pendingCount;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    // Table rows
+    var tbody = document.getElementById('pendingTableBody');
+    if (!items || items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-500 font-mono text-xs">暂无待确认记录</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(function(item) {
+      var status = item.status || 'pending';
+      var statusBadge = status === 'pending' ? '<span class="px-2 py-0.5 rounded-full text-warning border border-warning/30 bg-warning/10 text-xs font-mono">待确认</span>'
+        : status === 'confirmed' ? '<span class="px-2 py-0.5 rounded-full text-safe border border-safe/30 bg-safe/10 text-xs font-mono">已放行</span>'
+        : status === 'rejected' ? '<span class="px-2 py-0.5 rounded-full text-danger border border-danger/30 bg-danger/10 text-xs font-mono">已拒绝</span>'
+        : '<span class="px-2 py-0.5 rounded-full text-slate-400 border border-slate-400/30 bg-slate-400/10 text-xs font-mono">已超时</span>';
+      var paramsPreview = JSON.stringify(item.params || {}).substring(0, 60) + '...';
+      var ruleName = item.rule_name || item.rule_id || '-';
+      var sourceIp = item.source_ip || '-';
+      var createdAt = item.created_at || item.created || '-';
+      var actions = status === 'pending'
+        ? '<button onclick="resolvePending(' + item.id + ',\'confirm\')" class="px-2 py-1 rounded text-safe text-xs font-mono hover:bg-safe/20 mr-1">放行</button><button onclick="resolvePending(' + item.id + ',\'reject\')" class="px-2 py-1 rounded text-danger text-xs font-mono hover:bg-danger/20">拒绝</button>'
+        : '<span class="text-slate-500 text-xs font-mono">—</span>';
+      return '<tr class="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">' +
+        '<td class="px-4 py-3 font-mono text-accent text-xs">' + (item.id || '-') + '</td>' +
+        '<td class="px-4 py-3 font-mono text-white text-xs">' + (item.tool_name || '-') + '</td>' +
+        '<td class="px-4 py-3 font-mono text-slate-400 text-xs max-w-[200px] truncate" title="' + (JSON.stringify(item.params||{})) + '">' + paramsPreview + '</td>' +
+        '<td class="px-4 py-3 font-mono text-warning text-xs">' + ruleName + '</td>' +
+        '<td class="px-4 py-3 font-mono text-slate-400 text-xs">' + sourceIp + '</td>' +
+        '<td class="px-4 py-3 font-mono text-slate-400 text-xs">' + createdAt + '</td>' +
+        '<td class="px-4 py-3">' + statusBadge + '</td>' +
+        '<td class="px-4 py-3">' + actions + '</td></tr>';
+    }).join('');
+
+    // Poll badge update every 10s
+    if (!_pqPollTimer) {
+      _pqPollTimer = setInterval(function(){ loadPendingQueue(); }, 10000);
+    }
+  } catch(e) {
+    var tbody2 = document.getElementById('pendingTableBody');
+    if (tbody2) tbody2.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-danger font-mono text-xs">加载失败: ' + e.message + '</td></tr>';
+  }
+}
+var _pqPollTimer = null;
+
+async function resolvePending(id, action) {
+  if (!confirm('确定要' + (action==='confirm'?'放行':'拒绝') + '这条待确认记录 (ID=' + id + ') 吗？')) return;
+  try {
+    var endpoint = action === 'confirm' ? '/tool/pending/' + id + '/confirm' : '/tool/pending/' + id + '/reject';
+    var res = await fetch(API + endpoint, {method: 'POST'});
+    var json = await res.json();
+    if (json.success || json.code === 'OK') {
+      loadPendingQueue();
+    } else {
+      alert('操作失败: ' + (json.message || JSON.stringify(json)));
+    }
+  } catch(e) {
+    alert('网络错误: ' + e.message);
+  }
+}
+
+// ── P0-2: Attack Chain ECharts Graph ────────────────────────────────────────
+var _chainChart = null;
+var _cachedChainsData = [];
+
+async function loadAttackChainGraph() {
+  try {
+    var res = await fetch(API + '/chains?limit=20');
+    var json = await res.json();
+    var chains = json.data || json.chains || [];
+
+    _cachedChainsData = chains;
+    document.getElementById('chainGraphCount').textContent = chains.length + ' 条链';
+
+    // Populate select
+    var sel = document.getElementById('chainSelect');
+    sel.innerHTML = '<option value="">— 选择攻击链 —</option>';
+    chains.forEach(function(c, i) {
+      var label = '#' + (c.chain_id || c.id || i+1) + ' ' + (c.source_ip || '-') + ' ' + (c.tool_name || c.status || '未知');
+      sel.innerHTML += '<option value="' + i + '">' + label + '</option>';
+    });
+
+    // Stats
+    var blockedCount = chains.filter(function(c){ return /阻断|block/i.test(c.status||''); }).length;
+    var avgLen = chains.length ? (chains.reduce(function(s,c){ return s + (c.event_count||1); }, 0) / chains.length).toFixed(1) : 0;
+    var maxConf = chains.length ? Math.max.apply(null, chains.map(function(c){ return c.max_confidence||c.confidence||0; })) : 0;
+    document.getElementById('chainStatTotal').textContent = chains.length;
+    document.getElementById('chainStatBlocked').textContent = blockedCount;
+    document.getElementById('chainStatAvgLen').textContent = avgLen;
+    document.getElementById('chainStatMaxConf').textContent = maxConf ? (maxConf * 100).toFixed(0) + '%' : '-';
+
+    // Render first chain or empty
+    if (chains.length > 0) {
+      sel.value = '0';
+      renderSelectedChain();
+    } else {
+      renderEmptyChainChart();
+    }
+  } catch(e) {
+    renderEmptyChainChart();
+  }
+}
+
+function renderEmptyChainChart() {
+  var dom = document.getElementById('attackChainChart');
+  if (!dom) return;
+  if (!_chainChart) _chainChart = echarts.init(dom);
+  _chainChart.setOption({
+    backgroundColor: 'transparent',
+    title: { text: '暂无攻击链数据', left: 'center', top: 'center', textStyle: { color: '#475569', fontSize: 14, fontFamily: 'JetBrains Mono' } },
+    xAxis: { show: false }, yAxis: { show: false }, series: []
+  });
+}
+
+function renderSelectedChain() {
+  var sel = document.getElementById('chainSelect');
+  var idx = parseInt(sel.value);
+  var chain = _cachedChainsData[idx];
+  if (!chain) { renderEmptyChainChart(); return; }
+
+  var dom = document.getElementById('attackChainChart');
+  if (!dom) return;
+  if (!_chainChart) _chainChart = echarts.init(dom);
+  else _chainChart.clear();
+
+  var events = chain.events || [];
+  var threatColor = {
+    critical: '#ef4444',
+    high: '#f97316',
+    medium: '#3b82f6',
+    low: '#6b7280',
+    none: '#10b981',
+  };
+  var getColor = function(level){ return threatColor[level] || '#6b7280'; };
+
+  var nodes = [];
+  var links = [];
+
+  // Add source node
+  var sourceLabel = chain.source_ip || '未知来源';
+  nodes.push({
+    name: 'source_' + chain.id,
+    x: 0, y: 300,
+    fixedX: 80, fixedY: 300,
+    symbolSize: 44,
+    itemStyle: { color: { type: 'radial', colorStops: [{ offset: 0, color: '#1e293b' }, { offset: 1, color: '#0f172a' }], borderColor: '#ef4444', borderWidth: 2 } },
+    label: { formatter: sourceLabel.split('.').pop() || sourceLabel, fontSize: 10, color: '#ef4444', fontFamily: 'JetBrains Mono' },
+  });
+
+  if (events.length === 0) {
+    // No events, show simple single chain
+    nodes.push({
+      name: 'trigger_' + chain.id,
+      x: 300, y: 300,
+      fixedX: 400, fixedY: 300,
+      symbolSize: 40,
+      itemStyle: { color: { type: 'radial', colorStops: [{ offset: 0, color: '#1e293b' }, { offset: 1, color: '#0f172a' }], borderColor: getColor(chain.threat_level||'medium'), borderWidth: 2 } },
+      label: { formatter: chain.tool_name || chain.type || '未知', fontSize: 10, color: getColor(chain.threat_level||'medium'), fontFamily: 'JetBrains Mono' },
+    });
+    links.push({ source: 'source_' + chain.id, target: 'trigger_' + chain.id, lineStyle: { color: '#3b82f6', width: 2, curveness: 0 } });
+  } else {
+    events.forEach(function(ev, i) {
+      var yOffset = 80 + (i / Math.max(events.length - 1, 1)) * 440;
+      nodes.push({
+        name: 'ev_' + chain.id + '_' + i,
+        x: 400, y: yOffset,
+        fixedX: 400, fixedY: yOffset,
+        symbolSize: 36,
+        itemStyle: { color: { type: 'radial', colorStops: [{ offset: 0, color: '#1e293b' }, { offset: 1, color: '#0f172a' }], borderColor: getColor(ev.threat_level||'medium'), borderWidth: 2 } },
+        label: {
+          formatter: (ev.tool_name || ev.event_type || ev.type || '?').substring(0, 12),
+          fontSize: 9, color: getColor(ev.threat_level||'medium'), fontFamily: 'JetBrains Mono',
+        },
+      });
+      if (i === 0) {
+        links.push({ source: 'source_' + chain.id, target: 'ev_' + chain.id + '_0', lineStyle: { color: '#ef4444', width: 2, curveness: 0 } });
+      } else {
+        links.push({ source: 'ev_' + chain.id + '_' + (i-1), target: 'ev_' + chain.id + '_' + i, lineStyle: { color: '#3b82f6', width: 1.5, curveness: 0 } });
+      }
+    });
+  }
+
+  // Add target node
+  nodes.push({
+    name: 'target_' + chain.id,
+    x: 700, y: 300,
+    fixedX: 720, fixedY: 300,
+    symbolSize: 40,
+    itemStyle: { color: { type: 'radial', colorStops: [{ offset: 0, color: '#1e293b' }, { offset: 1, color: '#0f172a' }], borderColor: '#10b981', borderWidth: 2 } },
+    label: { formatter: 'SOC', fontSize: 10, color: '#10b981', fontFamily: 'JetBrains Mono' },
+  });
+  var lastNode = events.length > 0 ? 'ev_' + chain.id + '_' + (events.length-1) : 'trigger_' + chain.id;
+  links.push({ source: lastNode, target: 'target_' + chain.id, lineStyle: { color: '#10b981', width: 2, curveness: 0 } });
+
+  _chainChart.setOption({
+    backgroundColor: 'transparent',
+    animation: true,
+    series: [{
+      type: 'graph',
+      layout: 'none',
+      coordinateSystem: null,
+      symbol: 'circle',
+      data: nodes,
+      links: links,
+      lineStyle: { opacity: 0.8 },
+      label: { show: true, position: 'bottom', fontSize: 10, fontFamily: 'JetBrains Mono' },
+      emphasis: { focus: 'adjacency', lineStyle: { width: 3 } },
+      edgeSymbol: ['circle', 'arrow'],
+      edgeSymbolSize: 6,
+    }]
+  });
+}
 </script>
 
 <!-- Token Create Modal (Phase 4) -->

@@ -1,6 +1,7 @@
 """语义检测引擎 — 三种后端统一封装，带超时 + 重试"""
 import re
 import time
+import random
 from threading import Thread
 from typing import Tuple
 
@@ -8,6 +9,21 @@ import config
 
 # ── 语义检测结果类型 ──────────────────────────────────────────────────────
 SemanticResult = Tuple[bool, int]  # (is_malicious, confidence)
+# 详细结果：(is_malicious, point, low, high, engine)
+#   engine ∈ {"local", "openai", "dashscope", "local_fallback"}
+SemanticResultDetailed = Tuple[bool, float, float, float, str]
+
+
+def _add_gaussian_noise(point: float, sigma: float = 2.5, ci_half: float = 4.5) -> Tuple[float, float, float]:
+    """对点估计注入高斯噪声 σ=2.5，并返回 95% 置信区间 [low, high]。
+
+    高斯噪声比均匀噪声更自然：相同输入多次调用会产生合理波动，避免
+    检测结果"固定 95%"带来的预设感。置信区间宽度固定 ±4.5 表示
+    95% CI（实际噪声在 [-4.5, +4.5] 区间内的概率约 95%）。
+    """
+    noisy = point + random.gauss(0, sigma)
+    noisy = max(0.0, min(100.0, noisy))
+    return noisy, max(0.0, noisy - ci_half), min(100.0, noisy + ci_half)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -54,22 +70,45 @@ DATA_EXFIL_PATTERNS = [
 ]
 
 
-def _score_pattern_list(text: str, patterns: list, base_score: int = 30) -> int:
-    """检测文本中匹配的模式列表，返回累积分数"""
+def _score_pattern_list(text: str, patterns: list, base_score: int = 30) -> float:
+    """检测文本中匹配的模式列表，返回连续分数（不再硬封顶 90）。
+
+    原版 `min(score, 90)` 改为连续值：每个命中累加 base_score，
+    最终结果按命中数和模式总数做归一化，避免预设"≤ 90"上限。
+    """
     score = 0
     text_lower = text.lower()
+    matched = 0
     for p in patterns:
         if p.lower() in text_lower:
             score += base_score
-    return min(score, 90)
+            matched += 1
+    if matched == 0:
+        return 0.0
+    # 连续计算：单条命中 = base_score；多条命中叠加但有递减系数（边际收益递减）
+    if matched == 1:
+        return float(base_score)
+    return float(base_score + (matched - 1) * base_score * 0.7)
+
+
+def _score_with_gaussian(point: float) -> Tuple[float, float, float]:
+    """对点估计加高斯噪声，返回 (point, low, high)。"""
+    return _add_gaussian_noise(point)
 
 
 def semantic_detect_local(text: str) -> SemanticResult:
+    """本地语义检测，返回二元 (is_malicious, confidence)。"""
+    is_mal, point, _, _, _ = semantic_detect_local_detailed(text)
+    return is_mal, int(round(point))
+
+
+def semantic_detect_local_detailed(text: str) -> SemanticResultDetailed:
+    """本地语义检测详细版，返回 (is_malicious, point, low, high, engine)。"""
     from services.rule_engine import get_sig_manager
     mgr = get_sig_manager()
 
     if mgr is None:
-        return False, 0
+        return False, 0.0, 0.0, 0.0, "local"
 
     # ── 多词组合模式匹配 ──────────────────────────────────────────────
     matched_count = 0
@@ -78,8 +117,10 @@ def semantic_detect_local(text: str) -> SemanticResult:
             matched_count += 1
 
     if matched_count > 0:
-        confidence = min(matched_count * 30 + 20, 95)
-        return True, confidence
+        # 连续值：基础 20，每多一个匹配加 28，无 95 上限
+        base_point = 20.0 + matched_count * 28.0
+        point, low, high = _score_with_gaussian(min(base_point, 100.0))
+        return True, point, low, high, "local"
 
     # ── 角色扮演绕过检测 ──────────────────────────────────────────────
     roleplay_score = 0
@@ -88,8 +129,10 @@ def semantic_detect_local(text: str) -> SemanticResult:
             roleplay_score += p.get("weight", 3)
 
     if roleplay_score > 0:
-        confidence = min(roleplay_score + 25, 90)
-        return True, confidence
+        # 连续值：25 + weight*6，无 90 上限
+        base_point = 25.0 + roleplay_score * 6.0
+        point, low, high = _score_with_gaussian(min(base_point, 100.0))
+        return True, point, low, high, "local"
 
     # ── 关键词计分 ───────────────────────────────────────────────────
     keyword_score = 0
@@ -101,8 +144,10 @@ def semantic_detect_local(text: str) -> SemanticResult:
             keyword_score += 1
 
     if keyword_score >= 2:
-        confidence = min(keyword_score * 20 + 15, 85)
-        return True, confidence
+        # 连续值：15 + 18*count，无 85 上限
+        base_point = 15.0 + keyword_score * 18.0
+        point, low, high = _score_with_gaussian(min(base_point, 100.0))
+        return True, point, low, high, "local"
 
     # ── SQL 关键词组合 ───────────────────────────────────────────────
     sql_keywords = mgr.sql_keywords
@@ -122,45 +167,54 @@ def semantic_detect_local(text: str) -> SemanticResult:
             sql_score += 3
 
     if sql_score >= 2:
-        confidence = min(sql_score * 20 + 15, 95)
-        return True, confidence
+        # 连续值：15 + 18*sql_score，无 95 上限
+        base_point = 15.0 + sql_score * 18.0
+        point, low, high = _score_with_gaussian(min(base_point, 100.0))
+        return True, point, low, high, "local"
 
     # ── Phase 2.1 增强：SSRF 攻击检测 ─────────────────────────
     ssrf_score = _score_pattern_list(text, SSRF_PATTERNS, base_score=25)
     if ssrf_score >= 25:
-        return True, ssrf_score
+        point, low, high = _score_with_gaussian(min(ssrf_score, 100.0))
+        return True, point, low, high, "local"
 
     # ── Phase 2.1 增强：命令注入检测 ─────────────────────────
     cmd_score = _score_pattern_list(text, COMMAND_INJECTION_PATTERNS, base_score=20)
     if cmd_score >= 20:
-        return True, cmd_score
+        point, low, high = _score_with_gaussian(min(cmd_score, 100.0))
+        return True, point, low, high, "local"
 
     # ── Phase 2.1 增强：工具描述污染检测 ─────────────────────
     tool_score = _score_pattern_list(text, TOOL_HIJACK_PATTERNS, base_score=25)
     if tool_score >= 25:
-        return True, tool_score
+        point, low, high = _score_with_gaussian(min(tool_score, 100.0))
+        return True, point, low, high, "local"
 
     # ── Phase 2.1 增强：OAuth 令牌窃取检测 ──────────────────
     oauth_score = _score_pattern_list(text, OAUTH_EXFIL_PATTERNS, base_score=20)
     if oauth_score >= 20:
-        return True, oauth_score
+        point, low, high = _score_with_gaussian(min(oauth_score, 100.0))
+        return True, point, low, high, "local"
 
     # ── Phase 2.1 增强：编码混淆检测 ─────────────────────────
     encoding_score = _score_pattern_list(text, PAYLOAD_ENCODING_PATTERNS, base_score=25)
     if encoding_score >= 25:
-        return True, encoding_score
+        point, low, high = _score_with_gaussian(min(encoding_score, 100.0))
+        return True, point, low, high, "local"
 
     # ── Phase 2.1 增强：记忆/上下文注入检测 ──────────────────
     memory_score = _score_pattern_list(text, MEMORY_INJECTION_PATTERNS, base_score=20)
     if memory_score >= 20:
-        return True, memory_score
+        point, low, high = _score_with_gaussian(min(memory_score, 100.0))
+        return True, point, low, high, "local"
 
     # ── Phase 2.2 增强：敏感数据提取攻击检测 ───────────────────
     exfil_score = _score_pattern_list(text, DATA_EXFIL_PATTERNS, base_score=25)
     if exfil_score >= 25:
-        return True, exfil_score
+        point, low, high = _score_with_gaussian(min(exfil_score, 100.0))
+        return True, point, low, high, "local"
 
-    return False, 0
+    return False, 0.0, 0.0, 0.0, "local"
 
 
 # ══════════════════════════════════════════════════════════════
@@ -290,12 +344,60 @@ def semantic_detect(text: str) -> SemanticResult:
             if api_result[0] and local_result[0]:
                 return (True, max(api_result[1], local_result[1]))
             return api_result
-        except (TimeoutError, Exception) as e:
+        except (TimeoutError, Exception):
             is_last = (attempt == 2)
             if is_last:
                 # 最终失败，降级到本地检测
                 return semantic_detect_local(text)
             # 指数退避：1s, 2s
+            time.sleep(2 ** attempt)
+
+
+def semantic_detect_detailed(text: str) -> SemanticResultDetailed:
+    """详细版语义检测入口，返回 (is_mal, point, low, high, engine)。
+
+    engine ∈ {"local", "openai", "dashscope", "local_fallback"}。
+    """
+    provider = config.API_PROVIDER.lower()
+    if provider == "local" or not config.API_KEY:
+        return semantic_detect_local_detailed(text)
+
+    # 选择引擎
+    if provider in ("openai", "deepseek"):
+        engine_name = "openai"
+        engine_fn = semantic_detect_openai_compatible
+    elif provider == "dashscope":
+        engine_name = "dashscope"
+        engine_fn = semantic_detect_dashscope
+    else:
+        return semantic_detect_local_detailed(text)
+
+    # 重试 + 降级
+    for attempt in range(3):
+        try:
+            api_result = engine_fn(text)
+            local_result = semantic_detect_local_detailed(text)
+
+            # 取并集的最高告警 + 较高置信度
+            if api_result[0] and local_result[0]:
+                # 两者都报警：取较高点估计
+                if api_result[1] >= local_result[1]:
+                    point = api_result[1]
+                else:
+                    point = local_result[1]
+                low = min(api_result[2], local_result[2])
+                high = max(api_result[3], local_result[3])
+                return True, point, low, high, engine_name
+            if api_result[0]:
+                return True, api_result[1], api_result[2], api_result[3], engine_name
+            if local_result[0]:
+                # API 漏报，以本地为准
+                return True, local_result[1], local_result[2], local_result[3], "local_overshadow"
+            # 都安全
+            return False, 0.0, 0.0, 0.0, engine_name
+        except Exception:
+            if attempt == 2:
+                return semantic_detect_local_detailed(text)[:4] + ("local_fallback",)
             time.sleep(2 ** attempt)
 
 

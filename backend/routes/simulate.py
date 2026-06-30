@@ -175,9 +175,26 @@ def simulate():
         })
 
     if policy_result.action == Action.CONFIRM:
-        add_event(
+        from services.pending_queue import create_pending
+        from services.events import add_event as _add_event
+
+        pending_id = create_pending(
+            tool_name=action,
+            params={"raw": params},
+            rule_id=policy_result.triggered_rule,
+            rule_name=policy_result.triggered_rule,
+            severity=policy_result.severity,
+            message=policy_result.message,
+            source_ip=source_ip,
+            action=action,
+            chain_id=chain_id,
+            token_name=getattr(g, 'token_name', None),
+            ttl_seconds=300,
+        )
+
+        _add_event(
             event_type="策略确认",
-            detail=f"工具={action}, 参数={params[:50]}, 策略={policy_result.triggered_rule}",
+            detail=f"工具={action}, 参数={params[:50]}, 策略={policy_result.triggered_rule}, pending_id={pending_id}",
             status="需确认",
             source_ip=source_ip,
             action=action,
@@ -187,10 +204,17 @@ def simulate():
             category="policy_confirmation",
             threat_level="medium",
             confidence=policy_result.severity,
-            metadata={"stage": "policy", "message": policy_result.message},
+            metadata={
+                "stage": "policy",
+                "message": policy_result.message,
+                "pending_id": pending_id,
+                "confirm_url": f"/api/tool/pending/{pending_id}/confirm",
+                "execute_url": f"/api/tool/pending/{pending_id}/execute",
+            },
             chain_id=chain_id,
             stage="policy_confirm",
         )
+
         return make_response({
             "result": "confirm",
             "reason": policy_result.message,
@@ -201,6 +225,9 @@ def simulate():
             "source_ip": source_ip,
             "target": target,
             "chain_id": chain_id,
+            "pending_id": pending_id,
+            "confirm_url": f"/api/tool/pending/{pending_id}/confirm",
+            "execute_url": f"/api/tool/pending/{pending_id}/execute",
         })
 
     tool_result = run_tool(action, params, source_ip=source_ip, action=action, chain_id=chain_id, token_meta=getattr(g, 'token_meta', None))

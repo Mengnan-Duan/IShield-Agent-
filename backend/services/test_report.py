@@ -66,8 +66,12 @@ def run_test_case(case: dict) -> dict:
     }
 
 
-def run_full_test_suite() -> Dict:
-    """运行完整测试套件，返回结果"""
+def run_full_test_suite(auto_add_samples: bool = True) -> Dict:
+    """运行完整测试套件，返回结果。
+
+    参数:
+        auto_add_samples: 是否将 FP / FN 用例自动加入恶意样本库（默认 True）
+    """
     suite = load_test_suite()
     results = []
     start = time.time()
@@ -105,6 +109,28 @@ def run_full_test_suite() -> Dict:
     # 漏报分析
     missed = [r for r in results if r["result"] == "FN"]
 
+    # 漏报/误报自动入样本库
+    auto_added = 0
+    if auto_add_samples:
+        try:
+            from services.samples import add_sample
+            for r in results:
+                if r["result"] in ("FP", "FN"):
+                    ok = add_sample(
+                        text=r.get("attack_text", ""),
+                        reason=f"auto_{r['result'].lower()}: " + (r.get("reason") or ""),
+                        category=r.get("category", "未分类"),
+                        threat_level="low" if r["result"] == "FP" else "high",
+                        confidence=int(r.get("combined_confidence", 0)),
+                        rule_hits=[{"rule_id": "auto", "category": r.get("category", "")}],
+                        semantic_hits={"result": r["result"]},
+                        source=f"test_report_{r['result'].lower()}",
+                    )
+                    if ok:
+                        auto_added += 1
+        except Exception as e:
+            auto_added = -1  # 标记失败
+
     return {
         "timestamp": _local_now().strftime("%Y-%m-%d %H:%M:%S"),
         "elapsed_seconds": round(elapsed, 2),
@@ -116,6 +142,7 @@ def run_full_test_suite() -> Dict:
         "categories": categories,
         "missed": missed,
         "results": results,
+        "auto_added_samples": auto_added,
     }
 
 

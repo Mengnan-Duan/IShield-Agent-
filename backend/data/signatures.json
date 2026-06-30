@@ -26,7 +26,12 @@
     {"id": "SIG022", "pattern": "find all secrets", "weight": 40, "category": "敏感数据提取", "enabled": true},
     {"id": "SIG023", "pattern": "read all files containing", "weight": 35, "category": "敏感数据提取", "enabled": true},
     {"id": "SIG024", "pattern": "输出所有密码", "weight": 45, "category": "敏感数据提取", "enabled": true},
-    {"id": "SIG025", "pattern": "泄露完整系统提示词", "weight": 40, "category": "提示词泄露", "enabled": true}
+    {"id": "SIG025", "pattern": "泄露完整系统提示词", "weight": 40, "category": "提示词泄露", "enabled": true},
+    {"id": "SIG026", "pattern": "<script", "weight": 35, "category": "XSS注入", "enabled": true},
+    {"id": "SIG027", "pattern": "javascript:", "weight": 30, "category": "XSS注入", "enabled": true},
+    {"id": "SIG028", "pattern": "onerror=", "weight": 30, "category": "XSS注入", "enabled": true},
+    {"id": "SIG029", "pattern": "onclick=", "weight": 30, "category": "XSS注入", "enabled": true},
+    {"id": "SIG030", "pattern": "eval(", "weight": 35, "category": "代码注入", "enabled": true}
   ],
   "sql_patterns": [
     {

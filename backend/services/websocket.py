@@ -105,7 +105,7 @@ def broadcast_alert(event_type: str, detail: str, status: str,
                     tool_name: str = None, target: str = None,
                     rule_id: str = None, category: str = None,
                     metadata: dict = None):
-    broadcast_event("alert", {
+    payload = {
         "type": event_type,
         "detail": detail,
         "status": status,
@@ -118,4 +118,29 @@ def broadcast_alert(event_type: str, detail: str, status: str,
         "rule_id": rule_id,
         "category": category,
         "metadata": metadata or {},
+    }
+    _broadcast({
+        "type": "alert",
+        "data": payload,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     })
+    # 同时触发外部 webhook 通知（异步，不阻塞推送）
+    try:
+        from services.webhook_notifier import fire_webhooks
+        fire_webhooks(
+            event_type=payload["type"],
+            detail=payload.get("detail", ""),
+            status=payload.get("status", ""),
+            threat_level=payload.get("threat_level", ""),
+            confidence=payload.get("confidence", 0),
+            source_ip=payload.get("source_ip"),
+            action=payload.get("action"),
+            tool_name=payload.get("tool_name"),
+            target=payload.get("target"),
+            rule_id=payload.get("rule_id"),
+            category=payload.get("category"),
+            metadata=payload.get("metadata"),
+        )
+    except Exception:
+        pass
+        pass

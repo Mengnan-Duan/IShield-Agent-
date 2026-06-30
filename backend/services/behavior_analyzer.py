@@ -69,14 +69,22 @@ class BehaviorAnalyzer:
             # 更新异常分
             self._recompute_score(profile)
 
-            # 自动封禁
+            # 自动封禁（同时写 DB 持久化）
             if profile.score >= BANNED_THRESHOLD and not profile.is_banned:
                 profile.is_banned = True
                 profile.ban_until = ts + 300  # 封禁5分钟
+                from services.ip_bans import ban_ip
+                ban_ip(
+                    ip=ip,
+                    reason=f"行为异常评分={profile.score}，超过阈值{BANNED_THRESHOLD}",
+                    duration_seconds=300,
+                    score_at_ban=profile.score,
+                )
                 logger.warning(f"[BehaviorGuard] IP {ip} auto-banned for 5 min (score={profile.score})")
 
     def is_banned(self, ip: str) -> bool:
         ts = time.time()
+        # 1. 检查内存中的封禁状态
         with self._lock:
             p = self._profiles.get(ip)
             if p and p.is_banned:
@@ -85,6 +93,15 @@ class BehaviorAnalyzer:
                     p.score = max(0, p.score - 20)
                     return False
                 return True
+        # 2. 检查 DB 中的持久化封禁（重启后恢复）
+        from services.ip_bans import is_banned_db
+        if is_banned_db(ip):
+            # 同步到内存
+            with self._lock:
+                p = self._profiles.setdefault(ip, IPProfile(ip=ip))
+                p.is_banned = True
+                p.ban_until = ts + 300
+            return True
         return False
 
     def get_anomaly_score(self, ip: str) -> int:
@@ -150,6 +167,16 @@ class BehaviorAnalyzer:
                 "rapid_fire_malicious": len(recent_malicious),
                 "request_rate": len(recent_requests) / (WINDOW_SIZE_SECONDS / 60),
             }
+
+    def unban(self, ip: str) -> bool:
+        """手动解封 IP（同时清除 DB 记录）"""
+        from services.ip_bans import unban_ip
+        with self._lock:
+            p = self._profiles.get(ip)
+            if p:
+                p.is_banned = False
+                p.score = max(0, p.score - 20)
+        return unban_ip(ip)
 
     def get_threat_level(self, ip: str) -> str:
         return _score_to_level(self.get_anomaly_score(ip))

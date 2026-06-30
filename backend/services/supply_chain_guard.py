@@ -230,3 +230,93 @@ def get_supply_chain_guard() -> SupplyChainGuard:
         if _supply_chain_guard is None:
             _supply_chain_guard = SupplyChainGuard()
         return _supply_chain_guard
+
+
+# ── 通用工具预检（供其他工具处理器调用）───────────────────────────────────────
+def analyze_tool_action(tool_name: str, params: dict, chain_id: str = None) -> dict:
+    """
+    对任意工具调用进行供应链层面风险分析，返回告警列表和风险评分。
+    适用于 email / file / social 等工具的预检。
+    """
+    alerts = []
+    risk_score = 0
+    intent_text = ""
+
+    if tool_name == "send_email":
+        to_addr = params.get("to", "")
+        body = params.get("body", "") + " " + params.get("subject", "")
+        intent_text = (to_addr + " " + body).lower()
+        # 检查目标邮箱域名
+        import re as _re
+        email_domains = _re.findall(r"@[\w.-]+", to_addr)
+        for d in email_domains:
+            domain = d[1:].lower()
+            guard = get_supply_chain_guard()
+            # 复用已知域名分析
+            profile = _DomainProfileLite(domain)
+            _alerts = _check_domain_patterns(profile, domain, "")
+            alerts.extend(_alerts)
+            risk_score += sum(a.get("score", 0) for a in _alerts)
+        # 检查邮件内容中的敏感模式
+        for pattern, score in EXFILTRATION_PATTERNS:
+            if _re.search(pattern, intent_text, _re.IGNORECASE):
+                alerts.append({"type": "email_content_exfiltration", "score": score, "pattern": pattern})
+
+    elif tool_name in ("read_file", "write_file"):
+        file_path = params.get("file") or params.get("filename") or params.get("path", "")
+        intent_text = file_path.lower()
+        # 检查系统文件路径
+        system_patterns = [
+            (r"(^|/)\.ssh/|/etc/passwd|/etc/shadow|\.aws/|\.config/", 50),
+            (r"(^|/)\.(bashrc|profile|zshrc|git-credentials)", 40),
+            (r"/root/|\.pem$|\.key$|\.p12$", 60),
+        ]
+        for pat, score in system_patterns:
+            if _re.search(pat, intent_text):
+                alerts.append({"type": "system_file_access", "score": score, "path": file_path})
+                risk_score += score
+
+    elif tool_name == "post_social":
+        content = params.get("content", "")
+        intent_text = content.lower()
+        for pattern, score in EXFILTRATION_PATTERNS:
+            if _re.search(pattern, intent_text, _re.IGNORECASE):
+                alerts.append({"type": "social_content_exfiltration", "score": score, "pattern": pattern})
+                risk_score += score
+
+    return {
+        "tool": tool_name,
+        "risk_score": risk_score,
+        "alerts": alerts,
+        "should_block": risk_score >= 60,
+        "should_confirm": risk_score >= 30 and risk_score < 60,
+        "intent_preview": intent_text[:200],
+    }
+
+
+class _DomainProfileLite:
+    """轻量级域名画像（用于 analyze_tool_action 内部）"""
+    def __init__(self, domain: str):
+        self.domain = domain
+        self.request_count = 1
+        self.total_response_bytes = 0
+        self.suspicious = False
+        self.risk_score = 0
+
+
+def _check_domain_patterns(profile: '_DomainProfileLite', domain: str, path: str) -> list:
+    alerts = []
+    lower_domain = domain.lower()
+    lower_path = (path or "").lower()
+    combined = lower_domain + " " + lower_path
+
+    for risky in HIGH_RISK_DOMAINS:
+        if risky in lower_domain:
+            alerts.append({"type": "high_risk_domain", "domain": domain, "score": 50})
+            break
+
+    for pattern, score in EXFILTRATION_PATTERNS:
+        if _re.search(pattern, combined, _re.IGNORECASE):
+            alerts.append({"type": "data_exfiltration_pattern", "pattern": pattern, "score": score})
+
+    return alerts

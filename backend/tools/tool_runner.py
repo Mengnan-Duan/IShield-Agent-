@@ -69,6 +69,56 @@ def run_tool(tool_name: str, params: str, **kwargs) -> dict:
         _record_tool_result(supply_result, audit_context)
         return supply_result
 
+    # P1-6: 扩展供应链预检到所有工具（email/file/social）
+    if tool_name in {"send_email", "read_file", "write_file", "post_social"}:
+        from services.supply_chain_guard import analyze_tool_action
+        sc_result = analyze_tool_action(tool_name, parsed_params, chain_id=chain_id)
+        if sc_result.get("should_block"):
+            blocked = _finalize_result(tool_name, {
+                "status": "blocked",
+                "mode": "mock",
+                "summary": f"供应链安全分析阻断：{sc_result['alerts'][0]['type'] if sc_result['alerts'] else '高风险'}",
+                "audit": {
+                    "reason": sc_result["alerts"][0]["type"] if sc_result["alerts"] else "supply_chain_high_risk",
+                    "rule_id": "SUPPLY-EXT-001",
+                    "severity": sc_result.get("risk_score", 60),
+                    "threat_level": "high",
+                    "alerts": sc_result.get("alerts", []),
+                },
+                "data": {"intent_preview": sc_result.get("intent_preview", "")},
+            })
+            _record_tool_result(blocked, audit_context)
+            return blocked
+        if sc_result.get("should_confirm"):
+            from services.pending_queue import create_pending
+            pending_id = create_pending(
+                tool_name=tool_name,
+                params=parsed_params,
+                rule_id="SUPPLY-EXT-002",
+                rule_name="供应链预检确认",
+                severity=sc_result.get("risk_score", 45),
+                message=f"供应链预检发现风险（{sc_result['alerts'][0]['type'] if sc_result['alerts'] else '可疑行为'}），请确认是否放行",
+                source_ip=source_ip,
+                action=action,
+                chain_id=chain_id,
+            )
+            pending_result = _finalize_result(tool_name, {
+                "status": "pending",
+                "mode": "mock",
+                "pending_id": pending_id,
+                "summary": f"工具 {tool_name} 需确认（pending_id={pending_id}）",
+                "audit": {
+                    "reason": "supply_chain_confirm",
+                    "rule_id": "SUPPLY-EXT-002",
+                    "severity": sc_result.get("risk_score", 45),
+                    "threat_level": "medium",
+                    "alerts": sc_result.get("alerts", []),
+                },
+                "data": {"pending_id": pending_id, "intent_preview": sc_result.get("intent_preview", "")},
+            })
+            _record_tool_result(pending_result, audit_context)
+            return pending_result
+
     add_event(
         event_type=f"工具执行:{tool_name}",
         detail=f"工具={tool_name}, 参数={str(parsed_params)[:100]}",
@@ -126,6 +176,7 @@ def _record_tool_result(result: dict, audit_context: dict):
         "timeout": "已超时",
         "mock": "模拟执行",
         "error": "已出错",
+        "pending": "需确认",
     }.get(status, "未知")
     detail = f"工具={tool_name}, 状态={status}, 目标={audit_context.get('target') or '-'}"
 
@@ -153,7 +204,22 @@ def _record_tool_result(result: dict, audit_context: dict):
     )
 
     broadcast_event("tool_executed", result)
-    if status in {"blocked", "error", "timeout"}:
+    if status == "pending":
+        broadcast_alert(
+            event_type=event_type,
+            detail=detail,
+            status="需确认",
+            threat_level="medium",
+            confidence=severity,
+            source_ip=audit_context.get("source_ip"),
+            action=audit_context.get("action"),
+            tool_name=tool_name,
+            target=audit_context.get("target"),
+            rule_id=audit.get("rule_id"),
+            category=audit_context.get("category"),
+            metadata={**audit, "chain_id": audit_context.get("chain_id")},
+        )
+    elif status in {"blocked", "error", "timeout"}:
         broadcast_alert(
             event_type=event_type,
             detail=detail,
@@ -168,6 +234,36 @@ def _record_tool_result(result: dict, audit_context: dict):
             category=audit_context.get("category"),
             metadata={**audit, "chain_id": audit_context.get("chain_id")},
         )
+
+    # P2-8: 记录工具调用序列，用于特权升级检测
+    session_key = audit_context.get("source_ip") or "unknown"
+    try:
+        from services.privilege_escalation import get_escalation_detector
+        alerts = get_escalation_detector().record_tool_call(
+            session_key=session_key,
+            tool=tool_name,
+            params=parsed_params,
+            status=status,
+            source_ip=audit_context.get("source_ip"),
+            chain_id=audit_context.get("chain_id"),
+        )
+        for alert in alerts:
+            from services.websocket import broadcast_alert as _broadcast_alert
+            _broadcast_alert(
+                event_type="privilege_escalation",
+                detail=f"[{alert['pattern_name']}] 从 {alert['trigger_tool']} 到 {alert['escalate_tool']}，来源 IP: {alert['source_ip']}",
+                status="已检测",
+                threat_level="high" if alert["severity"] >= 70 else "medium",
+                confidence=alert["severity"],
+                source_ip=alert["source_ip"],
+                action=f"{alert['trigger_tool']}→{alert['escalate_tool']}",
+                tool_name=alert["escalate_tool"],
+                rule_id=alert["pattern_id"],
+                category="privilege_escalation",
+                metadata=alert,
+            )
+    except Exception:
+        pass
 
 
 def _finalize_result(tool_name: str, raw_result: Any, elapsed_ms: float = None, timeout: int = TOOL_TIMEOUT) -> dict:
@@ -267,18 +363,35 @@ def _precheck_supply_chain(tool_name: str, params: dict, chain_id: str = None) -
             "data": {"domain": domain, "path": path, "risk_score": risk_score},
         })
     if action == "confirm":
+        from services.pending_queue import create_pending
+        pending_id = create_pending(
+            tool_name=tool_name,
+            params={"url": url, "method": params.get("method", "GET"),
+                    "domain": domain, "path": path},
+            rule_id="SUPPLY-CHAIN-CHALLENGE-001",
+            rule_name="供应链可疑域名",
+            severity=min(88, max(45, risk_score)),
+            message=f"访问域名 {domain} 需要管理员确认",
+            source_ip=source_ip,
+            action=action,
+            chain_id=chain_id,
+        )
+        get_risk_engine().record(score=15, reason=f"supply_chain_confirm:{domain}", source="tool_runner")
         return _finalize_result(tool_name, {
-            "status": "blocked",
+            "status": "pending",
             "mode": "mock",
-            "summary": f"供应链守卫要求确认后才能访问域名 {domain}",
+            "pending_id": pending_id,
+            "summary": f"访问域名 {domain} 已提交待确认队列（pending_id={pending_id}）",
             "audit": {
                 "reason": "suspicious_supply_chain_target_confirm",
                 "rule_id": "SUPPLY-CHAIN-CHALLENGE-001",
                 "severity": min(88, max(45, risk_score)),
                 "threat_level": "medium",
                 "alerts": alerts,
+                "confirm_url": f"/api/tool/pending/{pending_id}/confirm",
+                "execute_url": f"/api/tool/pending/{pending_id}/execute",
             },
-            "data": {"domain": domain, "path": path, "risk_score": risk_score},
+            "data": {"domain": domain, "path": path, "risk_score": risk_score, "pending_id": pending_id},
         })
     return None
 

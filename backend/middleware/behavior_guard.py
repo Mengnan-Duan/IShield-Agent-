@@ -6,6 +6,9 @@ from middleware.logger import get_logger
 
 logger = get_logger()
 
+# 本地 / 信任 IP 白名单，永不封禁
+TRUSTED_IPS = {"127.0.0.1", "localhost", "::1", "::ffff:127.0.0.1"}
+
 
 def setup_behavior_guard(app):
     """注册 before_request 钩子"""
@@ -16,6 +19,14 @@ def setup_behavior_guard(app):
             return None
 
         ip = _get_client_ip()
+
+        # 白名单 IP 直接放行，永不封禁
+        if ip in TRUSTED_IPS:
+            g._client_ip = ip
+            g._behavior_analyzer = None
+            g._risk_engine = None
+            return None
+
         analyzer = get_behavior_analyzer()
         risk_engine = get_risk_engine()
 
@@ -39,7 +50,11 @@ def setup_behavior_guard(app):
     @app.after_request
     def log_behavior(response):
         ip = getattr(g, "_client_ip", None)
-        if ip is None or not hasattr(g, "_behavior_analyzer"):
+        if ip is None:
+            return response
+
+        analyzer = getattr(g, "_behavior_analyzer", None)
+        if analyzer is None:
             return response
 
         try:
@@ -54,8 +69,8 @@ def setup_behavior_guard(app):
                 )
                 token_name = ((getattr(g, "token_meta", None) or {}).get("name"))
                 session_id = getattr(g, "_fingerprint", None)
-                severity_score = 0 if result == "safe" else 25
-                severity_score += 10 if request.path.startswith("/api/simulate") else 0
+                # simulate 端点的恶意结果不计入 IP 风险分（红队测试是合法行为）
+                severity_score = 0 if result == "safe" else (5 if request.path.startswith("/api/simulate") else 25)
                 risk_report = g._risk_engine.record(
                     ip=ip,
                     token=token_name,

@@ -152,7 +152,9 @@ class AgentMonitor:
 
         # ── 步骤3：记录行为事件 ─────────────────────────────
         ip = "agent-internal"
-        add_event(
+        # 先计算耗时，再写事件
+        elapsed_ms = int((time.time() - start) * 1000)
+        event_id = add_event(
             event_type=f"Agent工具调用[{decision.upper()}]",
             detail=f"[{self.agent_name}] {tool_name}({params_preview}) | {reason[:60]}",
             status="已阻断" if decision == "block" else "待确认" if decision == "confirm" else "已放行",
@@ -160,7 +162,47 @@ class AgentMonitor:
             threat_level="high" if decision == "block" else "medium" if decision == "confirm" else "none",
             confidence=confidence,
             source_ip=ip,
+            tool_name=tool_name,
+            target=str(params)[:200],
+            rule_id=f"AGENT-{decision.upper()}",
+            category="Agent工具调用",
+            metadata={
+                "agent_id": self.agent_id,
+                "agent_name": self.agent_name,
+                "decision": decision,
+                "params_preview": params_preview,
+                "call_id": call_id,
+                "attack_detected": attack_detected,
+                "duration_ms": elapsed_ms,
+            },
         )
+
+        # 用 metadata 形式追加 agent_tool_call 类型事件（便于 /api/agent/summary 聚合）
+        # 同时记录到 events 表，type='agent_tool_call' 用于精确查询
+        try:
+            add_event(
+                event_type="agent_tool_call",
+                detail=f"[{self.agent_name}] {tool_name} — {decision.upper()}",
+                status="已阻断" if decision == "block" else "已放行" if decision == "allow" else "待确认",
+                text_hash="",
+                threat_level="high" if decision == "block" else "medium" if decision == "confirm" else "none",
+                confidence=confidence,
+                source_ip=ip,
+                tool_name=tool_name,
+                target=self.agent_id,
+                rule_id=f"AGENT-{decision.upper()}",
+                category="Agent工具调用",
+                metadata={
+                    "agent_id": self.agent_id,
+                    "agent_name": self.agent_name,
+                    "decision": decision,
+                    "call_id": call_id,
+                    "attack_detected": attack_detected,
+                    "duration_ms": elapsed_ms,
+                },
+            )
+        except Exception:
+            pass
 
         # ── 步骤4：执行工具（仅允许时） ──────────────────────
         tool_result = {}
@@ -182,8 +224,6 @@ class AgentMonitor:
                 "decision": decision,
                 "confidence": confidence,
             }
-
-        elapsed_ms = int((time.time() - start) * 1000)
 
         # ── 步骤5：记录调用历史 ──────────────────────────────
         call_record = {

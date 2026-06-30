@@ -49,3 +49,50 @@ def ip_status(ip: str):
         "banned": banned,
         "threat_level": analyzer.get_threat_level(ip),
     })
+
+
+@behavior_bp.route("/bans", methods=["GET"])
+def list_bans():
+    """GET /api/behavior/bans — 当前活跃封禁列表"""
+    from services.ip_bans import get_active_bans, get_ban_count
+    return make_response({
+        "bans": get_active_bans(limit=200),
+        "stats": get_ban_count(),
+    })
+
+
+@behavior_bp.route("/bans/<ip>", methods=["DELETE"])
+def unban_ip(ip: str):
+    """DELETE /api/behavior/bans/<ip> — 解封指定 IP"""
+    from services.ip_bans import unban_ip as _db_unban
+    analyzer = get_behavior_analyzer()
+    # 清除内存状态
+    with analyzer._lock:
+        p = analyzer._profiles.get(ip)
+        if p:
+            p.is_banned = False
+            p.score = max(0, p.score - 20)
+    # 清除 DB 记录
+    db_ok = _db_unban(ip)
+    return make_response({
+        "ip": ip,
+        "unbanned": db_ok,
+        "message": f"IP {ip} 已解封" if db_ok else f"IP {ip} 未在封禁列表中",
+    })
+
+
+@behavior_bp.route("/bans/<ip>", methods=["POST"])
+def manual_ban_ip(ip: str):
+    """POST /api/behavior/bans/<ip> — 手动封禁指定 IP"""
+    from flask import request
+    from services.ip_bans import ban_ip
+    data = request.get_json(silent=True) or {}
+    duration = int(data.get("duration", 300))
+    reason = str(data.get("reason", "管理员手动封禁"))
+    ban_ip(ip, reason=reason, duration_seconds=duration, score_at_ban=100)
+    return make_response({
+        "ip": ip,
+        "banned": True,
+        "duration_seconds": duration,
+        "reason": reason,
+    })

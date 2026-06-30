@@ -34,6 +34,8 @@ from routes.tokens import tokens_bp
 from routes.ueba import ueba_bp
 from routes.supply_chain import supply_bp
 from routes.agent_monitor import agent_bp
+from routes.tool_pending import pending_bp
+from routes.webhooks import webhooks_bp
 from services.websocket import events_stream
 
 logger = get_logger()
@@ -110,6 +112,8 @@ def create_app():
     app.register_blueprint(ueba_bp)
     app.register_blueprint(supply_bp)
     app.register_blueprint(agent_bp)
+    app.register_blueprint(pending_bp)
+    app.register_blueprint(webhooks_bp)
 
     @app.route("/api/events/stream")
     def sse_events():
