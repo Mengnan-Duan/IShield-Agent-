@@ -224,6 +224,42 @@ def rotate_token(name: str) -> Optional[dict]:
     return {"name": name, "key": f"{name}:{new_key}"}
 
 
+def renew_token(name: str, days: int) -> Optional[dict]:
+    """
+    将 token 的过期时间延长 days 天。
+    days < 0：提前过期（即提前吊销效果）；
+    days == 0：不修改；
+    days > 0：延长到期时间。
+    """
+    data = _load_registry()
+    if name not in data["tokens"]:
+        return None
+    entry = data["tokens"][name]
+    if entry.get("revoked"):
+        return None
+
+    now = _utc_now()
+    current_expires = entry.get("expires_at")
+    if current_expires:
+        try:
+            current_dt = datetime.fromisoformat(current_expires)
+        except (ValueError, TypeError):
+            current_dt = now
+    else:
+        # 无到期时间则从今天算起
+        current_dt = now
+
+    new_expires = current_dt + timedelta(days=days)
+    entry["expires_at"] = new_expires.isoformat()
+    _save_registry(data)
+    return {
+        "name": name,
+        "expires_at": entry["expires_at"],
+        "days_added": days,
+        "message": f"Token 已续期 {days} 天，新到期时间：{entry['expires_at']}",
+    }
+
+
 def create_approval_code(name: str, action: str, ttl_seconds: int = 300) -> dict:
     data = _load_registry()
     code = secrets.token_hex(3).upper()

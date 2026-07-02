@@ -17,10 +17,26 @@ import hashlib
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-import numpy as np
+# ── Phase 2.7 fix：numpy 只在函数内导入（延迟加载） ─────────────────────────
+# .venv\Scripts\python.exe 从 backend/ 运行，将 .venv 解析为 backend\.venv
+#（实际在项目根目录），因此无法从 sys.path 自动找到 .venv/Lib/site-packages
+# 改为在函数内部 try/except 导入，使模块在 numpy 缺失时仍可加载（降级回退）
+np = None  # 全局惰性引用
+
+def _get_np():
+    """惰性获取 numpy（仅在 USE_EMBEDDING_STRATEGY=True 时才真正需要）"""
+    global np
+    if np is None:
+        try:
+            import numpy
+            np = numpy
+        except ImportError:
+            return None
+    return np
 
 # 父目录加入 path 以便 import config
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_backend_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_backend_root))
 
 import config
 

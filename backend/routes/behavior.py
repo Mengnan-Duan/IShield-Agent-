@@ -1,5 +1,5 @@
 """行为分析路由 — 异常 IP 报告、行为摘要"""
-from flask import Blueprint
+from flask import Blueprint, request
 from middleware.logger import get_logger
 from middleware.error_handler import ValidationError
 
@@ -19,6 +19,42 @@ def behavior_summary():
     """GET /api/behavior/summary — 全局异常摘要，Top 20 风险 IP"""
     analyzer = get_behavior_analyzer()
     return make_response(analyzer.get_summary())
+
+
+@behavior_bp.route("/demo", methods=["POST"])
+def behavior_demo():
+    """POST /api/behavior/demo — 注入一组可控异常行为，用于 UEBA 面板联动验证。"""
+    data = request.get_json(silent=True) or {}
+    scenario = str(data.get("scenario", "rapid_attack"))
+    analyzer = get_behavior_analyzer()
+
+    if scenario == "endpoint_scan":
+        ip = "203.0.113.77"
+        endpoints = [
+            "/api/detect", "/api/simulate", "/api/redteam", "/api/policies",
+            "/api/events", "/api/agent/execute", "/api/tokens", "/api/audit",
+            "/api/behavior/ip", "/api/conversation/evaluate", "/api/samples",
+        ]
+        for endpoint in endpoints:
+            analyzer.track_request(ip, endpoint, "blocked", "high")
+    else:
+        ip = "198.51.100.24"
+        endpoints = ["/api/detect", "/api/simulate", "/api/agent/execute", "/api/policies/evaluate"]
+        for i in range(36):
+            analyzer.track_request(
+                ip,
+                endpoints[i % len(endpoints)],
+                "blocked" if i % 2 == 0 else "malicious",
+                "high",
+            )
+
+    return make_response({
+        "scenario": scenario,
+        "injected": True,
+        "ip": ip,
+        "summary": analyzer.get_summary(),
+        "message": "已注入异常行为画像，可刷新行为监控面板查看。",
+    })
 
 
 @behavior_bp.route("/risk-summary", methods=["GET"])

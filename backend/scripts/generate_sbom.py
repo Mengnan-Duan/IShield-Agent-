@@ -13,13 +13,25 @@ SBOM_PATH = Path(__file__).parent.parent / "sbom.json"
 
 def get_package_info():
     """获取所有已安装包的信息"""
+    import sys
     result = subprocess.run(
-        ["pip", "freeze", "--format=json"],
+        [sys.executable, "-m", "pip", "freeze"],
         capture_output=True, text=True, timeout=30,
     )
     if result.returncode != 0:
         return []
-    return json.loads(result.stdout)
+    # pip freeze 输出格式：package==version
+    packages = []
+    for line in result.stdout.strip().splitlines():
+        if "==" in line and not line.startswith("#"):
+            parts = line.strip().split("==", 1)
+            if len(parts) == 2:
+                name, version = parts
+                # 过滤虚拟环境自身相关包
+                skip = {"pip", "setuptools", "wheel", "-dev", ".venv", "distribute"}
+                if name and name.lower() not in skip and not any(x in name.lower() for x in skip):
+                    packages.append({"name": name, "version": version})
+    return packages
 
 
 def guess_license(pkg_name: str) -> str:

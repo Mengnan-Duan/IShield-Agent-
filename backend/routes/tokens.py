@@ -9,6 +9,7 @@ from services.token_manager import (
     create_token,
     revoke_token,
     rotate_token,
+    renew_token,
     list_tokens,
     validate_token,
     create_approval_code,
@@ -128,6 +129,29 @@ def rotate(name: str):
     if err := _require_admin_approval("rotate"):
         return err
     result = rotate_token(name)
+    if not result:
+        raise ValidationError(f"Token '{name}' 不存在或已被吊销")
+    return make_response(result)
+
+
+@tokens_bp.route("/renew/<name>", methods=["POST"])
+def renew(name: str):
+    """POST /api/tokens/renew/<name> — 续期 token"""
+    if err := _check_admin():
+        return err
+    if err := _require_admin_approval("renew"):
+        return err
+    if not request.is_json:
+        raise ValidationError("Content-Type 必须是 application/json")
+    data = request.get_json(silent=True) or {}
+    days = data.get("days", 30)
+    try:
+        days = int(days)
+    except (TypeError, ValueError):
+        raise ValidationError("days 必须是整数")
+    if days < 1 or days > 365:
+        raise ValidationError("days 必须在 1-365 天之间")
+    result = renew_token(name, days)
     if not result:
         raise ValidationError(f"Token '{name}' 不存在或已被吊销")
     return make_response(result)

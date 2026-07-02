@@ -73,6 +73,14 @@ def create_app():
             "api_provider": _api_provider(),
         }
 
+    @app.route("/api/health", methods=["GET"])
+    def health_check():
+        """GET /api/health — 前端轮询后端就绪状态"""
+        return {
+            "status": "healthy",
+            "version": "3.4.0",
+        }
+
     @app.route("/api/__internal__/stop", methods=["POST"])
     def internal_stop():
         import threading
@@ -123,11 +131,24 @@ def create_app():
 
     @app.route("/")
     def index():
-        return send_from_directory(static_dir, "frontend.html")
+        # v3.4 — 防止前端缓存：每次带 Cache-Control: no-cache
+        resp = send_from_directory(static_dir, "frontend.html")
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+
+    @app.route("/frontend.html")
+    def frontend_html():
+        # v3.4 — 兼容老 URL：访问 /frontend.html 时跳回 / 走 Hero 首页
+        from flask import redirect
+        return redirect("/", code=301)
 
     @app.route("/dashboard")
     def dashboard():
-        return send_from_directory(static_dir, "dashboard.html")
+        resp = send_from_directory(static_dir, "dashboard.html")
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return resp
 
     @app.route("/<path:path>")
     def static_files(path):
@@ -151,6 +172,6 @@ app = create_app()
 if __name__ == "__main__":
     print("=" * 60)
     print("  IShield Agent Security Platform")
-    print("  Backend v2.0 — Enterprise Grade")
+    print("  Backend v3.4.0 — Enterprise Grade")
     print("=" * 60)
     app.run(debug=False, host=config.BACKEND_HOST, port=config.BACKEND_PORT, threaded=True)

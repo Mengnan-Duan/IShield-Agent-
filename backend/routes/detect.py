@@ -21,6 +21,7 @@ from services.events import (
     set_cached_detection,
     cleanup_expired_cache,
 )
+from utils.cache import detect_cache
 from services.samples import add_sample
 from services.websocket import broadcast_detection, broadcast_alert
 from utils.normalize import normalize_input, detect_homograph_attack
@@ -315,6 +316,17 @@ def detect():
         })
 
     return make_response(result)
+
+
+@detect_bp.route("/cache/clear", methods=["POST"])
+def clear_cache():
+    """清除检测缓存（签名更新后调用，避免旧结果干扰）"""
+    detect_cache.clear()
+    cleanup_expired_cache()
+    return make_response({
+        "message": "缓存已清除",
+        "cache_cleared": True,
+    })
 
 
 @detect_bp.route("/health", methods=["GET"])

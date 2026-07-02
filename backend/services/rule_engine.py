@@ -92,7 +92,6 @@ def _match_one(text_raw: str, text_lower: str, text_normalized: str,
         best_match,
     )
     import config
-    import numpy as np
 
     hits = []
     pat_lower = pattern.lower()
@@ -220,6 +219,10 @@ def rule_detect(text: str) -> Tuple[bool, str, int, List[dict]]:
     # ── SQL 模式匹配（加权组合）───────────────────────────────
     sql_hits = []
     for pattern in _sig_mgr.sql_patterns:
+        # 防御：只处理有 keywords + sql_ops 的组合型 SQL 规则
+        # Phase 2.7 新增：纯 pattern 字段的短文本 SQL 规则已移至 rules[] 做精确匹配
+        if "keywords" not in pattern or "sql_ops" not in pattern:
+            continue
         keywords_hit = [kw for kw in pattern["keywords"] if kw.lower() in text_lower]
         sql_ops_hit = [op for op in pattern["sql_ops"] if op.lower() in text_lower]
         if keywords_hit and sql_ops_hit:

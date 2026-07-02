@@ -38,6 +38,15 @@ SSRF_PATTERNS = [
     "ssrf", "服务端请求伪造",
 ]
 COMMAND_INJECTION_PATTERNS = [
+    # 分隔符单独出现即为高危
+    ";", "|", "&", "`",
+    # 危险命令（短格式，无需空格后缀）
+    "rm -rf", "rm -r", "del /f", "format",
+    "nc -e", "ncat -e", "bash -i", "/bin/sh",
+    "curl http", "wget http",
+    "cat /etc", "type C:\\",
+    "rm -f", "rm -", "del ", "del\\",
+    # 原有多词模式（保留）
     "; cat ", "; ls ", "| bash", "| sh", "`", "$(", "${",
     "wget ", "curl ", "nc -", "ncat ", "反弹", "shell",
     "backdoor", "/tmp/", "/dev/", "chmod +x",
@@ -136,9 +145,16 @@ def semantic_detect_local_detailed(text: str) -> SemanticResultDetailed:
 
     # ── 关键词计分 ───────────────────────────────────────────────────
     keyword_score = 0
-    keywords = ["忽略", "忘记", "系统", "指令", "提示词", "重置",
-                "绕过", "开发者", "DAN", "恶意", "攻击", "劫持",
-                "教程", "作家", "小说", "限制"]
+    keywords = [
+        # 原有
+        "忽略", "忘记", "系统", "指令", "提示词", "重置",
+        "绕过", "开发者", "DAN", "恶意", "攻击", "劫持",
+        "教程", "作家", "小说", "限制",
+        # Phase 2.7 新增：修复 inj-003 / byp-002 / byp-003
+        "system prompt", "safety", "filters", "override",
+        "credentials", "reveal", "最初的", "admin",
+        "输出", "输入", "内容", "暴露",
+    ]
     for kw in keywords:
         if kw in text:
             keyword_score += 1

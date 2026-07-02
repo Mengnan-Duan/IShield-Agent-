@@ -57,8 +57,29 @@ def normalize_homoglyph(text: str) -> str:
 
 
 def normalize_all(text: str) -> str:
-    """复合归一化：先去零宽，再同形替换。"""
-    return normalize_homoglyph(normalize_zero_width(text))
+    """复合归一化：先去零宽，再同形替换，最后还原被NFKC破坏的SQL特殊字符。
+
+    NFKC 规范化会将 ASCII 单引号 ' 转为全角 '' 或弯引号 '，
+    导致签名匹配失效。normalize_all 在 normalize_homoglyph 之后，
+    将这些 Unicode 变体还原为 ASCII 以保证签名精确命中。
+    """
+    t = normalize_homoglyph(normalize_zero_width(text))
+    # 还原被 NFKC 破坏的 SQL 特殊字符
+    # 弯引号/全角单引号 → ASCII 单引号
+    CURVY_QUOTE_MAP = {
+        "\u2018": "'",  # LEFT SINGLE QUOTATION MARK '
+        "\u2019": "'",  # RIGHT SINGLE QUOTATION MARK '
+        "\u201C": '"',  # LEFT DOUBLE QUOTATION MARK "
+        "\u201D": '"',  # RIGHT DOUBLE QUOTATION MARK "
+        "\u02BC": "'",  # MODIFIER LETTER APOSTROPHE ʼ
+        "\u201B": "'",  # SINGLE HIGH-REVERSED-QUOTATION MARK '
+        "\u201A": "'",  # SINGLE LOW-QUOTATION MARK ‚
+        "\u201E": '"',  # DOUBLE LOW-QUOTATION MARK „
+        "\u201F": '"',  # DOUBLE HIGH-REVERSED-QUOTATION MARK ‟
+    }
+    for old, new in CURVY_QUOTE_MAP.items():
+        t = t.replace(old, new)
+    return t
 
 
 # ── Levenshtein 距离 ─────────────────────────────────────────────────────
@@ -112,3 +133,33 @@ def levenshtein_match(text: str, pattern: str, max_dist: int = 2) -> List[Tuple[
 def levenshtein_match_anywhere(text: str, pattern: str, max_dist: int = 2) -> bool:
     """便捷版：text 中是否存在与 pattern 编辑距离 ≤ max_dist 的子串。"""
     return bool(levenshtein_match(text, pattern, max_dist))
+
+
+# ── Phase 2.7 新增：编码解码预处理器 ────────────────────────────────────────
+
+def decode_html_entities(text: str) -> str:
+    """HTML 实体解码：&lt; → <, &gt; → >, &amp; → &, &#x... → 对应字符。
+
+    用于绕过 HTML 编码的攻击 payload 检测（如 &lt;script&gt;）。
+    Python html.unescape 可处理标准实体和数字/十六进制字符引用。
+    """
+    if not text:
+        return text
+    try:
+        return __import__("html").unescape(text)
+    except Exception:
+        return text
+
+
+def decode_url_encoding(text: str) -> str:
+    """URL 编码解码：%3C → <, %3E → >, + → 空格, %2F → / 等。
+
+    用于检测 URL 编码绕过（如 %3Cscript%3E）。
+    使用 unquote_plus 将 + 也解码为空格（符合 URL 规范）。
+    """
+    if not text:
+        return text
+    try:
+        return __import__("urllib.parse").unquote_plus(text)
+    except Exception:
+        return text

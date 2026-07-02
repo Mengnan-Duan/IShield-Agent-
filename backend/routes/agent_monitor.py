@@ -96,13 +96,24 @@ def get_agent_calls():
 
     from tools.openclaw_adapter import _agents_lock
     with _agents_lock:
-        monitor = _registered_agents.get(agent_id) if agent_id else None
+        if agent_id:
+            monitor = _registered_agents.get(agent_id)
+            if not monitor:
+                return make_response({"calls": [], "total": 0})
+            calls = monitor.get_recent_calls(limit)
+            return make_response({"calls": calls, "total": monitor.request_count, "blocked": monitor.blocked_count})
 
-    if not monitor:
-        return make_response({"calls": [], "total": 0})
+        calls = []
+        total = 0
+        blocked = 0
+        for monitor in _registered_agents.values():
+            recent = monitor.get_recent_calls(limit)
+            calls.extend(recent)
+            total += monitor.request_count
+            blocked += monitor.blocked_count
 
-    calls = monitor.get_recent_calls(limit)
-    return make_response({"calls": calls, "total": monitor.request_count, "blocked": monitor.blocked_count})
+    calls.sort(key=lambda c: str(c.get("timestamp", "")), reverse=True)
+    return make_response({"calls": calls[:limit], "total": total, "blocked": blocked})
 
 
 @agent_bp.route("/list", methods=["GET"])

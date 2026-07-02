@@ -1,7 +1,6 @@
-# IShield 安全风险分析报告 v2.0
+# IShield 安全风险分析报告
 
-> IShield Agent Security Platform — 红队攻击面研究与防御验证
-> 版本：v2.0 | 日期：2026-06-19
+> 版本：Phase 2.1（对应 README Phase 2.1，2026-06-19）
 
 ---
 

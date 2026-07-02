@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -49,6 +49,192 @@
       border-radius: 16px;
       box-shadow: 0 8px 30px rgba(2,6,23,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
     }
+    .command-center {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      border: 1px solid rgba(96,165,250,0.20);
+      background:
+        radial-gradient(circle at 16% 12%, rgba(59,130,246,0.22), transparent 32%),
+        radial-gradient(circle at 78% 18%, rgba(16,185,129,0.14), transparent 28%),
+        linear-gradient(135deg, rgba(15,23,42,0.96), rgba(2,6,23,0.92));
+      box-shadow: 0 28px 90px rgba(2,6,23,0.42), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .command-center::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(96,165,250,0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(96,165,250,0.055) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(90deg, rgba(0,0,0,0.78), transparent 82%);
+    }
+    .command-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: #93c5fd;
+      font: 700 11px/1 JetBrains Mono, monospace;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+    }
+    .command-kicker i {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #10b981;
+      box-shadow: 0 0 0 6px rgba(16,185,129,0.12), 0 0 20px rgba(16,185,129,0.5);
+    }
+    .command-title {
+      margin-top: 18px;
+      color: #fff;
+      font-size: clamp(30px, 4vw, 58px);
+      line-height: 1.02;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+    .command-title span { color: #60a5fa; }
+    .command-copy {
+      max-width: 760px;
+      margin-top: 16px;
+      color: rgba(203,213,225,0.86);
+      font-size: 15px;
+      line-height: 1.8;
+    }
+    .command-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    .command-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.045);
+      color: rgba(226,232,240,0.88);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .command-panel {
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 22px;
+      background: rgba(2,6,23,0.50);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      backdrop-filter: blur(18px);
+    }
+    .command-score-ring {
+      width: 164px;
+      aspect-ratio: 1;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto;
+      background: conic-gradient(#10b981 0 40%, rgba(148,163,184,0.16) 40% 100%);
+      box-shadow: 0 0 50px rgba(59,130,246,0.18);
+    }
+    .command-score-ring > div {
+      width: 126px;
+      aspect-ratio: 1;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: rgba(2,6,23,0.92);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .command-score-ring strong {
+      display: block;
+      color: #fff;
+      font: 850 42px/1 JetBrains Mono, monospace;
+    }
+    .command-score-ring span {
+      color: rgba(148,163,184,0.9);
+      font: 700 10px/1 JetBrains Mono, monospace;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin-top: 7px;
+    }
+    .command-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .command-metric {
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.035);
+      padding: 12px;
+    }
+    .command-metric label {
+      display: block;
+      color: rgba(148,163,184,0.86);
+      font: 700 10px/1 JetBrains Mono, monospace;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .command-metric strong {
+      display: block;
+      margin-top: 8px;
+      color: #fff;
+      font-size: 22px;
+      line-height: 1.1;
+      font-weight: 820;
+    }
+    .command-flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .command-flow-step {
+      position: relative;
+      min-height: 72px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.035);
+      padding: 12px;
+    }
+    .command-flow-step b {
+      display: block;
+      color: #93c5fd;
+      font: 800 10px/1 JetBrains Mono, monospace;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 9px;
+    }
+    .command-flow-step span {
+      color: rgba(226,232,240,0.88);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .kpi-card-v34 {
+      position: relative;
+      overflow: hidden;
+      min-height: 132px;
+    }
+    .kpi-card-v34::after {
+      content: "";
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 0;
+      height: 3px;
+      border-radius: 999px 999px 0 0;
+      background: linear-gradient(90deg, rgba(59,130,246,0.85), rgba(16,185,129,0.72));
+    }
+    @media (max-width: 980px) {
+      .command-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px) {
+      .command-metric-grid,
+      .command-flow { grid-template-columns: 1fr; }
+    }
     .ticker-item { animation: fadeIn .4s ease both; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity:1; transform: translateY(0);} }
     @keyframes pulseDot { 0%,100% { opacity: 1;} 50% { opacity: .35;} }
@@ -68,7 +254,7 @@
         </div>
         <div>
           <div class="text-xl font-extrabold tracking-wide text-white">IShield 威胁情报可视化大屏</div>
-          <div class="text-xs text-slate-400 font-mono">REAL SANDBOX · LIVE INTERCEPT · SOC DEMO MODE</div>
+          <div class="text-xs text-slate-400 font-mono">REAL SANDBOX · LIVE INTERCEPT · SOC LIVE VIEW</div>
         </div>
       </div>
       <div class="flex items-center gap-4">
@@ -76,7 +262,7 @@
           <span class="w-2 h-2 rounded-full bg-safe pulse-dot"></span>
           <span id="connStatusText">LIVE</span>
         </div>
-        <!-- Server Control (Phase 4) -->
+        <!-- Server Control (v3.4) -->
         <div id="dashboardServerStatus" class="flex items-center gap-1.5">
           <div id="dashServerDot" class="w-2 h-2 rounded-full bg-slate-500 transition-colors duration-500"></div>
           <span id="dashServerText" class="text-xs font-mono text-slate-500">检测中</span>
@@ -92,24 +278,68 @@
   </header>
 
   <main class="max-w-[1800px] mx-auto px-6 py-6 space-y-5">
+    <section class="command-center p-6 xl:p-8">
+      <div class="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.7fr)] gap-6 items-stretch">
+        <div>
+          <div class="command-kicker"><i></i>SOC Command Center · v3.4.0</div>
+          <h1 class="command-title">AI Agent 安全态势<span>指挥中心</span></h1>
+          <p class="command-copy" id="socCommandSub">正在汇聚输入检测、工具预审、攻击链取证、UEBA 行为画像与供应链审计数据。</p>
+          <div class="command-pill-row">
+            <span class="command-pill">实时审计</span>
+            <span class="command-pill">工具调用阻断</span>
+            <span class="command-pill">攻击链聚合</span>
+            <span class="command-pill">UEBA 风险画像</span>
+            <span class="command-pill">证据回放</span>
+          </div>
+          <div class="command-flow" id="socCommandFlow">
+            <div class="command-flow-step"><b>Input</b><span>模型输入与业务文本进入检测链路</span></div>
+            <div class="command-flow-step"><b>Policy</b><span>规则、语义、行为风险联合判定</span></div>
+            <div class="command-flow-step"><b>Gateway</b><span>高危工具调用在执行前被预审</span></div>
+            <div class="command-flow-step"><b>Evidence</b><span>事件、链路、审计记录同步入库</span></div>
+          </div>
+        </div>
+        <aside class="command-panel p-5 xl:p-6">
+          <div class="flex items-center justify-between gap-3 mb-5">
+            <div>
+              <div class="text-xs font-mono text-slate-400 tracking-[0.22em] uppercase">Live Verdict</div>
+              <div id="socCommandVerdict" class="mt-2 text-lg font-semibold text-white">态势初始化</div>
+            </div>
+            <span id="socCommandUpdated" class="px-2.5 py-1 rounded-full border border-white/10 text-[11px] font-mono text-slate-400">SYNC --</span>
+          </div>
+          <div class="command-score-ring" id="socCommandRing">
+            <div>
+              <strong id="socCommandScore">0</strong>
+              <span>Threat</span>
+            </div>
+          </div>
+          <div class="command-metric-grid">
+            <div class="command-metric"><label>Block Rate</label><strong id="socCommandRate">0%</strong></div>
+            <div class="command-metric"><label>High Risk</label><strong id="socCommandHigh">0</strong></div>
+            <div class="command-metric"><label>Blocked</label><strong id="socCommandBlocked">0</strong></div>
+            <div class="command-metric"><label>Live Events</label><strong id="socCommandLive">0</strong></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
     <section class="grid grid-cols-2 xl:grid-cols-6 gap-4">
-      <div class="card p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">威胁总数</div><div id="kpiTotal" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">累计安全事件</div></div>
-      <div class="card p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">今日新增</div><div id="kpiToday" class="mt-3 text-4xl font-bold font-mono text-accent">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">当日事件总量</div></div>
-      <div class="card p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">已拦截</div><div id="kpiBlocked" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">拦截/阻断事件</div></div>
-      <div class="card p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">拦截率</div><div id="kpiRate" class="mt-3 text-4xl font-bold font-mono text-warning">0%</div><div class="mt-3 h-2 rounded-full bg-white/5 overflow-hidden"><div id="kpiRateBar" class="h-full bg-warning rounded-full transition-all" style="width:0%"></div></div></div>
-      <div class="card p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">高危事件</div><div id="kpiHigh" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">high / critical</div></div>
-      <div class="card p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">综合威胁指数</div><div id="kpiThreat" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">按最近事件加权</div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">威胁总数</div><div id="kpiTotal" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">累计安全事件</div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">今日新增</div><div id="kpiToday" class="mt-3 text-4xl font-bold font-mono text-accent">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">当日事件总量</div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">已拦截</div><div id="kpiBlocked" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">拦截/阻断事件</div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">拦截率</div><div id="kpiRate" class="mt-3 text-4xl font-bold font-mono text-warning">0%</div><div class="mt-3 h-2 rounded-full bg-white/5 overflow-hidden"><div id="kpiRateBar" class="h-full bg-warning rounded-full transition-all" style="width:0%"></div></div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">高危事件</div><div id="kpiHigh" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">high / critical</div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">综合威胁指数</div><div id="kpiThreat" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">按最近事件加权</div></div>
     </section>
 
     <section class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.78fr)] gap-5 items-start">
       <div class="card p-4 xl:p-5">
         <div class="flex flex-col gap-3 mb-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <div class="text-white font-semibold">全球攻击来源演示</div>
-            <div class="text-xs text-slate-300/75 tracking-[0.08em]">演示模式：卫星地球、全球飞线、来源详情与区域筛选</div>
+            <div class="text-white font-semibold">全球攻击源态势</div>
+            <div class="text-xs text-slate-300/75 tracking-[0.08em]">观测模式：卫星地球、全球飞线、来源详情与区域筛选</div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <div class="text-xs font-mono text-slate-500 mr-2" id="mapCount">12 个国家 · DEMO MODE</div>
+            <div class="text-xs font-mono text-slate-500 mr-2" id="mapCount">12 个国家 · LIVE VIEW</div>
             <button class="region-filter-btn px-3 py-1.5 rounded-full border border-accent/30 bg-accent/15 text-accent text-xs font-mono" data-region="global">全球</button>
             <button class="region-filter-btn px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-slate-300 text-xs font-mono hover:border-accent/30 hover:text-accent transition" data-region="apac">亚太</button>
             <button class="region-filter-btn px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-slate-300 text-xs font-mono hover:border-accent/30 hover:text-accent transition" data-region="euro-atlantic">欧美</button>
@@ -122,7 +352,7 @@
             <div class="absolute left-4 top-4 rounded-2xl border border-accent/20 bg-base-900/70 px-3 py-2 backdrop-blur-sm z-10">
               <div class="text-[10px] font-mono text-accent uppercase tracking-[0.24em]">Focus Target</div>
               <div class="mt-1 text-sm font-semibold text-white">IShield SOC · Hangzhou</div>
-              <div class="text-[11px] text-slate-400">全球模拟攻击流汇聚至演示目标节点</div>
+              <div class="text-[11px] text-slate-400">全球模拟攻击流汇聚至目标防护节点</div>
             </div>
             <div class="absolute right-4 top-4 rounded-2xl border border-white/10 bg-base-900/70 px-3 py-2 backdrop-blur-sm z-10">
               <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">Orbit Status</div>
@@ -198,7 +428,7 @@
         <div class="flex items-start justify-between gap-4 mb-4">
           <div>
             <div class="text-white font-semibold">实时攻击拦截滚动列表</div>
-            <div class="text-xs text-slate-300/75 tracking-[0.08em]">展示来源 IP / 工具 / 目标 / 规则</div>
+            <div class="text-xs text-slate-300/75 tracking-[0.08em]">显示来源 IP / 工具 / 目标 / 规则</div>
           </div>
           <div class="text-right">
             <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">Live Feed</div>
@@ -246,7 +476,7 @@
       <div class="card p-4"><div class="text-white font-semibold mb-3">威胁等级占比</div><div id="severityChart" style="height: 300px;"></div></div>
     </section>
 
-    <!-- Phase 4: 行为安全 & UEBA -->
+    <!-- v3.4: 行为安全 & UEBA -->
     <section class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <div>
@@ -295,7 +525,7 @@
 
     <section class="card p-4">
       <div class="flex items-center justify-between mb-3">
-        <div><div class="text-white font-semibold">安全建议</div><div class="text-xs text-slate-300/75 tracking-[0.08em]">用于现场答辩的辅助说明</div></div>
+        <div><div class="text-white font-semibold">安全建议</div><div class="text-xs text-slate-300/75 tracking-[0.08em]">用于持续运营的处置提示</div></div>
         <div class="text-xs font-mono text-slate-500" id="generatedAt">--</div>
       </div>
       <div id="recommendations" class="grid grid-cols-1 xl:grid-cols-3 gap-3"></div>
@@ -362,6 +592,39 @@
       setText('kpiHigh', kpis.high_risk || 0);
       setText('kpiThreat', kpis.threat_score || 0);
       document.getElementById('kpiRateBar').style.width = `${Math.min(100, kpis.block_rate || 0)}%`;
+    }
+
+    function renderCommandCenter(kpis, liveEvents, overview) {
+      kpis = kpis || {};
+      liveEvents = liveEvents || [];
+      overview = overview || {};
+      const score = Math.max(0, Math.min(100, Math.round(Number(kpis.threat_score || 0))));
+      const rate = Math.max(0, Math.min(100, Math.round(Number(kpis.block_rate || 0))));
+      const highRisk = Number(kpis.high_risk || 0);
+      const blocked = Number(kpis.blocked || 0);
+      const total = Number(kpis.total || 0);
+      const topThreat = ((overview.top_threats || [])[0] || {}).type || '暂无主导威胁';
+      const verdict = score >= 70 ? '高压态势：建议保持自动阻断' : score >= 35 ? '中等态势：持续观察异常链路' : '态势平稳：审计链路在线';
+      const ringColor = score >= 70 ? '#ef4444' : score >= 35 ? '#f59e0b' : '#10b981';
+      setText('socCommandVerdict', verdict);
+      setText('socCommandSub', `当前累计 ${total} 条安全事件，主导风险为 ${topThreat}，系统已阻断 ${blocked} 条高危链路。`);
+      setText('socCommandScore', score);
+      setText('socCommandRate', `${rate}%`);
+      setText('socCommandHigh', highRisk);
+      setText('socCommandBlocked', blocked);
+      setText('socCommandLive', liveEvents.length);
+      setText('socCommandUpdated', 'SYNC ' + new Date().toLocaleTimeString('zh-CN', { hour12: false }));
+      const ring = document.getElementById('socCommandRing');
+      if (ring) ring.style.background = `conic-gradient(${ringColor} 0 ${score}%, rgba(148,163,184,0.16) ${score}% 100%)`;
+      const flow = document.getElementById('socCommandFlow');
+      if (flow) {
+        flow.innerHTML = [
+          ['Input', `${liveEvents.length || 0} 条实时事件进入队列`],
+          ['Policy', `${rate}% 阻断率，${highRisk} 条高危`],
+          ['Gateway', `${blocked} 条工具或输入链路已拦截`],
+          ['Evidence', `${(overview.recommendations || []).length || 0} 条处置建议已生成`]
+        ].map(item => `<div class="command-flow-step"><b>${item[0]}</b><span>${item[1]}</span></div>`).join('');
+      }
     }
 
     function getFilteredSources() {
@@ -672,7 +935,7 @@
       const { preserveView = false } = options;
       const currentSources = getFilteredSources();
       const activeItem = currentSources[activeIndex] || currentSources[0] || DEMO_ATTACK_SOURCES[0];
-      setText('mapCount', `${currentSources.length} 个国家 · ${activeRegionFilter === 'global' ? 'DEMO MODE' : activeRegionFilter.toUpperCase()}`);
+      setText('mapCount', `${currentSources.length} 个国家 · ${activeRegionFilter === 'global' ? 'LIVE VIEW' : activeRegionFilter.toUpperCase()}`);
       if (!globeLocked) {
         setText('globeOrbitHint', activeRegionFilter === 'apac' ? 'APAC FOCUS · DRAG · ZOOM' : activeRegionFilter === 'euro-atlantic' ? 'EU/US FOCUS · DRAG · ZOOM' : 'DRAG · ROTATE · ZOOM');
       }
@@ -833,10 +1096,12 @@
         const liveRaw = await liveRes.json();
         const overview = overviewRaw.data || {};
         const live = (liveRaw.data || {}).events || [];
+        const kpis = overview.kpis || {};
 
-        renderKpis(overview.kpis || {});
+        renderKpis(kpis);
+        renderCommandCenter(kpis, live, overview);
         renderMap(globeRotationIndex);
-        renderGauge((overview.kpis || {}).threat_score || 0);
+        renderGauge(kpis.threat_score || 0);
         renderTrend(overview.trend_7d || [], overview.trend_60m || []);
         renderConfidence(overview.confidence_distribution || []);
         renderTypes(overview.top_threats || []);
@@ -882,7 +1147,7 @@
     setInterval(loadDashboard, 10000);
   </script>
 
-  <!-- Phase 4: Behavior Security & UEBA -->
+  <!-- v3.4: Behavior Security & UEBA -->
   <script>
   function _esc(s) {
     if (s == null) return '';
@@ -980,7 +1245,7 @@
   }
   </script>
 
-  <!-- Phase 4: Server Manager JS -->
+  <!-- v3.4: Server Manager JS -->
   <script>
   var DASH_MANAGER_API = 'http://127.0.0.1:5001';
 
@@ -1036,7 +1301,7 @@
   function dashServerRestart() {
     fetch(API + '/__internal__/stop', { method: 'POST', cache: 'no-cache' })
       .then(function() {
-        toast('后端已停止，请双击"启动 Phase4.bat"重启（位于项目根目录）', 'info');
+        toast('后端已停止，请使用项目根目录的一键启动脚本重启。', 'info');
         updateDashServerUI({ running: false });
       })
       .catch(function() {

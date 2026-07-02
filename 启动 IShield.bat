@@ -13,14 +13,14 @@ if errorlevel 1 (
 
 echo.
 echo  ============================================================
-echo   IShield Phase 2.1 - AI Agent Security Platform
-echo   Starting backend service...
+echo   IShield v3.4.0 - AI Agent Security Gateway
+echo   Starting security operations backend...
 echo  ============================================================
 echo.
-echo   Console:   http://127.0.0.1:5000/frontend.html
+echo   Console:   http://127.0.0.1:5000/
 echo   Dashboard: http://127.0.0.1:5000/dashboard
 echo.
-echo   Please wait, backend logs below...
+echo   Please wait, service logs below...
 echo.
 
 :: Start backend

@@ -21,7 +21,7 @@ LOCAL_HOST = os.environ.get("BACKEND_LOCAL_HOST", "127.0.0.1")
 STOP_ENDPOINT = f"http://{LOCAL_HOST}:{PORT}/api/__internal__/stop"
 STATUS_ENDPOINT = f"http://{LOCAL_HOST}:{PORT}/api/__internal__/status"
 WARMUP_ENDPOINT = STATUS_ENDPOINT
-FRONTEND_URL = f"http://{LOCAL_HOST}:{PORT}/frontend.html"
+FRONTEND_URL = f"http://{LOCAL_HOST}:{PORT}/"
 
 sys.path.insert(0, BACKEND_DIR)
 
@@ -234,7 +234,7 @@ if __name__ == "__main__":
 
     print("=" * 60)
     print("  IShield Agent Security Platform")
-    print("  Backend v2.0 — Phase 4 Enhanced")
+    print("  Backend v3.4.0 — Enhanced")
     print("=" * 60)
     print(f"  控制台：  {FRONTEND_URL}")
     print(f"  分析看板：http://{LOCAL_HOST}:{PORT}/dashboard")

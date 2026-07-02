@@ -4,6 +4,7 @@ from typing import Tuple, Optional
 
 from services.rule_engine import rule_detect, get_sig_manager
 from services.semantic import semantic_detect, semantic_detect_local, semantic_detect_detailed
+from services.text_normalize import decode_html_entities, decode_url_encoding, normalize_all
 from services.ueba import get_ueba_engine
 
 DetectionResult = Tuple[bool, str, dict]  # (is_malicious, reason, confidence_data)
@@ -51,19 +52,27 @@ def hybrid_detect(text: str, use_cache: bool = True,
     import random
     start = time.time()
 
+    # ── Phase 2.7 新增：编码预处理器（修复 enc-002 等编码绕过）─────────────
+    text_decoded = decode_html_entities(text)
+    text_decoded = decode_url_encoding(text_decoded)
+    # 还原被 NFKC 规范化破坏的 SQL 特殊字符（弯引号 → ASCII 单引号）
+    text_decoded = normalize_all(text_decoded)
+    # 预处理器处理后的文本送入各引擎检测
+    _text = text_decoded
+
     # ── 并行执行 rule / semantic 引擎 ───────────────────────────
     rule_result = None
     semantic_result = None
     api_fallback = False
 
     def run_rule():
-        return rule_detect(text)
+        return rule_detect(_text)
 
     def run_semantic():
         try:
-            return semantic_detect_detailed(text), False
+            return semantic_detect_detailed(_text), False
         except Exception:
-            return semantic_detect_detailed(text)[:4] + ("local_fallback",), True
+            return semantic_detect_detailed(_text)[:4] + ("local_fallback",), True
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         f_rule = pool.submit(run_rule)
@@ -168,7 +177,7 @@ def hybrid_detect(text: str, use_cache: bool = True,
             "rules": get_sig_manager().version,
             "semantic": sem_engine,
             "embeddings": "deepseek-1.0",
-            "ueba": "phase-4",
+            "ueba": "v3.4.0",
         },
         "detection_time_ms": elapsed_ms,
         "cached": False,

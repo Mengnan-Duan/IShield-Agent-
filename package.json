@@ -1,6 +1,6 @@
 {
   "name": "ishield-ui",
-  "version": "1.0.0",
+  "version": "3.4.0",
   "private": true,
   "type": "module",
   "description": "IShield UI — Tailwind CSS v4 design system",

@@ -107,8 +107,8 @@ def get_backend_status():
         "uptime_text": _format_uptime(get_uptime()),
         "port_in_use": port_used,
         "manager_port": MANAGER_PORT,
-        "version": "1.0",
-        "phase": "Phase 4",
+        "version": "3.4.0",
+        "release": "3.4.0",
     }
 
 
@@ -207,7 +207,7 @@ def start_backend():
         for _ in range(20):
             if is_port_in_use(BACKEND_PORT):
                 log_msg("[START] Backend is ready on port 5000.")
-                # Phase 4: warmup
+                # v3.4: warmup
                 try:
                     import urllib.request
                     urllib.request.urlopen(f"http://127.0.0.1:{BACKEND_PORT}/__internal__/warmup", timeout=5)
@@ -347,7 +347,7 @@ def restore_backend_state():
 if __name__ == "__main__":
     print("=" * 60)
     print("  IShield Server Manager")
-    print("  Phase 4 — One-Click Backend Control")
+    print("  IShield v3.4.0 — One-Click Backend Control")
     print("=" * 60)
     print(f"  Manager Port: {MANAGER_PORT}")
     print(f"  Backend Port: {BACKEND_PORT}")

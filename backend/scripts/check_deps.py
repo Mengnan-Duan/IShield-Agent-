@@ -9,7 +9,10 @@ import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
-REQ_FILE = PROJECT_ROOT / "requirements.txt"
+# requirements.txt 在项目根目录，不在 backend/ 下
+# 向上两级：backend/scripts/../ → 项目根目录
+_PROJECT_ROOT_2 = Path(__file__).parent.parent.parent
+REQ_FILE = _PROJECT_ROOT_2 / "requirements.txt"
 
 
 def check_deps():

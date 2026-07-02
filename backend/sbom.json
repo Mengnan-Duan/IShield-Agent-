@@ -1,0 +1,555 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-ISHIELD",
+  "name": "ishield-agent-security",
+  "documentNamespace": "https://ishield.local/sbom/v1",
+  "creationInfo": {
+    "created": "2026-06-30T21:22:41.324063",
+    "creators": [
+      "Tool: scripts/generate_sbom.py"
+    ]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-PACKAGE-aiohappyeyeballs",
+      "name": "aiohappyeyeballs",
+      "versionInfo": "2.6.2",
+      "downloadLocation": "https://pypi.org/project/aiohappyeyeballs/2.6.2/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "c84a3a0bc23ed3b6eaa92f90890acb5a33816e50d9db2ba32e1ade81c1f0b9e5"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-aiohttp",
+      "name": "aiohttp",
+      "versionInfo": "3.14.1",
+      "downloadLocation": "https://pypi.org/project/aiohttp/3.14.1/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "778a0109692c2a45db79cc8c3acbfeec7c142c77af28982b005ca0e54762b1c1"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-aiosignal",
+      "name": "aiosignal",
+      "versionInfo": "1.4.0",
+      "downloadLocation": "https://pypi.org/project/aiosignal/1.4.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "050e6c27c7501739b68bf3dc373ee702db5f25f2d0cdfbfccda68dc3c12411b5"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-altgraph",
+      "name": "altgraph",
+      "versionInfo": "0.17.5",
+      "downloadLocation": "https://pypi.org/project/altgraph/0.17.5/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "a5b612446373ad1046141c9717ae2a7037b65415b6b95377cdd3c09750a4b32e"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-annotated-types",
+      "name": "annotated-types",
+      "versionInfo": "0.7.0",
+      "downloadLocation": "https://pypi.org/project/annotated-types/0.7.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "20d9452f7f9bb616dd9c6fa59c2638d3bb69f80e4dc538d5635ef4660c9f8884"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-anyio",
+      "name": "anyio",
+      "versionInfo": "4.13.0",
+      "downloadLocation": "https://pypi.org/project/anyio/4.13.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "deeb9f26485c90ab8215e44c98baea0eb2fa2a7b0c42d8b43ca42e32671b4f99"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-attrs",
+      "name": "attrs",
+      "versionInfo": "26.1.0",
+      "downloadLocation": "https://pypi.org/project/attrs/26.1.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "44e56d70a67536dfce5a4e3e625826241d4bec67cf7a52503f3b185fff09574c"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-blinker",
+      "name": "blinker",
+      "versionInfo": "1.9.0",
+      "downloadLocation": "https://pypi.org/project/blinker/1.9.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "7bbae95b8a967936d24ae28bf5461b6babecc29f2712a9f29a0b0e76bde51f62"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-certifi",
+      "name": "certifi",
+      "versionInfo": "2026.5.20",
+      "downloadLocation": "https://pypi.org/project/certifi/2026.5.20/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "780e07ca43c18fc3d7ee3d3c61f93b56d834a43cef2cad9ab073a02a33d818d5"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-charset-normalizer",
+      "name": "charset-normalizer",
+      "versionInfo": "3.4.7",
+      "downloadLocation": "https://pypi.org/project/charset-normalizer/3.4.7/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "71a76de036905a598ef6b17fbfe50e9518fb400fa2303a3c99e08440b7b47184"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-click",
+      "name": "click",
+      "versionInfo": "8.4.1",
+      "downloadLocation": "https://pypi.org/project/click/8.4.1/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "4cf19ae18530f09fb6299ccb710c9ad9c2f0d7decdc1f3367c4f9186892866b6"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-colorama",
+      "name": "colorama",
+      "versionInfo": "0.4.6",
+      "downloadLocation": "https://pypi.org/project/colorama/0.4.6/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "e91f42fdc36833eb19b14a96d440f3806e500e121b6209b9e068949086cdeaf0"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-dashscope",
+      "name": "dashscope",
+      "versionInfo": "1.14.0",
+      "downloadLocation": "https://pypi.org/project/dashscope/1.14.0/",
+      "licenseConcluded": "Apache-2.0",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "c9e0336acb93642bfb8ac6c88696131529520418bfc1ec4de5c025ee7b91842c"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-distro",
+      "name": "distro",
+      "versionInfo": "1.9.0",
+      "downloadLocation": "https://pypi.org/project/distro/1.9.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "24e194c340848192a0a874b1955f67e06df1e50ce9bd977250a7dbcfb9c680a3"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-Flask",
+      "name": "Flask",
+      "versionInfo": "2.3.2",
+      "downloadLocation": "https://pypi.org/project/Flask/2.3.2/",
+      "licenseConcluded": "BSD-3-Clause",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "891ed07b81ae2c57068cb7528a8ce5a03491427eadc63a1ce05ed65d77f82cb9"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-Flask-Cors",
+      "name": "Flask-Cors",
+      "versionInfo": "4.0.0",
+      "downloadLocation": "https://pypi.org/project/Flask-Cors/4.0.0/",
+      "licenseConcluded": "BSD-3-Clause",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "ea596b224d8e3b365695677eda1ce2e44d92874609d939d0588e159d3dcad3a7"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-frozenlist",
+      "name": "frozenlist",
+      "versionInfo": "1.8.0",
+      "downloadLocation": "https://pypi.org/project/frozenlist/1.8.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "9b2ea0f157db64e15299d74e6a2ed9175fcc79670dad9c095ee786ee489fadb6"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-h11",
+      "name": "h11",
+      "versionInfo": "0.16.0",
+      "downloadLocation": "https://pypi.org/project/h11/0.16.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "4f7d7473e75b0a7452ff07f4250d3c311fc1697b616fcf21b77edd68fc104d9e"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-httpcore",
+      "name": "httpcore",
+      "versionInfo": "1.0.9",
+      "downloadLocation": "https://pypi.org/project/httpcore/1.0.9/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "12edfedc871c35f1b6b7f031d9cc2ef6060b6583db297b688a1c169c38a04e65"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-httpx",
+      "name": "httpx",
+      "versionInfo": "0.28.1",
+      "downloadLocation": "https://pypi.org/project/httpx/0.28.1/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "5fadf5f6ea5bd1b141ea05745cb52449bdccde939c22e76231e7993c2afc91d0"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-idna",
+      "name": "idna",
+      "versionInfo": "3.18",
+      "downloadLocation": "https://pypi.org/project/idna/3.18/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "1d7c42f54f85a9c2af00d8a5147e3625bf14d357ffba6d30ab863ddcd476a54a"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-itsdangerous",
+      "name": "itsdangerous",
+      "versionInfo": "2.2.0",
+      "downloadLocation": "https://pypi.org/project/itsdangerous/2.2.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "f1a91dac7236d945735a6674c5b992fdd1fc50a5d3cc9dba0137255fab7f4bb9"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-Jinja2",
+      "name": "Jinja2",
+      "versionInfo": "3.1.6",
+      "downloadLocation": "https://pypi.org/project/Jinja2/3.1.6/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "8f07d8e37c961f17b88c6d0560762df8593fd89f4645a76c5d8e3e2ed6515d42"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-jiter",
+      "name": "jiter",
+      "versionInfo": "0.15.0",
+      "downloadLocation": "https://pypi.org/project/jiter/0.15.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "630316305008d4932c9760b3419a066017ceb04ba2a8c22505c117cd7f53f3e7"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-MarkupSafe",
+      "name": "MarkupSafe",
+      "versionInfo": "3.0.3",
+      "downloadLocation": "https://pypi.org/project/MarkupSafe/3.0.3/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "50e178a8c66290a5f1f04d6e83767292bb73a8d0a215f381d4a334eaf82c4ae4"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-multidict",
+      "name": "multidict",
+      "versionInfo": "6.7.1",
+      "downloadLocation": "https://pypi.org/project/multidict/6.7.1/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "4f9e4e1e6868ac6e955978df0df5609834cd3616bf85c2592bf6910b1f8edb70"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-openai",
+      "name": "openai",
+      "versionInfo": "2.41.0",
+      "downloadLocation": "https://pypi.org/project/openai/2.41.0/",
+      "licenseConcluded": "Apache-2.0",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "732737afa29f11b4c98ed95421fb3536316fc6f77785464ce6c97bebb5a539ff"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-packaging",
+      "name": "packaging",
+      "versionInfo": "26.2",
+      "downloadLocation": "https://pypi.org/project/packaging/26.2/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "b8170d9797c77a7857f3789ba265c666ec5cc053c0c64debd000eb84a6e7b184"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-pefile",
+      "name": "pefile",
+      "versionInfo": "2024.8.26",
+      "downloadLocation": "https://pypi.org/project/pefile/2024.8.26/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "a237ec45c59a71717d9f753d97b9a767e773fa540d0f57da66bb0c79464c183f"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-pillow",
+      "name": "pillow",
+      "versionInfo": "12.2.0",
+      "downloadLocation": "https://pypi.org/project/pillow/12.2.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "3c6691e4ee742f57825e6165e4358fa72a1013d54f2a6b758bd67cbda2506de0"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-propcache",
+      "name": "propcache",
+      "versionInfo": "0.5.2",
+      "downloadLocation": "https://pypi.org/project/propcache/0.5.2/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "972cbe7eacefd8d45b0bbc95128ad514bb2c2d0131636b0d2b9a53a4d546e75d"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-pydantic",
+      "name": "pydantic",
+      "versionInfo": "2.13.4",
+      "downloadLocation": "https://pypi.org/project/pydantic/2.13.4/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "ef3359e4f1ef2f2420c267c3b87df123e4e4e71f9779a671cd8df6637c88dc79"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-pydantic_core",
+      "name": "pydantic_core",
+      "versionInfo": "2.46.4",
+      "downloadLocation": "https://pypi.org/project/pydantic_core/2.46.4/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "91177f6882f57901c8ce422b960569c26bcaea57196efe868bba39c53ddad40f"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-pyinstaller",
+      "name": "pyinstaller",
+      "versionInfo": "6.20.0",
+      "downloadLocation": "https://pypi.org/project/pyinstaller/6.20.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "1fd455f37dee4dae72e465588347bee9fd6ed3a8fd97480b26ff19ce208097b2"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-pyinstaller-hooks-contrib",
+      "name": "pyinstaller-hooks-contrib",
+      "versionInfo": "2026.6",
+      "downloadLocation": "https://pypi.org/project/pyinstaller-hooks-contrib/2026.6/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "22b5db0f73f46ddb42ae0ee892ae2ba49dd0c4046fd4b691333b9853371ba9e9"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-pywin32-ctypes",
+      "name": "pywin32-ctypes",
+      "versionInfo": "0.2.3",
+      "downloadLocation": "https://pypi.org/project/pywin32-ctypes/0.2.3/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "904e6a49760ca04103e72443067d892c6a954f1b442e0afb48ca75c937ae9648"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-reportlab",
+      "name": "reportlab",
+      "versionInfo": "4.5.1",
+      "downloadLocation": "https://pypi.org/project/reportlab/4.5.1/",
+      "licenseConcluded": "BSD",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "8363d948b67bbc70bd47b40c269dc481077648d3320cb890e48d5cf0a6b8309b"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-requests",
+      "name": "requests",
+      "versionInfo": "2.31.0",
+      "downloadLocation": "https://pypi.org/project/requests/2.31.0/",
+      "licenseConcluded": "Apache-2.0",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "c50a404532932d720b3939120b749da1c820eecda6f19e45762b2be87da7fc0b"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-sniffio",
+      "name": "sniffio",
+      "versionInfo": "1.3.1",
+      "downloadLocation": "https://pypi.org/project/sniffio/1.3.1/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "deb49fea86a43b4dfe40bfb0611111f7b4ea4d6242f5c10dd68d13bb1345d4c5"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-tqdm",
+      "name": "tqdm",
+      "versionInfo": "4.68.2",
+      "downloadLocation": "https://pypi.org/project/tqdm/4.68.2/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "87b3d35e321eada35e1e8f0b88b4dd12158957fa9f470bb41ca0e129aae81535"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-typing-inspection",
+      "name": "typing-inspection",
+      "versionInfo": "0.4.2",
+      "downloadLocation": "https://pypi.org/project/typing-inspection/0.4.2/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "304d88bb56f39260f011babda58ee158ed5d181eb30c914239ef698c01530a18"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-typing_extensions",
+      "name": "typing_extensions",
+      "versionInfo": "4.15.0",
+      "downloadLocation": "https://pypi.org/project/typing_extensions/4.15.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "4fcfd6872c8703e68da1f4384a74d954a4326a707e653d73ac0ed37d6ffcadbf"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-urllib3",
+      "name": "urllib3",
+      "versionInfo": "2.7.0",
+      "downloadLocation": "https://pypi.org/project/urllib3/2.7.0/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "7cafd154f328c9e59dcc03e51dd139f1c5232215e719820ce6e1a98e8266af15"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-Werkzeug",
+      "name": "Werkzeug",
+      "versionInfo": "3.1.8",
+      "downloadLocation": "https://pypi.org/project/Werkzeug/3.1.8/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "e7ce1a53acae636ebc442fd241f764f0038664deee1e265c60e932890955cbd1"
+      }
+    },
+    {
+      "SPDXID": "SPDXRef-PACKAGE-yarl",
+      "name": "yarl",
+      "versionInfo": "1.24.2",
+      "downloadLocation": "https://pypi.org/project/yarl/1.24.2/",
+      "licenseConcluded": "UNKNOWN",
+      "copyrightText": "Copyright 2026 contributors",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "c2e44b19eb3ab19ccf489ff4a68b0cc46ee080fdc80a0fd9f6170a4251041b61"
+      }
+    }
+  ]
+}

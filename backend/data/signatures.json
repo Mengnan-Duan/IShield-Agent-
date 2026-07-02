@@ -1,6 +1,6 @@
 {
-  "version": "1.1",
-  "updated_at": "2026-06-03",
+  "version": "1.2",
+  "updated_at": "2026-06-30",
   "rules": [
     {"id": "SIG001", "pattern": "忽略之前的所有指令", "weight": 25, "category": "指令覆盖", "enabled": true},
     {"id": "SIG002", "pattern": "ignore previous instructions", "weight": 25, "category": "指令覆盖", "enabled": true},
@@ -31,7 +31,26 @@
     {"id": "SIG027", "pattern": "javascript:", "weight": 30, "category": "XSS注入", "enabled": true},
     {"id": "SIG028", "pattern": "onerror=", "weight": 30, "category": "XSS注入", "enabled": true},
     {"id": "SIG029", "pattern": "onclick=", "weight": 30, "category": "XSS注入", "enabled": true},
-    {"id": "SIG030", "pattern": "eval(", "weight": 35, "category": "代码注入", "enabled": true}
+    {"id": "SIG030", "pattern": "eval(", "weight": 35, "category": "代码注入", "enabled": true},
+    {"id": "SIG031", "pattern": "system prompt", "weight": 30, "category": "提示词泄露", "enabled": true, "description": "系统提示词探测（英文）"},
+    {"id": "SIG032", "pattern": "输出你最初的", "weight": 30, "category": "提示词泄露", "enabled": true, "description": "提示词内容窃取"},
+    {"id": "SIG033", "pattern": "初始的system prompt", "weight": 35, "category": "提示词泄露", "enabled": true, "description": "初始提示词探测"},
+    {"id": "SIG034", "pattern": "reveal your", "weight": 25, "category": "提示词泄露", "enabled": true, "description": "通用泄露探测"},
+    {"id": "BYP001", "pattern": "[TEST MODE]", "weight": 40, "category": "测试模式绕过", "enabled": true, "description": "测试模式包装绕过"},
+    {"id": "BYP002", "pattern": "safety filters", "weight": 35, "category": "测试模式绕过", "enabled": true, "description": "安全过滤器禁用"},
+    {"id": "BYP003", "pattern": "admin credentials", "weight": 40, "category": "测试模式绕过", "enabled": true, "description": "管理员凭据窃取"},
+    {"id": "BYP004", "pattern": "override safety", "weight": 40, "category": "开发者绕过", "enabled": true, "description": "安全覆盖绕过"},
+    {"id": "BYP005", "pattern": "reveal system instructions", "weight": 45, "category": "开发者绕过", "enabled": true, "description": "系统指令泄露"},
+    {"id": "BYP006", "pattern": "override safety controls", "weight": 40, "category": "开发者绕过", "enabled": true, "description": "安全控制覆盖"},
+    {"id": "TOOL001", "pattern": "../..", "weight": 50, "category": "工具劫持-路径穿越", "enabled": true, "description": "路径穿越攻击"},
+    {"id": "TOOL002", "pattern": "/etc/passwd", "weight": 55, "category": "工具劫持-路径穿越", "enabled": true, "description": "Linux系统文件访问"},
+    {"id": "TOOL003", "pattern": "/etc/shadow", "weight": 70, "category": "工具劫持-路径穿越", "enabled": true, "description": "密码文件访问"},
+    {"id": "TOOL004", "pattern": "..\\..", "weight": 50, "category": "工具劫持-路径穿越", "enabled": true, "description": "Windows路径穿越"},
+    {"id": "SQL006", "pattern": "' OR '1'='1", "weight": 45, "category": "SQL注入", "enabled": true, "description": "经典永假式注入"},
+    {"id": "SQL007", "pattern": "' OR 1=1", "weight": 45, "category": "SQL注入", "enabled": true, "description": "经典永假式注入变体"},
+    {"id": "SQL008", "pattern": "admin'--", "weight": 50, "category": "SQL注入", "enabled": true, "description": "注释截断注入（MySQL/PostgreSQL）"},
+    {"id": "SQL009", "pattern": "admin'#", "weight": 50, "category": "SQL注入", "enabled": true, "description": "MySQL注释截断注入"},
+    {"id": "SQL010", "pattern": "1=1", "weight": 35, "category": "SQL注入", "enabled": true, "description": "永真条件注入（URL参数中常见）"}
   ],
   "sql_patterns": [
     {

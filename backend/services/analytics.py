@@ -183,7 +183,7 @@ def get_analytics(days: int = 7) -> dict:
     if any(item["avg_confidence"] < 50 for item in top_threats):
         recommendations.append("部分威胁检测置信度偏低，建议继续优化规则和语义判定。")
     if tool_blocked.get("send_email", 0) >= 3:
-        recommendations.append("邮件工具拦截次数较高，适合在答辩时重点演示白名单阻断效果。")
+        recommendations.append("邮件工具拦截次数较高，建议重点核验白名单阻断效果。")
     if not recommendations:
         recommendations.append("当前系统运行平稳，未检测��明显异常。")
 
