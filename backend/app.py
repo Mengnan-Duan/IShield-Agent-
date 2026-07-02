@@ -36,6 +36,8 @@ from routes.supply_chain import supply_bp
 from routes.agent_monitor import agent_bp
 from routes.tool_pending import pending_bp
 from routes.webhooks import webhooks_bp
+from routes.validation import validation_bp
+from routes.agent_cluster import agent_cluster_bp
 from services.websocket import events_stream
 
 logger = get_logger()
@@ -78,7 +80,7 @@ def create_app():
         """GET /api/health — 前端轮询后端就绪状态"""
         return {
             "status": "healthy",
-            "version": "3.4.0",
+            "version": "4.5.0",
         }
 
     @app.route("/api/__internal__/stop", methods=["POST"])
@@ -122,6 +124,8 @@ def create_app():
     app.register_blueprint(agent_bp)
     app.register_blueprint(pending_bp)
     app.register_blueprint(webhooks_bp)
+    app.register_blueprint(validation_bp)
+    app.register_blueprint(agent_cluster_bp)
 
     @app.route("/api/events/stream")
     def sse_events():
@@ -172,6 +176,6 @@ app = create_app()
 if __name__ == "__main__":
     print("=" * 60)
     print("  IShield Agent Security Platform")
-    print("  Backend v3.4.0 — Enterprise Grade")
+    print("  Backend v4.5.0 - Agent Cluster Guard")
     print("=" * 60)
     app.run(debug=False, host=config.BACKEND_HOST, port=config.BACKEND_PORT, threaded=True)

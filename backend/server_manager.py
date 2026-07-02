@@ -1,4 +1,4 @@
-"""
+﻿"""
 server_manager.py — 后端服务管理器
 独立进程运行于端口 5001，负责：
 - 启动 / 停止 / 重启后端服务（端口 5000）
@@ -107,8 +107,8 @@ def get_backend_status():
         "uptime_text": _format_uptime(get_uptime()),
         "port_in_use": port_used,
         "manager_port": MANAGER_PORT,
-        "version": "3.4.0",
-        "release": "3.4.0",
+        "version": "4.5.0",
+        "release": "4.5.0",
     }
 
 
@@ -347,7 +347,7 @@ def restore_backend_state():
 if __name__ == "__main__":
     print("=" * 60)
     print("  IShield Server Manager")
-    print("  IShield v3.4.0 — One-Click Backend Control")
+    print("  IShield v4.5.0 — One-Click Backend Control")
     print("=" * 60)
     print(f"  Manager Port: {MANAGER_PORT}")
     print(f"  Backend Port: {BACKEND_PORT}")

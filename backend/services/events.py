@@ -16,6 +16,17 @@ _db_lock = Lock()
 _UTC8 = timezone(timedelta(hours=8))
 
 
+STATUS_LABELS = {
+    "blocked": "已阻断",
+    "confirm": "需确认",
+    "allowed": "已放行",
+    "running": "处理中",
+    "error": "异常",
+    "review": "已评估",
+    "unknown": "未知",
+}
+
+
 def _local_now():
     return datetime.now(_UTC8)
 
@@ -33,6 +44,50 @@ def _json_loads(value: Optional[str]) -> Optional[Dict[str, Any]]:
         return json.loads(value)
     except (TypeError, json.JSONDecodeError):
         return {"raw": value}
+
+
+def normalize_status(status: str = "", stage: str = "", metadata: Dict[str, Any] = None) -> str:
+    """Map old Chinese labels and new runtime decisions into stable status codes."""
+    raw = f"{status or ''} {stage or ''}".lower()
+    meta = metadata or {}
+    decision = str(meta.get("decision") or meta.get("runtime_status") or meta.get("status_code") or "").lower()
+    if decision in {"blocked", "confirm", "allowed", "running", "error", "review", "timeout"}:
+        return "error" if decision == "timeout" else decision
+    if any(k in raw for k in ["阻断", "拦截", "拒绝", "blocked", "deny", "policy_blocked", "detection_blocked"]):
+        return "blocked"
+    if any(k in raw for k in ["需确认", "确认", "pending", "confirm", "policy_confirm"]):
+        return "confirm"
+    if any(k in raw for k in ["异常", "失败", "出错", "超时", "error", "timeout", "failed"]):
+        return "error"
+    if any(k in raw for k in ["放行", "通过", "完成", "成功", "executed", "mock", "allowed", "passed", "tool_finished"]):
+        return "allowed"
+    if any(k in raw for k in ["分析中", "执行中", "running", "started", "request_received"]):
+        return "running"
+    if any(k in raw for k in ["已评估", "评估", "review", "policy_evaluated"]):
+        return "review"
+    return "unknown"
+
+
+def status_label(status_code: str) -> str:
+    return STATUS_LABELS.get(status_code or "unknown", STATUS_LABELS["unknown"])
+
+
+def normalize_event(item: Dict[str, Any]) -> Dict[str, Any]:
+    metadata = item.get("metadata") or {}
+    status_code = normalize_status(item.get("status"), item.get("stage"), metadata)
+    item["status_code"] = status_code
+    item["status_label"] = status_label(status_code)
+    item["disposition"] = status_code
+    if isinstance(metadata, dict):
+        metadata.setdefault("status_code", status_code)
+        item["metadata"] = metadata
+    return item
+
+
+def _row_to_event(row) -> Dict[str, Any]:
+    item = dict(row)
+    item["metadata"] = _json_loads(item.pop("metadata_json", None))
+    return normalize_event(item)
 
 
 # ── 初始化 ──────────────────────────────────────────────────────────────────
@@ -191,7 +246,12 @@ def get_events_from_db(limit: int = 200, offset: int = 0,
     if use_cache:
         cached = get_cached_events()
         if cached is not None:
-            return cached[offset: offset + limit]
+            return [normalize_event(dict(item)) for item in cached[offset: offset + limit]]
+
+    normalized_status_filter = None
+    if status_filter and str(status_filter).lower() in {"blocked", "allowed", "confirm", "running", "error", "review"}:
+        normalized_status_filter = str(status_filter).lower()
+        status_filter = None
 
     query = (
         "SELECT id, time, type, detail, status, threat_level, confidence, source_ip, action, "
@@ -228,9 +288,10 @@ def get_events_from_db(limit: int = 200, offset: int = 0,
 
     events = []
     for row in rows:
-        item = dict(row)
-        item["metadata"] = _json_loads(item.pop("metadata_json", None))
-        events.append(item)
+        events.append(_row_to_event(row))
+
+    if normalized_status_filter:
+        events = [event for event in events if event.get("status_code") == normalized_status_filter]
 
     if use_cache and events:
         set_cached_events(events, ttl=30)
@@ -254,9 +315,7 @@ def get_event_detail(event_id: int) -> Optional[dict]:
     if not row:
         return None
 
-    event = dict(row)
-    event["metadata"] = _json_loads(event.pop("metadata_json", None))
-    return event
+    return _row_to_event(row)
 
 
 def get_chain_events(chain_id: str) -> List[dict]:
@@ -277,9 +336,7 @@ def get_chain_events(chain_id: str) -> List[dict]:
 
     chain_events = []
     for row in rows:
-        item = dict(row)
-        item["metadata"] = _json_loads(item.pop("metadata_json", None))
-        chain_events.append(item)
+        chain_events.append(_row_to_event(row))
     return chain_events
 
 
@@ -290,40 +347,61 @@ def get_chain_summary(limit: int = 50) -> List[dict]:
         c = conn.cursor()
         c.execute(
             """
-            SELECT
-                chain_id,
-                MIN(time) AS started_at,
-                MAX(time) AS ended_at,
-                COUNT(*) AS event_count,
-                MAX(COALESCE(confidence, 0)) AS max_confidence,
-                MAX(CASE WHEN status LIKE '%拦截%' OR status LIKE '%阻断%' THEN 1 ELSE 0 END) AS blocked,
-                MAX(CASE WHEN status LIKE '%确认%' THEN 1 ELSE 0 END) AS requires_confirmation,
-                MAX(COALESCE(source_ip, '')) AS source_ip,
-                MAX(COALESCE(action, '')) AS action,
-                MAX(COALESCE(tool_name, '')) AS tool_name,
-                MAX(COALESCE(target, '')) AS target
+            SELECT id, time, type, detail, status, threat_level, confidence, source_ip,
+                   action, tool_name, target, rule_id, category, metadata_json, chain_id, stage
             FROM events
             WHERE chain_id IS NOT NULL AND chain_id != ''
-            GROUP BY chain_id
-            ORDER BY MAX(id) DESC
+            ORDER BY id DESC
             LIMIT ?
             """,
-            (limit,),
+            (max(limit * 80, limit),),
         )
         rows = c.fetchall()
         conn.close()
 
-    summaries = []
+    grouped = {}
     for row in rows:
-        item = dict(row)
-        item["stages"] = [
-            e.get("stage") or e.get("type")
-            for e in get_chain_events(item["chain_id"])
-        ]
-        item["status"] = "已阻断" if item.get("blocked") else (
-            "需确认" if item.get("requires_confirmation") else "已放行"
-        )
-        summaries.append(item)
+        event = _row_to_event(row)
+        cid = event.get("chain_id")
+        if not cid:
+            continue
+        grouped.setdefault(cid, []).append(event)
+        if len(grouped) >= limit and all(len(v) >= 2 for v in grouped.values()):
+            continue
+
+    summaries = []
+    for cid, events in list(grouped.items())[:limit]:
+        ordered = sorted(events, key=lambda e: e.get("id") or 0)
+        status_codes = {e.get("status_code") for e in ordered}
+        if "blocked" in status_codes:
+            status_code = "blocked"
+        elif "confirm" in status_codes:
+            status_code = "confirm"
+        elif "error" in status_codes:
+            status_code = "error"
+        elif "running" in status_codes:
+            status_code = "running"
+        else:
+            status_code = "allowed"
+        first = ordered[0]
+        last = ordered[-1]
+        summaries.append({
+            "chain_id": cid,
+            "started_at": first.get("time"),
+            "ended_at": last.get("time"),
+            "event_count": len(ordered),
+            "max_confidence": max((e.get("confidence") or 0) for e in ordered),
+            "blocked": 1 if status_code == "blocked" else 0,
+            "requires_confirmation": 1 if status_code == "confirm" else 0,
+            "source_ip": last.get("source_ip") or first.get("source_ip"),
+            "action": last.get("action") or first.get("action"),
+            "tool_name": last.get("tool_name") or first.get("tool_name"),
+            "target": last.get("target") or first.get("target"),
+            "stages": [e.get("stage") or e.get("type") for e in ordered],
+            "status": status_label(status_code),
+            "status_code": status_code,
+            "disposition": status_code,
+        })
     return summaries
 
 
@@ -333,34 +411,25 @@ def get_stats() -> dict:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
 
-        c.execute("""
-            SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN status LIKE '%拦截%' OR status LIKE '%阻断%' THEN 1 ELSE 0 END) AS blocked,
-                SUM(CASE WHEN status LIKE '%放行%' THEN 1 ELSE 0 END) AS passed,
-                SUM(CASE WHEN threat_level IN ('high', 'critical') THEN 1 ELSE 0 END) AS high_risk
-            FROM events
-        """)
-        row = c.fetchone()
-        total = row[0] or 0
-        blocked = row[1] or 0
-        passed = row[2] or 0
-        high_risk = row[3] or 0
+        c.execute("SELECT status, threat_level, chain_id, stage, metadata_json, time FROM events")
+        rows = c.fetchall()
+        normalized = [
+            normalize_status(row[0], row[3], _json_loads(row[4]))
+            for row in rows
+        ]
+        total = len(rows)
+        blocked = sum(1 for code in normalized if code == "blocked")
+        passed = sum(1 for code in normalized if code == "allowed")
+        high_risk = sum(1 for row in rows if row[1] in ("high", "critical"))
         rate = round(blocked / total * 100, 1) if total > 0 else 0
 
         today_str = _local_now().strftime("%Y-%m-%d")
-        c.execute("""
-            SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN status LIKE '%拦截%' OR status LIKE '%阻断%' THEN 1 ELSE 0 END) AS blocked
-            FROM events WHERE time LIKE ?
-        """, (f"{today_str}%",))
-        today_row = c.fetchone()
-        today_total = today_row[0] or 0
-        today_blocked = today_row[1] or 0
+        today_rows = [row for row in rows if str(row[5] or "").startswith(today_str)]
+        today_total = len(today_rows)
+        today_blocked = sum(1 for row in today_rows if normalize_status(row[0], row[3], _json_loads(row[4])) == "blocked")
 
-        c.execute("SELECT status FROM events ORDER BY id DESC LIMIT 20")
-        recent = [r[0] for r in c.fetchall()]
+        c.execute("SELECT status, stage, metadata_json FROM events ORDER BY id DESC LIMIT 20")
+        recent = [normalize_status(r[0], r[1], _json_loads(r[2])) for r in c.fetchall()]
         c.execute("SELECT COUNT(DISTINCT chain_id) FROM events WHERE chain_id IS NOT NULL AND chain_id != ''")
         chain_total_row = c.fetchone()
         chain_total = chain_total_row[0] or 0
@@ -368,8 +437,8 @@ def get_stats() -> dict:
 
     recent_trend = "stable"
     if len(recent) >= 10:
-        recent_blocked = sum(1 for s in recent[:10] if "拦截" in s or "阻断" in s)
-        prev_blocked = sum(1 for s in recent[10:20] if "拦截" in s or "阻断" in s)
+        recent_blocked = sum(1 for s in recent[:10] if s == "blocked")
+        prev_blocked = sum(1 for s in recent[10:20] if s == "blocked")
         if prev_blocked > 0:
             if recent_blocked > prev_blocked * 1.3:
                 recent_trend = "rising"

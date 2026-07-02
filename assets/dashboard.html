@@ -266,7 +266,7 @@
     <section class="command-center p-6 xl:p-8">
       <div class="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.7fr)] gap-6 items-stretch">
         <div>
-          <div class="command-kicker"><i></i>SOC Command Center · v3.4.0</div>
+          <div class="command-kicker"><i></i>SOC Command Center · v4.5.0</div>
           <h1 class="command-title">AI Agent 安全态势<span>指挥中心</span></h1>
           <p class="command-copy" id="socCommandSub">正在汇聚输入检测、工具预审、攻击链取证、UEBA 行为画像与供应链审计数据。</p>
           <div class="command-pill-row">
@@ -286,22 +286,22 @@
         <aside class="command-panel p-5 xl:p-6">
           <div class="flex items-center justify-between gap-3 mb-5">
             <div>
-              <div class="text-xs font-mono text-slate-400 tracking-[0.22em] uppercase">Live Verdict</div>
+              <div class="text-xs font-mono text-slate-400 tracking-[0.22em] uppercase">实时判定</div>
               <div id="socCommandVerdict" class="mt-2 text-lg font-semibold text-white">态势初始化</div>
             </div>
-            <span id="socCommandUpdated" class="px-2.5 py-1 rounded-full border border-white/10 text-[11px] font-mono text-slate-400">SYNC --</span>
+            <span id="socCommandUpdated" class="px-2.5 py-1 rounded-full border border-white/10 text-[11px] font-mono text-slate-400">同步 --</span>
           </div>
           <div class="command-score-ring" id="socCommandRing">
             <div>
               <strong id="socCommandScore">0</strong>
-              <span>Threat</span>
+              <span>威胁指数</span>
             </div>
           </div>
           <div class="command-metric-grid">
-            <div class="command-metric"><label>Block Rate</label><strong id="socCommandRate">0%</strong></div>
-            <div class="command-metric"><label>High Risk</label><strong id="socCommandHigh">0</strong></div>
+            <div class="command-metric"><label>阻断率</label><strong id="socCommandRate">0%</strong></div>
+            <div class="command-metric"><label>高危</label><strong id="socCommandHigh">0</strong></div>
             <div class="command-metric"><label>Blocked</label><strong id="socCommandBlocked">0</strong></div>
-            <div class="command-metric"><label>Live Events</label><strong id="socCommandLive">0</strong></div>
+            <div class="command-metric"><label>实时事件</label><strong id="socCommandLive">0</strong></div>
           </div>
         </aside>
       </div>
@@ -351,7 +351,7 @@
                 <div class="absolute inset-y-0 right-0 w-32 bg-[radial-gradient(circle_at_center,rgba(96,165,250,0.18),transparent_68%)] pointer-events-none"></div>
                 <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div class="min-w-0 flex-1">
-                    <div class="text-[10px] font-mono text-accent uppercase tracking-[0.32em]">Threat Detail</div>
+                    <div class="text-[10px] font-mono text-accent uppercase tracking-[0.32em]">威胁详情</div>
                     <div class="mt-3 flex items-center gap-3 min-w-0">
                       <span id="globeCountryFlag" class="text-3xl leading-none shrink-0">🇺🇸</span>
                       <div class="min-w-0">
@@ -359,7 +359,7 @@
                         <div class="mt-1.5 flex flex-wrap items-center gap-2 text-xs font-mono text-slate-300/90">
                           <span id="globeCountryCode">US-EAST</span>
                           <span class="w-1 h-1 rounded-full bg-slate-500"></span>
-                          <span id="globeRiskIcon">▲ HIGH RISK</span>
+                          <span id="globeRiskIcon">▲ 高危</span>
                         </div>
                       </div>
                     </div>
@@ -578,7 +578,7 @@
 
     function riskIconText(level) {
       if (level === 'critical') return '▲ CRITICAL RISK';
-      if (level === 'high') return '▲ HIGH RISK';
+      if (level === 'high') return '▲ 高危';
       return '● MEDIUM RISK';
     }
 
@@ -915,7 +915,7 @@
           axisLabel: { color: '#64748b' },
           detail: { valueAnimation: true, formatter: '{value}', color: '#fff', fontSize: 30, offsetCenter: [0, '50%'] },
           title: { color: '#94a3b8', offsetCenter: [0, '78%'], fontSize: 12 },
-          data: [{ value: score || 0, name: 'THREAT SCORE' }]
+          data: [{ value: score || 0, name: '威胁指数' }]
         }]
       });
     }
@@ -999,7 +999,7 @@
       setText('liveCount', `${events.length} 条`);
       const feed = document.getElementById('liveFeed');
       if (!events.length) {
-        feed.innerHTML = '<div class="h-full flex items-center justify-center text-slate-500 text-sm font-mono">NO LIVE EVENTS</div>';
+        feed.innerHTML = '<div class="h-full flex items-center justify-center text-slate-500 text-sm font-mono">暂无实时事件</div>';
         return;
       }
       feed.innerHTML = events.map((ev, index) => {

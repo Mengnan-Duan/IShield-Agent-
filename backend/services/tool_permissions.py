@@ -14,6 +14,7 @@ TOOL_SCOPE_ALIASES = {
     "campaign": "tool:campaign",
     "redteam": "tool:redteam",
     "http_request": "tool:http_request",
+    "call_api": "tool:http_request",
     "write_file": "tool:write_file",
     "read_file": "tool:read_file",
     "query_db": "tool:query_db",
@@ -66,7 +67,7 @@ def evaluate_tool_constraints(token_meta: dict, tool: str, params: dict) -> Tupl
     if constraints.get("disabled"):
         return False, f"tool '{tool}' disabled by token constraints"
 
-    if tool == "http_request":
+    if tool in {"http_request", "call_api"}:
         url = (params.get("url") or params.get("endpoint") or "").lower()
         if constraints.get("internal_only") and not any(s in url for s in ("localhost", "127.0.0.1", "/api/")):
             return False, "http_request limited to internal targets"

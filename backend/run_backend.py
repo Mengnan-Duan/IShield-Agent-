@@ -11,7 +11,7 @@ from contextlib import closing
 
 from runtime_paths import executable_root, runtime_path
 
-# Resolve backend path relative to this script
+
 SCRIPT_DIR = executable_root()
 BACKEND_DIR = str(executable_root())
 PID_FILE = runtime_path(".backend.pid")
@@ -43,7 +43,7 @@ def wait_for_port_release(port, timeout=5.0, interval=0.2):
 
 def read_pid():
     try:
-            return int(PID_FILE.read_text(encoding="utf-8").strip())
+        return int(PID_FILE.read_text(encoding="utf-8").strip())
     except (FileNotFoundError, ValueError):
         return None
 
@@ -137,34 +137,34 @@ def is_backend_service_running(timeout=2):
 
 
 def stop_tracked_process(pid):
-    print(f"[启动] 检测到旧实例 PID {pid}，尝试优雅停止...")
+    print(f"[START] Existing backend PID {pid} detected. Stopping it first...")
     request_graceful_stop()
     if wait_for_port_release(PORT, timeout=5):
         remove_pid()
         return True
 
     if terminate_process(pid):
-        print(f"[启动] 已强制结束旧实例 PID {pid}。")
+        print(f"[START] Terminated old backend PID {pid}.")
         if wait_for_port_release(PORT, timeout=3):
             remove_pid()
             return True
 
-    raise RuntimeError(f"旧实例 PID {pid} 未能释放端口 {PORT}。")
+    raise RuntimeError(f"Old backend PID {pid} did not release port {PORT}.")
 
 
 def stop_untracked_backend_process():
-    print("[启动] 检测到未登记的后端实例，尝试优雅停止...")
+    print("[START] Untracked backend detected. Stopping it first...")
     request_graceful_stop()
     if wait_for_port_release(PORT, timeout=5):
         return True
 
     listening_pid = get_listening_pid(PORT)
     if listening_pid and terminate_process(listening_pid):
-        print(f"[启动] 已强制结束占用端口 {PORT} 的后端实例 PID {listening_pid}。")
+        print(f"[START] Terminated process PID {listening_pid} using port {PORT}.")
         if wait_for_port_release(PORT, timeout=3):
             return True
 
-    raise RuntimeError(f"检测到后端仍占用端口 {PORT}，但停机失败。")
+    raise RuntimeError(f"Port {PORT} is still occupied after stop attempt.")
 
 
 def ensure_single_instance():
@@ -181,7 +181,7 @@ def ensure_single_instance():
         if is_backend_service_running():
             if stop_untracked_backend_process():
                 return
-        raise RuntimeError(f"端口 {PORT} 已被其他进程占用，请先关闭占用该端口的程序。")
+        raise RuntimeError(f"Port {PORT} is occupied by another process. Close it first.")
 
 
 def cleanup_pid():
@@ -202,16 +202,40 @@ def open_frontend_when_ready(delay=1.5, retries=10, interval=1.0):
                 with urllib.request.urlopen(STATUS_ENDPOINT, timeout=5) as response:
                     if response.status == 200:
                         webbrowser.open(FRONTEND_URL)
-                        print(f"[启动] 已打开前端页面：{FRONTEND_URL}")
+                        print(f"[START] Frontend opened: {FRONTEND_URL}")
                         return
             except Exception:
                 pass
             time.sleep(interval)
-        print(f"[启动] 服务已启动，请手动打开：{FRONTEND_URL}")
+        print(f"[START] Backend is running. Open manually: {FRONTEND_URL}")
 
     import threading
 
     threading.Thread(target=_open, daemon=True).start()
+
+
+def warmup_status_endpoint():
+    time.sleep(1.5)
+    for _ in range(3):
+        try:
+            urllib.request.urlopen(WARMUP_ENDPOINT, timeout=5)
+            print("[WARMUP] Backend status endpoint is ready.")
+            return
+        except Exception:
+            time.sleep(1)
+
+
+def start_shutdown_watcher():
+    import app as app_module
+    import threading
+
+    def _shutdown_watcher():
+        evt = app_module._get_shutdown_event()
+        evt.wait()
+        print("[STOP] Shutdown signal received. Exiting backend...")
+        os._exit(0)
+
+    threading.Thread(target=_shutdown_watcher, daemon=True).start()
 
 
 if __name__ == "__main__":
@@ -221,52 +245,32 @@ if __name__ == "__main__":
         app = create_app()
     except ImportError as error:
         print("=" * 60)
-        print("  [错误] 缺少依赖：", error)
-        print("  请运行以下命令安装依赖：")
+        print("  [ERROR] Missing dependency:", error)
+        print("  Install dependencies:")
         print("  pip install flask flask_cors requests pyjwt")
         print("=" * 60)
-        input("按回车键退出...")
+        input("Press Enter to exit...")
         raise SystemExit(1)
 
+    print("[START] Single instance guard: cleanup old backend before start.")
     ensure_single_instance()
     write_pid(os.getpid())
     register_cleanup_hooks()
 
     print("=" * 60)
     print("  IShield Agent Security Platform")
-    print("  Backend v3.4.0 — Enhanced")
+    print("  Backend v4.5.0 - Agent Cluster Guard")
     print("=" * 60)
-    print(f"  控制台：  {FRONTEND_URL}")
-    print(f"  分析看板：http://{LOCAL_HOST}:{PORT}/dashboard")
-    print(f"  端口 {PORT} | PID {os.getpid()}")
+    print(f"  Console:   {FRONTEND_URL}")
+    print(f"  Dashboard: http://{LOCAL_HOST}:{PORT}/dashboard")
+    print(f"  Port {PORT} | PID {os.getpid()}")
     print("=" * 60)
 
     open_frontend_when_ready()
 
     import threading
 
-    def _warmup():
-        time.sleep(1.5)
-        for _ in range(3):
-            try:
-                urllib.request.urlopen(WARMUP_ENDPOINT, timeout=5)
-                print("[预热] 服务已就绪")
-                return
-            except Exception:
-                time.sleep(1)
-
-    threading.Thread(target=_warmup, daemon=True).start()
-
-    # 守护线程：监听 shutdown_event，超时后强制退出进程
-    import app as _app_module
-    def _shutdown_watcher():
-        evt = _app_module._get_shutdown_event()
-        evt.wait()
-        print("[关闭] 收到停止信号，正在退出...")
-        import os
-        os._exit(0)
-
-    shutdown_watchdog = threading.Thread(target=_shutdown_watcher, daemon=True)
-    shutdown_watchdog.start()
+    threading.Thread(target=warmup_status_endpoint, daemon=True).start()
+    start_shutdown_watcher()
 
     app.run(debug=False, host=HOST, port=PORT, threaded=True)

@@ -64,7 +64,7 @@ def run_tool(tool_name: str, params: str, **kwargs) -> dict:
         _record_tool_result(blocked, audit_context)
         return blocked
 
-    supply_result = _precheck_supply_chain(tool_name, parsed_params, chain_id)
+    supply_result = _precheck_supply_chain(tool_name, parsed_params, chain_id, source_ip=source_ip)
     if supply_result:
         _record_tool_result(supply_result, audit_context)
         return supply_result
@@ -242,7 +242,7 @@ def _record_tool_result(result: dict, audit_context: dict):
         alerts = get_escalation_detector().record_tool_call(
             session_key=session_key,
             tool=tool_name,
-            params=parsed_params,
+            params=(audit_context.get("metadata") or {}).get("params", {}),
             status=status,
             source_ip=audit_context.get("source_ip"),
             chain_id=audit_context.get("chain_id"),
@@ -305,7 +305,7 @@ def _extract_target(tool_name: str, params: dict) -> str:
         return params.get("to", "")
     if tool_name in {"read_file", "write_file"}:
         return params.get("file") or params.get("filename") or params.get("path", "")
-    if tool_name == "http_request":
+    if tool_name in {"http_request", "call_api"}:
         return params.get("url") or params.get("endpoint") or ""
     return params.get("target") or ""
 
@@ -320,8 +320,8 @@ def _severity_from_status(status: str) -> int:
     }.get(status, 50)
 
 
-def _precheck_supply_chain(tool_name: str, params: dict, chain_id: str = None) -> dict | None:
-    if tool_name != "http_request":
+def _precheck_supply_chain(tool_name: str, params: dict, chain_id: str = None, source_ip: str = None) -> dict | None:
+    if tool_name not in {"http_request", "call_api"}:
         return None
     url = (params.get("url") or params.get("endpoint") or "").strip()
     if not url:
@@ -504,5 +504,6 @@ register_tool("send_email")(_handle_email)
 register_tool("read_file")(_handle_file_read)
 register_tool("write_file")(_handle_file_write)
 register_tool("http_request")(_handle_http)
+register_tool("call_api")(_handle_http)
 register_tool("query_db")(_handle_query_db)
 register_tool("post_social")(_handle_post_social)

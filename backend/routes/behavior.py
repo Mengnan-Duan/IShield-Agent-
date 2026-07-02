@@ -18,7 +18,9 @@ behavior_bp = Blueprint("behavior", __name__, url_prefix="/api/behavior")
 def behavior_summary():
     """GET /api/behavior/summary — 全局异常摘要，Top 20 风险 IP"""
     analyzer = get_behavior_analyzer()
-    return make_response(analyzer.get_summary())
+    summary = analyzer.get_summary()
+    summary["risk_engine"] = get_risk_engine().get_summary()
+    return make_response(summary)
 
 
 @behavior_bp.route("/demo", methods=["POST"])
@@ -37,6 +39,7 @@ def behavior_demo():
         ]
         for endpoint in endpoints:
             analyzer.track_request(ip, endpoint, "blocked", "high")
+            get_risk_engine().record(ip=ip, score=12, reason=f"endpoint_scan:{endpoint}", source="behavior_demo")
     else:
         ip = "198.51.100.24"
         endpoints = ["/api/detect", "/api/simulate", "/api/agent/execute", "/api/policies/evaluate"]
@@ -47,12 +50,14 @@ def behavior_demo():
                 "blocked" if i % 2 == 0 else "malicious",
                 "high",
             )
+            get_risk_engine().record(ip=ip, score=7, reason=f"rapid_attack:{endpoints[i % len(endpoints)]}", source="behavior_demo")
 
     return make_response({
         "scenario": scenario,
         "injected": True,
         "ip": ip,
         "summary": analyzer.get_summary(),
+        "risk_engine": get_risk_engine().get_summary(),
         "message": "已注入异常行为画像，可刷新行为监控面板查看。",
     })
 

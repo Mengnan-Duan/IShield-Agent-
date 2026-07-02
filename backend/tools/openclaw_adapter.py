@@ -83,7 +83,7 @@ class AgentMonitor:
     def execute_tool(
         self,
         tool_name: str,
-        params: Dict[str, Any],
+        params: Any,
         user_message: str = "",
     ) -> dict:
         """
@@ -123,6 +123,7 @@ class AgentMonitor:
             req_num = self.request_count
 
         start = time.time()
+        params = self._normalize_params(params)
         params_preview = self._mask_params(tool_name, params)
 
         # ── 步骤1：攻击意图检测 ───────────────────────────────
@@ -138,8 +139,9 @@ class AgentMonitor:
 
         # ── 步骤2：策略引擎判定 ──────────────────────────────
         policy_result = self.policy_engine.evaluate(tool_name, params)
-        policy_action = policy_result.get("action", "allow")
-        policy_reason = policy_result.get("reason", "")
+        policy_data = self._policy_result_to_dict(policy_result)
+        policy_action = policy_data.get("action", "allow")
+        policy_reason = policy_data.get("reason") or policy_data.get("message", "")
 
         # 综合判定：策略阻断或攻击检测 → 阻断
         should_block = (
@@ -215,6 +217,12 @@ class AgentMonitor:
                 chain_id=None,
                 token_meta={},
             )
+            runtime_status = str((tool_result or {}).get("status") or "").lower()
+            if runtime_status in {"blocked", "error", "timeout"}:
+                decision = "block"
+                reason = (tool_result or {}).get("summary") or reason
+                with self._lock:
+                    self.blocked_count += 1
         else:
             with self._lock:
                 self.blocked_count += 1
@@ -247,24 +255,37 @@ class AgentMonitor:
                 self._call_history = self._call_history[-500:]
 
         # ── 步骤6：SSE 广播 ─────────────────────────────────
-        broadcast_event(
-            event_type=f"Agent[{decision.upper()}]",
-            detail=f"[{self.agent_name}] {tool_name} — {decision.upper()}",
-            status="已阻断" if decision == "block" else "已放行",
-            tool=tool_name,
-            agent_id=self.agent_id,
-            agent_name=self.agent_name,
-            call_id=call_id,
-            confidence=confidence,
-            elapsed_ms=elapsed_ms,
-        )
+        broadcast_event("agent_tool_call", {
+            "event_type": f"Agent[{decision.upper()}]",
+            "detail": f"[{self.agent_name}] {tool_name} - {decision.upper()}",
+            "status": "blocked" if decision == "block" else "allowed",
+            "tool": tool_name,
+            "agent_id": self.agent_id,
+            "agent_name": self.agent_name,
+            "call_id": call_id,
+            "confidence": confidence,
+            "elapsed_ms": elapsed_ms,
+        })
 
         if decision == "block":
             broadcast_alert(
-                source=f"Agent:{self.agent_name}",
-                message=f"阻断恶意工具调用: {tool_name} | {reason[:40]}",
-                level="high",
+                event_type="agent_tool_call",
+                detail=f"Blocked risky agent tool call: {tool_name} | {reason[:80]}",
+                status="blocked",
+                threat_level="high",
                 confidence=confidence,
+                source_ip=ip,
+                action=tool_name,
+                tool_name=tool_name,
+                target=self.agent_id,
+                rule_id=f"AGENT-{decision.upper()}",
+                category="Agent tool call",
+                metadata={
+                    "agent_id": self.agent_id,
+                    "agent_name": self.agent_name,
+                    "call_id": call_id,
+                    "params_preview": params_preview,
+                },
             )
 
         return {
@@ -278,21 +299,62 @@ class AgentMonitor:
             "reason": reason,
             "attack_detected": attack_detected,
             "confidence": confidence,
-            "policy_result": policy_result,
+            "policy_result": policy_data,
             "result": tool_result,
             "elapsed_ms": elapsed_ms,
         }
 
-    def _mask_params(self, tool_name: str, params: Dict) -> str:
+    @staticmethod
+    def _policy_result_to_dict(policy_result: Any) -> Dict[str, Any]:
+        if isinstance(policy_result, dict):
+            data = dict(policy_result)
+        else:
+            data = {
+                key: value
+                for key, value in vars(policy_result).items()
+                if not key.startswith("_")
+            }
+        action = data.get("action")
+        if hasattr(action, "value"):
+            data["action"] = action.value
+        elif action is not None:
+            data["action"] = str(action)
+        else:
+            data["action"] = "allow"
+        if "reason" not in data:
+            data["reason"] = data.get("message", "")
+        return data
+
+    @staticmethod
+    def _normalize_params(params: Any) -> Dict[str, Any]:
+        if params is None:
+            return {}
+        if isinstance(params, dict):
+            return params
+        if isinstance(params, str):
+            text = params.strip()
+            if not text:
+                return {}
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                return {"raw": text}
+            if isinstance(parsed, dict):
+                return parsed
+            return {"value": parsed}
+        return {"value": params}
+
+    def _mask_params(self, tool_name: str, params: Dict[str, Any]) -> str:
         """对敏感参数做脱敏预览"""
         masked = {}
         for k, v in params.items():
-            if any(s in k.lower() for s in ["password", "key", "token", "secret", "auth"]):
-                masked[k] = "***"
+            key = str(k)
+            if any(s in key.lower() for s in ["password", "key", "token", "secret", "auth"]):
+                masked[key] = "***"
             elif isinstance(v, str) and len(v) > 30:
-                masked[k] = v[:15] + "..."
+                masked[key] = v[:15] + "..."
             else:
-                masked[k] = v
+                masked[key] = v
         return json.dumps(masked, ensure_ascii=False)[:100]
 
     def get_stats(self) -> dict:

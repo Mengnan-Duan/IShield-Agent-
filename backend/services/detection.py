@@ -1,4 +1,4 @@
-"""混合检测核心逻辑 — 规则 + 语义 + UEBA 三引擎融合（去魔数 + 置信区间）"""
+﻿"""混合检测核心逻辑 — 规则 + 语义 + UEBA 三引擎融合（去魔数 + 置信区间）"""
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Tuple, Optional
 
@@ -177,7 +177,7 @@ def hybrid_detect(text: str, use_cache: bool = True,
             "rules": get_sig_manager().version,
             "semantic": sem_engine,
             "embeddings": "deepseek-1.0",
-            "ueba": "v3.4.0",
+            "ueba": "v4.5.0",
         },
         "detection_time_ms": elapsed_ms,
         "cached": False,

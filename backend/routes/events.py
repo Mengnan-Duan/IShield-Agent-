@@ -13,6 +13,8 @@ from services.events import (
     get_event_detail,
     get_chain_events,
     get_chain_summary,
+    normalize_status,
+    status_label,
 )
 from services.analytics import get_analytics, get_dashboard_overview
 
@@ -68,9 +70,23 @@ def chain_detail(chain_id: str):
         raise ValidationError(f"未找到攻击链: {chain_id}")
 
     primary = chain_events[0]
+    status_codes = {e.get("status_code") or normalize_status(e.get("status"), e.get("stage"), e.get("metadata")) for e in chain_events}
+    if "blocked" in status_codes:
+        status_code = "blocked"
+    elif "confirm" in status_codes:
+        status_code = "confirm"
+    elif "error" in status_codes:
+        status_code = "error"
+    elif "running" in status_codes:
+        status_code = "running"
+    else:
+        status_code = "allowed"
+
     return make_response({
         "chain_id": chain_id,
-        "status": "已阻断" if any("阻断" in (e.get("status") or "") or "拦截" in (e.get("status") or "") for e in chain_events) else "已放行",
+        "status": status_label(status_code),
+        "status_code": status_code,
+        "disposition": status_code,
         "source_ip": primary.get("source_ip"),
         "action": primary.get("action"),
         "tool_name": primary.get("tool_name"),
@@ -150,6 +166,9 @@ def dashboard_live():
             "time": e.get("time"),
             "type": e.get("type"),
             "status": e.get("status"),
+            "status_code": e.get("status_code"),
+            "status_label": e.get("status_label"),
+            "disposition": e.get("disposition"),
             "detail": e.get("detail"),
             "threat_level": e.get("threat_level"),
             "confidence": e.get("confidence"),

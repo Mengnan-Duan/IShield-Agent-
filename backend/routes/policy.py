@@ -8,14 +8,14 @@ _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)
 
 from middleware.error_handler import ValidationError
 from utils.response import make_response
-from services.policy import get_policy_engine
+from services.policy import get_policy_engine, serialize_policy_result
 from runtime_paths import backend_policies_dir
 
 policy_bp = Blueprint("policy", __name__, url_prefix="/api/policies")
 
 
 def _serialize_rule(rule):
-    return {
+    data = {
         "id": rule.id,
         "name": rule.name,
         "tool": rule.tool,
@@ -25,14 +25,30 @@ def _serialize_rule(rule):
         "severity": rule.severity,
         "message": rule.message,
         "enabled": rule.enabled,
+        "scope": rule.scope,
+        "priority": rule.priority,
+        "tags": rule.tags,
+        "description": rule.description,
     }
+    data["conditions"] = [
+        {"field": "tool", "operator": "glob", "value": rule.tool},
+        {"field": "params", "operator": "regex", "value": rule.params_pattern},
+        {"field": "params", "operator": "contains_any", "value": rule.threat_keywords},
+    ]
+    data["effect"] = {
+        "block": "deny_execution",
+        "confirm": "require_approval",
+        "allow": "allow_execution",
+        "log": "audit_only",
+    }.get(rule.action.value, "audit_only")
+    return data
 
 
 @policy_bp.route("", methods=["GET"])
 def list_policies():
     engine = get_policy_engine()
     rules = [_serialize_rule(r) for r in engine.all_rules]
-    return make_response({"rules": rules, "total": len(rules)})
+    return make_response({"rules": rules, "total": len(rules), "summary": engine.summary()})
 
 
 @policy_bp.route("/evaluate", methods=["POST"])
@@ -55,11 +71,7 @@ def evaluate_call():
                 {
                     "tool": c.get("tool", ""),
                     "params_preview": str(c.get("params", ""))[:100],
-                    "action": r.action.value,
-                    "triggered_rule": r.triggered_rule,
-                    "message": r.message,
-                    "severity": r.severity,
-                    "matched_keywords": r.matched_keywords,
+                    **serialize_policy_result(r),
                 }
                 for c, r in zip(calls, results)
             ]
@@ -71,15 +83,12 @@ def evaluate_call():
         raise ValidationError("tool 参数不能为空")
 
     result = engine.evaluate(tool, params, include_disabled=include_disabled)
-    return make_response({
+    payload = {
         "tool": tool,
         "params_preview": params[:100],
-        "action": result.action.value,
-        "triggered_rule": result.triggered_rule,
-        "message": result.message,
-        "severity": result.severity,
-        "matched_keywords": result.matched_keywords,
-    })
+        **serialize_policy_result(result),
+    }
+    return make_response(payload)
 
 
 @policy_bp.route("/reload", methods=["POST"])
@@ -89,7 +98,14 @@ def reload_policies():
     return make_response({
         "reloaded": True,
         "rule_count": len(engine.rules),
+        "summary": engine.summary(),
     })
+
+
+@policy_bp.route("/summary", methods=["GET"])
+def policy_summary():
+    engine = get_policy_engine()
+    return make_response(engine.summary())
 
 
 @policy_bp.route("/toggle", methods=["POST"])

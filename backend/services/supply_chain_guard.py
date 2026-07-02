@@ -9,6 +9,8 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 
+_re = re
+
 
 # ── 高风险域名模式 ──────────────────────────────────────────────────────────
 HIGH_RISK_DOMAINS = {
@@ -241,13 +243,13 @@ def analyze_tool_action(tool_name: str, params: dict, chain_id: str = None) -> d
     alerts = []
     risk_score = 0
     intent_text = ""
+    _re = re
 
     if tool_name == "send_email":
         to_addr = params.get("to", "")
         body = params.get("body", "") + " " + params.get("subject", "")
         intent_text = (to_addr + " " + body).lower()
         # 检查目标邮箱域名
-        import re as _re
         email_domains = _re.findall(r"@[\w.-]+", to_addr)
         for d in email_domains:
             domain = d[1:].lower()
