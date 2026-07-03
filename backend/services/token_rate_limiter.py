@@ -9,8 +9,10 @@ TOKEN_RATE_LIMITS = {
     "operator": 300,
     "analyst": 200,
     "readonly": 100,
-    "guest": 100,
-    "anonymous": 50,
+    # Dev/demo UI fan-outs several read APIs after each action. Keep these
+    # high enough to avoid blocking local interactive workflows.
+    "guest": 600,
+    "anonymous": 600,
 }
 WINDOW_SIZE = 60.0
 

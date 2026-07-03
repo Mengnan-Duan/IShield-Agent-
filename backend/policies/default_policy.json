@@ -1,137 +1,2148 @@
 {
-  "version": "1.1",
+  "version": "4.8",
   "rules": [
     {
-      "id": "POL-001",
-      "name": "危险表操作拦截",
-      "tool": "query_db",
-      "params_pattern": "drop|delete|truncate|alter",
+      "id": "POL-LLM-001",
+      "name": "系统提示词窃取",
+      "tool": "*",
+      "params_pattern": "system prompt|系统提示词|开发者指令|hidden instruction",
       "threat_keywords": [
-        "drop table",
-        "delete from",
-        "truncate",
-        "alter table"
+        "system prompt",
+        "系统提示词",
+        "开发者指令"
+      ],
+      "action": "block",
+      "severity": 94,
+      "message": "命中提示注入规则：系统提示词窃取",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 94,
+      "tags": [
+        "llm",
+        "prompt"
+      ],
+      "description": "用于识别提示注入中的系统提示词窃取风险，并给出可审计的处置动作。",
+      "category": "prompt_injection",
+      "attack_surface": "提示注入",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发提示注入规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "系统提示词窃取 命中样本",
+          "tool": "*",
+          "params": "input=system prompt",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-LLM-002",
+      "name": "忽略上文指令",
+      "tool": "*",
+      "params_pattern": "ignore previous|忽略之前|忽略以上|override instructions",
+      "threat_keywords": [
+        "ignore previous",
+        "忽略之前",
+        "override instructions"
       ],
       "action": "block",
       "severity": 90,
-      "message": "检测到危险的数据库操作：DROP/DELETE/TRUNCATE/ALTER",
-      "enabled": true
+      "message": "命中提示注入规则：忽略上文指令",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 90,
+      "tags": [
+        "llm",
+        "prompt"
+      ],
+      "description": "用于识别提示注入中的忽略上文指令风险，并给出可审计的处置动作。",
+      "category": "prompt_injection",
+      "attack_surface": "提示注入",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发提示注入规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "忽略上文指令 命中样本",
+          "tool": "*",
+          "params": "input=ignore previous",
+          "expected_action": "block"
+        }
+      ]
     },
     {
-      "id": "POL-002",
-      "name": "SQL注入模式拦截",
-      "tool": "query_db",
-      "params_pattern": "union|select.*from|or 1=1|--|;.*drop",
+      "id": "POL-LLM-003",
+      "name": "开发者消息探测",
+      "tool": "*",
+      "params_pattern": "developer message|上层指令|hidden developer|system message",
       "threat_keywords": [
-        "union select",
-        "or 1=1",
-        "'; --",
-        "'; drop"
+        "developer message",
+        "上层指令",
+        "system message"
       ],
       "action": "block",
-      "severity": 95,
-      "message": "检测到 SQL 注入模式，拦截执行",
-      "enabled": true
-    },
-    {
-      "id": "POL-003",
-      "name": "密码字段查询确认",
-      "tool": "query_db",
-      "params_pattern": "password|passwd|pwd|secret|api_key|token",
-      "threat_keywords": [
-        "password",
-        "passwd",
-        "pwd",
-        "api_key",
-        "token"
+      "severity": 88,
+      "message": "命中提示注入规则：开发者消息探测",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 88,
+      "tags": [
+        "llm",
+        "prompt"
       ],
-      "action": "confirm",
-      "severity": 60,
-      "message": "查询包含敏感字段（密码/API Key），请确认是否放行",
-      "enabled": true
+      "description": "用于识别提示注入中的开发者消息探测风险，并给出可审计的处置动作。",
+      "category": "prompt_injection",
+      "attack_surface": "提示注入",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发提示注入规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "开发者消息探测 命中样本",
+          "tool": "*",
+          "params": "input=developer message",
+          "expected_action": "block"
+        }
+      ]
     },
     {
-      "id": "POL-004",
-      "name": "钓鱼邮件拦截",
-      "tool": "send_email",
-      "params_pattern": "evil|steal|hack|钓鱼|fake|钓鱼网站",
+      "id": "POL-LLM-004",
+      "name": "安全策略绕过",
+      "tool": "*",
+      "params_pattern": "bypass safety|disable policy|关闭安全|不受限制",
       "threat_keywords": [
-        "evil",
-        "steal",
-        "hack",
-        "钓鱼",
-        "fake",
-        "钓鱼网站"
+        "bypass safety",
+        "disable policy",
+        "关闭安全"
       ],
       "action": "block",
-      "severity": 95,
-      "message": "检测到疑似钓鱼内容，邮件发送被拦截",
-      "enabled": true
+      "severity": 92,
+      "message": "命中提示注入规则：安全策略绕过",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 92,
+      "tags": [
+        "llm",
+        "prompt"
+      ],
+      "description": "用于识别提示注入中的安全策略绕过风险，并给出可审计的处置动作。",
+      "category": "prompt_injection",
+      "attack_surface": "提示注入",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发提示注入规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "安全策略绕过 命中样本",
+          "tool": "*",
+          "params": "input=bypass safety",
+          "expected_action": "block"
+        }
+      ]
     },
     {
-      "id": "POL-005",
-      "name": "外部恶意链接拦截",
-      "tool": "send_email",
-      "params_pattern": "http://|https://.*(evil|hack|phish|steal|钓鱼)",
+      "id": "POL-LLM-005",
+      "name": "多轮诱导泄露",
+      "tool": "*",
+      "params_pattern": "step by step.*secret|逐步.*泄露|慢慢告诉我",
       "threat_keywords": [
-        "evil-site",
-        "hack",
-        "phish",
-        "steal"
+        "step by step secret",
+        "逐步泄露",
+        "慢慢告诉我"
+      ],
+      "action": "block",
+      "severity": 82,
+      "message": "命中提示注入规则：多轮诱导泄露",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 82,
+      "tags": [
+        "llm",
+        "prompt"
+      ],
+      "description": "用于识别提示注入中的多轮诱导泄露风险，并给出可审计的处置动作。",
+      "category": "prompt_injection",
+      "attack_surface": "提示注入",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发提示注入规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "多轮诱导泄露 命中样本",
+          "tool": "*",
+          "params": "input=step by step secret",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-LLM-006",
+      "name": "工具前置诱导",
+      "tool": "*",
+      "params_pattern": "before using tool|调用工具前|先读取|先导出",
+      "threat_keywords": [
+        "调用工具前",
+        "先读取",
+        "先导出"
+      ],
+      "action": "block",
+      "severity": 84,
+      "message": "命中提示注入规则：工具前置诱导",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 84,
+      "tags": [
+        "llm",
+        "prompt"
+      ],
+      "description": "用于识别提示注入中的工具前置诱导风险，并给出可审计的处置动作。",
+      "category": "prompt_injection",
+      "attack_surface": "提示注入",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发提示注入规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "工具前置诱导 命中样本",
+          "tool": "*",
+          "params": "input=调用工具前",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-JB-001",
+      "name": "DAN 越狱模板",
+      "tool": "*",
+      "params_pattern": "DAN|do anything now|越狱模式",
+      "threat_keywords": [
+        "DAN",
+        "do anything now",
+        "越狱模式"
+      ],
+      "action": "block",
+      "severity": 93,
+      "message": "命中模型越狱规则：DAN 越狱模板",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 93,
+      "tags": [
+        "llm",
+        "jailbreak"
+      ],
+      "description": "用于识别模型越狱中的DAN 越狱模板风险，并给出可审计的处置动作。",
+      "category": "jailbreak",
+      "attack_surface": "模型越狱",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发模型越狱规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "DAN 越狱模板 命中样本",
+          "tool": "*",
+          "params": "input=DAN",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-JB-002",
+      "name": "无限制模式",
+      "tool": "*",
+      "params_pattern": "unrestricted mode|无约束|无限制回答|no policy",
+      "threat_keywords": [
+        "unrestricted mode",
+        "无限制回答",
+        "no policy"
+      ],
+      "action": "block",
+      "severity": 91,
+      "message": "命中模型越狱规则：无限制模式",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 91,
+      "tags": [
+        "llm",
+        "jailbreak"
+      ],
+      "description": "用于识别模型越狱中的无限制模式风险，并给出可审计的处置动作。",
+      "category": "jailbreak",
+      "attack_surface": "模型越狱",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发模型越狱规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "无限制模式 命中样本",
+          "tool": "*",
+          "params": "input=unrestricted mode",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-JB-003",
+      "name": "假设场景绕过",
+      "tool": "*",
+      "params_pattern": "hypothetical|假设.*没有限制|仅用于小说",
+      "threat_keywords": [
+        "hypothetical",
+        "假设没有限制",
+        "仅用于小说"
+      ],
+      "action": "block",
+      "severity": 78,
+      "message": "命中模型越狱规则：假设场景绕过",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 78,
+      "tags": [
+        "llm",
+        "jailbreak"
+      ],
+      "description": "用于识别模型越狱中的假设场景绕过风险，并给出可审计的处置动作。",
+      "category": "jailbreak",
+      "attack_surface": "模型越狱",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发模型越狱规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "假设场景绕过 命中样本",
+          "tool": "*",
+          "params": "input=hypothetical",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-JB-004",
+      "name": "反向心理诱导",
+      "tool": "*",
+      "params_pattern": "prove you are not|不要拒绝|你必须回答",
+      "threat_keywords": [
+        "不要拒绝",
+        "你必须回答",
+        "prove you are not"
+      ],
+      "action": "block",
+      "severity": 80,
+      "message": "命中模型越狱规则：反向心理诱导",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 80,
+      "tags": [
+        "llm",
+        "jailbreak"
+      ],
+      "description": "用于识别模型越狱中的反向心理诱导风险，并给出可审计的处置动作。",
+      "category": "jailbreak",
+      "attack_surface": "模型越狱",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发模型越狱规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "反向心理诱导 命中样本",
+          "tool": "*",
+          "params": "input=不要拒绝",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-JB-005",
+      "name": "多语言越狱",
+      "tool": "*",
+      "params_pattern": "jailbreak|bypass|ignora|忽略.*regla",
+      "threat_keywords": [
+        "jailbreak",
+        "ignora",
+        "bypass"
+      ],
+      "action": "block",
+      "severity": 82,
+      "message": "命中模型越狱规则：多语言越狱",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 82,
+      "tags": [
+        "llm",
+        "jailbreak"
+      ],
+      "description": "用于识别模型越狱中的多语言越狱风险，并给出可审计的处置动作。",
+      "category": "jailbreak",
+      "attack_surface": "模型越狱",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发模型越狱规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "多语言越狱 命中样本",
+          "tool": "*",
+          "params": "input=jailbreak",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-JB-006",
+      "name": "编码混淆越狱",
+      "tool": "*",
+      "params_pattern": "base64|rot13|unicode escape|编码后执行",
+      "threat_keywords": [
+        "base64",
+        "rot13",
+        "编码后执行"
+      ],
+      "action": "block",
+      "severity": 84,
+      "message": "命中模型越狱规则：编码混淆越狱",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 84,
+      "tags": [
+        "llm",
+        "jailbreak"
+      ],
+      "description": "用于识别模型越狱中的编码混淆越狱风险，并给出可审计的处置动作。",
+      "category": "jailbreak",
+      "attack_surface": "模型越狱",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发模型越狱规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "编码混淆越狱 命中样本",
+          "tool": "*",
+          "params": "input=base64",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-TOOL-001",
+      "name": "非业务目的读文件",
+      "tool": "*",
+      "params_pattern": "read secret|读取.*密钥|导出.*配置",
+      "threat_keywords": [
+        "read secret",
+        "读取密钥",
+        "导出配置"
+      ],
+      "action": "block",
+      "severity": 88,
+      "message": "命中工具调用劫持规则：非业务目的读文件",
+      "enabled": true,
+      "scope": "tool_call",
+      "priority": 88,
+      "tags": [
+        "tool",
+        "agent"
+      ],
+      "description": "用于识别工具调用劫持中的非业务目的读文件风险，并给出可审计的处置动作。",
+      "category": "tool_hijacking",
+      "attack_surface": "工具调用劫持",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发工具调用劫持规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "非业务目的读文件 命中样本",
+          "tool": "*",
+          "params": "input=read secret",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-TOOL-002",
+      "name": "高权限工具诱导",
+      "tool": "*",
+      "params_pattern": "admin tool|root 权限|高权限工具|sudo",
+      "threat_keywords": [
+        "admin tool",
+        "root 权限",
+        "sudo"
+      ],
+      "action": "block",
+      "severity": 86,
+      "message": "命中工具调用劫持规则：高权限工具诱导",
+      "enabled": true,
+      "scope": "tool_call",
+      "priority": 86,
+      "tags": [
+        "tool",
+        "agent"
+      ],
+      "description": "用于识别工具调用劫持中的高权限工具诱导风险，并给出可审计的处置动作。",
+      "category": "tool_hijacking",
+      "attack_surface": "工具调用劫持",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发工具调用劫持规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "高权限工具诱导 命中样本",
+          "tool": "*",
+          "params": "input=admin tool",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-TOOL-003",
+      "name": "工具参数污染",
+      "tool": "*",
+      "params_pattern": "change target|替换目标|把参数改成|override params",
+      "threat_keywords": [
+        "替换目标",
+        "change target",
+        "override params"
+      ],
+      "action": "block",
+      "severity": 82,
+      "message": "命中工具调用劫持规则：工具参数污染",
+      "enabled": true,
+      "scope": "tool_call",
+      "priority": 82,
+      "tags": [
+        "tool",
+        "agent"
+      ],
+      "description": "用于识别工具调用劫持中的工具参数污染风险，并给出可审计的处置动作。",
+      "category": "tool_hijacking",
+      "attack_surface": "工具调用劫持",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发工具调用劫持规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "工具参数污染 命中样本",
+          "tool": "*",
+          "params": "input=替换目标",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-TOOL-004",
+      "name": "工具链组合放大",
+      "tool": "*",
+      "params_pattern": "read.*then.*send|读取.*发送|查询.*外发",
+      "threat_keywords": [
+        "读取后发送",
+        "read then send",
+        "查询外发"
       ],
       "action": "block",
       "severity": 90,
-      "message": "检测到恶意外部链接，禁止发送",
-      "enabled": true
+      "message": "命中工具调用劫持规则：工具链组合放大",
+      "enabled": true,
+      "scope": "tool_call",
+      "priority": 90,
+      "tags": [
+        "tool",
+        "agent"
+      ],
+      "description": "用于识别工具调用劫持中的工具链组合放大风险，并给出可审计的处置动作。",
+      "category": "tool_hijacking",
+      "attack_surface": "工具调用劫持",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发工具调用劫持规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "工具链组合放大 命中样本",
+          "tool": "*",
+          "params": "input=读取后发送",
+          "expected_action": "block"
+        }
+      ]
     },
     {
-      "id": "POL-006",
-      "name": "路径遍历攻击拦截",
+      "id": "POL-TOOL-005",
+      "name": "伪造审批理由",
+      "tool": "*",
+      "params_pattern": "approval granted|已审批|无需确认|主管同意",
+      "threat_keywords": [
+        "approval granted",
+        "已审批",
+        "无需确认"
+      ],
+      "action": "block",
+      "severity": 80,
+      "message": "命中工具调用劫持规则：伪造审批理由",
+      "enabled": true,
+      "scope": "tool_call",
+      "priority": 80,
+      "tags": [
+        "tool",
+        "agent"
+      ],
+      "description": "用于识别工具调用劫持中的伪造审批理由风险，并给出可审计的处置动作。",
+      "category": "tool_hijacking",
+      "attack_surface": "工具调用劫持",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发工具调用劫持规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "伪造审批理由 命中样本",
+          "tool": "*",
+          "params": "input=approval granted",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-TOOL-006",
+      "name": "越权管理工具",
+      "tool": "*",
+      "params_pattern": "delete user|grant admin|disable audit",
+      "threat_keywords": [
+        "grant admin",
+        "disable audit",
+        "delete user"
+      ],
+      "action": "block",
+      "severity": 92,
+      "message": "命中工具调用劫持规则：越权管理工具",
+      "enabled": true,
+      "scope": "tool_call",
+      "priority": 92,
+      "tags": [
+        "tool",
+        "agent"
+      ],
+      "description": "用于识别工具调用劫持中的越权管理工具风险，并给出可审计的处置动作。",
+      "category": "tool_hijacking",
+      "attack_surface": "工具调用劫持",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发工具调用劫持规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "越权管理工具 命中样本",
+          "tool": "*",
+          "params": "input=grant admin",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-FILE-001",
+      "name": "路径遍历",
       "tool": "read_file|write_file",
-      "params_pattern": "..|../|../..",
+      "params_pattern": "\\.\\./|\\.\\.\\\\|%2e%2e",
       "threat_keywords": [
         "../",
         "..\\",
         "%2e%2e"
       ],
       "action": "block",
-      "severity": 90,
-      "message": "检测到路径遍历攻击模式，文件操作被拦截",
-      "enabled": true
+      "severity": 92,
+      "message": "命中文件访问越权规则：路径遍历",
+      "enabled": true,
+      "scope": "file_access",
+      "priority": 92,
+      "tags": [
+        "file",
+        "credential"
+      ],
+      "description": "用于识别文件访问越权中的路径遍历风险，并给出可审计的处置动作。",
+      "category": "file_access",
+      "attack_surface": "文件访问越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发文件访问越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "路径遍历 命中样本",
+          "tool": "read_file",
+          "params": "path=../",
+          "expected_action": "block"
+        }
+      ]
     },
     {
-      "id": "POL-007",
-      "name": "系统文件访问拦截",
-      "tool": "read_file",
-      "params_pattern": "passwd|shadow|etc/passwd",
+      "id": "POL-FILE-002",
+      "name": "系统敏感路径",
+      "tool": "read_file|write_file",
+      "params_pattern": "/etc/passwd|/etc/shadow|windows/system32",
       "threat_keywords": [
-        "passwd",
-        "shadow",
-        "/etc/"
+        "/etc/passwd",
+        "/etc/shadow",
+        "system32"
+      ],
+      "action": "block",
+      "severity": 96,
+      "message": "命中文件访问越权规则：系统敏感路径",
+      "enabled": true,
+      "scope": "file_access",
+      "priority": 96,
+      "tags": [
+        "file",
+        "credential"
+      ],
+      "description": "用于识别文件访问越权中的系统敏感路径风险，并给出可审计的处置动作。",
+      "category": "file_access",
+      "attack_surface": "文件访问越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发文件访问越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "系统敏感路径 命中样本",
+          "tool": "read_file",
+          "params": "path=/etc/passwd",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-FILE-003",
+      "name": "环境变量文件读取",
+      "tool": "read_file|write_file",
+      "params_pattern": "\\.env|env.local|config\\.secret",
+      "threat_keywords": [
+        ".env",
+        "env.local",
+        "config.secret"
+      ],
+      "action": "block",
+      "severity": 94,
+      "message": "命中文件访问越权规则：环境变量文件读取",
+      "enabled": true,
+      "scope": "file_access",
+      "priority": 94,
+      "tags": [
+        "file",
+        "credential"
+      ],
+      "description": "用于识别文件访问越权中的环境变量文件读取风险，并给出可审计的处置动作。",
+      "category": "file_access",
+      "attack_surface": "文件访问越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发文件访问越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "环境变量文件读取 命中样本",
+          "tool": "read_file",
+          "params": "path=.env",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-FILE-004",
+      "name": "SSH 密钥读取",
+      "tool": "read_file|write_file",
+      "params_pattern": "id_rsa|id_ed25519|authorized_keys|\\.ssh",
+      "threat_keywords": [
+        "id_rsa",
+        ".ssh",
+        "authorized_keys"
       ],
       "action": "block",
       "severity": 95,
-      "message": "禁止访问系统敏感文件（/etc/passwd 等）",
-      "enabled": true
+      "message": "命中文件访问越权规则：SSH 密钥读取",
+      "enabled": true,
+      "scope": "file_access",
+      "priority": 95,
+      "tags": [
+        "file",
+        "credential"
+      ],
+      "description": "用于识别文件访问越权中的SSH 密钥读取风险，并给出可审计的处置动作。",
+      "category": "file_access",
+      "attack_surface": "文件访问越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发文件访问越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "SSH 密钥读取 命中样本",
+          "tool": "read_file",
+          "params": "path=id_rsa",
+          "expected_action": "block"
+        }
+      ]
     },
     {
-      "id": "POL-008",
-      "name": "API密钥暴露拦截",
-      "tool": "post_social|http_request",
-      "params_pattern": "api_key|apikey|secret.*token",
+      "id": "POL-FILE-005",
+      "name": "批量文件枚举",
+      "tool": "read_file|write_file",
+      "params_pattern": "glob\\(|recursive|list all|枚举文件",
+      "threat_keywords": [
+        "recursive",
+        "list all",
+        "枚举文件"
+      ],
+      "action": "block",
+      "severity": 78,
+      "message": "命中文件访问越权规则：批量文件枚举",
+      "enabled": true,
+      "scope": "file_access",
+      "priority": 78,
+      "tags": [
+        "file",
+        "credential"
+      ],
+      "description": "用于识别文件访问越权中的批量文件枚举风险，并给出可审计的处置动作。",
+      "category": "file_access",
+      "attack_surface": "文件访问越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发文件访问越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "批量文件枚举 命中样本",
+          "tool": "read_file",
+          "params": "path=recursive",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-FILE-006",
+      "name": "覆盖安全配置",
+      "tool": "read_file|write_file",
+      "params_pattern": "disable_security|allow_all|set policy off",
+      "threat_keywords": [
+        "disable_security",
+        "allow_all",
+        "policy off"
+      ],
+      "action": "block",
+      "severity": 91,
+      "message": "命中文件访问越权规则：覆盖安全配置",
+      "enabled": true,
+      "scope": "file_access",
+      "priority": 91,
+      "tags": [
+        "file",
+        "credential"
+      ],
+      "description": "用于识别文件访问越权中的覆盖安全配置风险，并给出可审计的处置动作。",
+      "category": "file_access",
+      "attack_surface": "文件访问越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发文件访问越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "覆盖安全配置 命中样本",
+          "tool": "read_file",
+          "params": "path=disable_security",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-EXFIL-001",
+      "name": "API Key 外发",
+      "tool": "send_email|post_social|http_request|call_api|query_db",
+      "params_pattern": "api_key|apikey|access_key|sk-[a-zA-Z0-9]",
       "threat_keywords": [
         "api_key",
         "apikey",
-        "secret"
+        "sk-"
+      ],
+      "action": "block",
+      "severity": 96,
+      "message": "命中数据泄露外发规则：API Key 外发",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 96,
+      "tags": [
+        "egress",
+        "credential"
+      ],
+      "description": "用于识别数据泄露外发中的API Key 外发风险，并给出可审计的处置动作。",
+      "category": "data_exfiltration",
+      "attack_surface": "数据泄露外发",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发数据泄露外发规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "API Key 外发 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=api_key",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-EXFIL-002",
+      "name": "Token 外发",
+      "tool": "send_email|post_social|http_request|call_api|query_db",
+      "params_pattern": "bearer token|refresh_token|jwt|authorization:",
+      "threat_keywords": [
+        "bearer token",
+        "refresh_token",
+        "jwt"
       ],
       "action": "block",
       "severity": 95,
-      "message": "禁止在外部请求中暴露密钥或令牌",
-      "enabled": true
+      "message": "命中数据泄露外发规则：Token 外发",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 95,
+      "tags": [
+        "egress",
+        "credential"
+      ],
+      "description": "用于识别数据泄露外发中的Token 外发风险，并给出可审计的处置动作。",
+      "category": "data_exfiltration",
+      "attack_surface": "数据泄露外发",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发数据泄露外发规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "Token 外发 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=bearer token",
+          "expected_action": "block"
+        }
+      ]
     },
     {
-      "id": "POL-009",
-      "name": "管理员账户操作确认",
+      "id": "POL-EXFIL-003",
+      "name": "Cookie 外发",
+      "tool": "send_email|post_social|http_request|call_api|query_db",
+      "params_pattern": "cookie|sessionid|csrf|set-cookie",
+      "threat_keywords": [
+        "cookie",
+        "sessionid",
+        "csrf"
+      ],
+      "action": "block",
+      "severity": 88,
+      "message": "命中数据泄露外发规则：Cookie 外发",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 88,
+      "tags": [
+        "egress",
+        "credential"
+      ],
+      "description": "用于识别数据泄露外发中的Cookie 外发风险，并给出可审计的处置动作。",
+      "category": "data_exfiltration",
+      "attack_surface": "数据泄露外发",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发数据泄露外发规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "Cookie 外发 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=cookie",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-EXFIL-004",
+      "name": "用户隐私批量外发",
+      "tool": "send_email|post_social|http_request|call_api|query_db",
+      "params_pattern": "身份证|手机号|email.*导出|privacy",
+      "threat_keywords": [
+        "身份证",
+        "手机号",
+        "privacy"
+      ],
+      "action": "block",
+      "severity": 90,
+      "message": "命中数据泄露外发规则：用户隐私批量外发",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 90,
+      "tags": [
+        "egress",
+        "credential"
+      ],
+      "description": "用于识别数据泄露外发中的用户隐私批量外发风险，并给出可审计的处置动作。",
+      "category": "data_exfiltration",
+      "attack_surface": "数据泄露外发",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发数据泄露外发规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "用户隐私批量外发 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=身份证",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-EXFIL-005",
+      "name": "数据库导出",
+      "tool": "send_email|post_social|http_request|call_api|query_db",
+      "params_pattern": "dump database|export users|select.*password",
+      "threat_keywords": [
+        "dump database",
+        "export users",
+        "select password"
+      ],
+      "action": "block",
+      "severity": 92,
+      "message": "命中数据泄露外发规则：数据库导出",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 92,
+      "tags": [
+        "egress",
+        "credential"
+      ],
+      "description": "用于识别数据泄露外发中的数据库导出风险，并给出可审计的处置动作。",
+      "category": "data_exfiltration",
+      "attack_surface": "数据泄露外发",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发数据泄露外发规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "数据库导出 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=dump database",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-EXFIL-006",
+      "name": "附件携敏外发",
+      "tool": "send_email|post_social|http_request|call_api|query_db",
+      "params_pattern": "attach.*secret|附件.*密钥|send.*credential",
+      "threat_keywords": [
+        "附件密钥",
+        "send credential",
+        "attach secret"
+      ],
+      "action": "block",
+      "severity": 88,
+      "message": "命中数据泄露外发规则：附件携敏外发",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 88,
+      "tags": [
+        "egress",
+        "credential"
+      ],
+      "description": "用于识别数据泄露外发中的附件携敏外发风险，并给出可审计的处置动作。",
+      "category": "data_exfiltration",
+      "attack_surface": "数据泄露外发",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发数据泄露外发规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "附件携敏外发 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=附件密钥",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-API-001",
+      "name": "访问 metadata 服务",
+      "tool": "http_request|call_api",
+      "params_pattern": "169\\.254\\.169\\.254|metadata.google.internal|instance-data",
+      "threat_keywords": [
+        "169.254.169.254",
+        "metadata.google.internal"
+      ],
+      "action": "block",
+      "severity": 96,
+      "message": "命中API / SSRF规则：访问 metadata 服务",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 96,
+      "tags": [
+        "api",
+        "ssrf"
+      ],
+      "description": "用于识别API / SSRF中的访问 metadata 服务风险，并给出可审计的处置动作。",
+      "category": "api_ssrf",
+      "attack_surface": "API / SSRF",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发API / SSRF规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "访问 metadata 服务 命中样本",
+          "tool": "http_request",
+          "params": "url=169.254.169.254",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-API-002",
+      "name": "访问 localhost",
+      "tool": "http_request|call_api",
+      "params_pattern": "localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0",
+      "threat_keywords": [
+        "localhost",
+        "127.0.0.1"
+      ],
+      "action": "confirm",
+      "severity": 86,
+      "message": "命中API / SSRF规则：访问 localhost",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 86,
+      "tags": [
+        "api",
+        "ssrf"
+      ],
+      "description": "用于识别API / SSRF中的访问 localhost风险，并给出可审计的处置动作。",
+      "category": "api_ssrf",
+      "attack_surface": "API / SSRF",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对API / SSRF风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "访问 localhost 命中样本",
+          "tool": "http_request",
+          "params": "url=localhost",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-API-003",
+      "name": "访问私有网段",
+      "tool": "http_request|call_api",
+      "params_pattern": "10\\.|172\\.16\\.|192\\.168\\.|intranet",
+      "threat_keywords": [
+        "10.",
+        "192.168.",
+        "intranet"
+      ],
+      "action": "confirm",
+      "severity": 84,
+      "message": "命中API / SSRF规则：访问私有网段",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 84,
+      "tags": [
+        "api",
+        "ssrf"
+      ],
+      "description": "用于识别API / SSRF中的访问私有网段风险，并给出可审计的处置动作。",
+      "category": "api_ssrf",
+      "attack_surface": "API / SSRF",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对API / SSRF风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "访问私有网段 命中样本",
+          "tool": "http_request",
+          "params": "url=10.",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-API-004",
+      "name": "Debug 接口探测",
+      "tool": "http_request|call_api",
+      "params_pattern": "/debug|/admin|/actuator|/internal",
+      "threat_keywords": [
+        "/debug",
+        "/admin",
+        "/internal"
+      ],
+      "action": "confirm",
+      "severity": 86,
+      "message": "命中API / SSRF规则：Debug 接口探测",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 86,
+      "tags": [
+        "api",
+        "ssrf"
+      ],
+      "description": "用于识别API / SSRF中的Debug 接口探测风险，并给出可审计的处置动作。",
+      "category": "api_ssrf",
+      "attack_surface": "API / SSRF",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对API / SSRF风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "Debug 接口探测 命中样本",
+          "tool": "http_request",
+          "params": "url=/debug",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-API-005",
+      "name": "回调地址污染",
+      "tool": "http_request|call_api",
+      "params_pattern": "callback=.*http|redirect_uri=.*http|webhook=.*evil",
+      "threat_keywords": [
+        "callback=http",
+        "redirect_uri",
+        "webhook=evil"
+      ],
+      "action": "confirm",
+      "severity": 82,
+      "message": "命中API / SSRF规则：回调地址污染",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 82,
+      "tags": [
+        "api",
+        "ssrf"
+      ],
+      "description": "用于识别API / SSRF中的回调地址污染风险，并给出可审计的处置动作。",
+      "category": "api_ssrf",
+      "attack_surface": "API / SSRF",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对API / SSRF风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "回调地址污染 命中样本",
+          "tool": "http_request",
+          "params": "url=callback=http",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-API-006",
+      "name": "携凭证访问外域",
+      "tool": "http_request|call_api",
+      "params_pattern": "authorization=.*http|token=.*https|api_key=.*http",
+      "threat_keywords": [
+        "authorization=http",
+        "token=https",
+        "api_key=http"
+      ],
+      "action": "block",
+      "severity": 90,
+      "message": "命中API / SSRF规则：携凭证访问外域",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 90,
+      "tags": [
+        "api",
+        "ssrf"
+      ],
+      "description": "用于识别API / SSRF中的携凭证访问外域风险，并给出可审计的处置动作。",
+      "category": "api_ssrf",
+      "attack_surface": "API / SSRF",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发API / SSRF规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "携凭证访问外域 命中样本",
+          "tool": "http_request",
+          "params": "url=authorization=http",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-RAG-001",
+      "name": "文档内嵌忽略指令",
+      "tool": "rag_search|retrieve|*",
+      "params_pattern": "RAGDOC_IGNORE_DIRECTIVE|ignore previous|忽略系统|以上规则无效",
+      "threat_keywords": [
+        "RAGDOC_IGNORE_DIRECTIVE",
+        "ignore previous",
+        "忽略系统"
+      ],
+      "action": "block",
+      "severity": 88,
+      "message": "命中RAG 污染规则：文档内嵌忽略指令",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 88,
+      "tags": [
+        "rag",
+        "prompt"
+      ],
+      "description": "用于识别RAG 污染中的文档内嵌忽略指令风险，并给出可审计的处置动作。",
+      "category": "rag_injection",
+      "attack_surface": "RAG 污染",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发RAG 污染规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "文档内嵌忽略指令 命中样本",
+          "tool": "rag_search",
+          "params": "input=RAGDOC_IGNORE_DIRECTIVE",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-RAG-002",
+      "name": "检索内容要求泄露系统提示",
+      "tool": "rag_search|retrieve|*",
+      "params_pattern": "RAGDOC_SHOW_HIDDEN|reveal system prompt|输出系统提示|show hidden",
+      "threat_keywords": [
+        "RAGDOC_SHOW_HIDDEN",
+        "reveal system prompt",
+        "输出系统提示"
+      ],
+      "action": "block",
+      "severity": 90,
+      "message": "命中RAG 污染规则：检索内容要求泄露系统提示",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 90,
+      "tags": [
+        "rag",
+        "prompt"
+      ],
+      "description": "用于识别RAG 污染中的检索内容要求泄露系统提示风险，并给出可审计的处置动作。",
+      "category": "rag_injection",
+      "attack_surface": "RAG 污染",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发RAG 污染规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "检索内容要求泄露系统提示 命中样本",
+          "tool": "rag_search",
+          "params": "input=RAGDOC_SHOW_HIDDEN",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-RAG-003",
+      "name": "文档要求调用工具",
+      "tool": "rag_search|retrieve|*",
+      "params_pattern": "call tool|调用 read_file|发送邮件",
+      "threat_keywords": [
+        "call tool",
+        "调用 read_file",
+        "发送邮件"
+      ],
+      "action": "block",
+      "severity": 84,
+      "message": "命中RAG 污染规则：文档要求调用工具",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 84,
+      "tags": [
+        "rag",
+        "prompt"
+      ],
+      "description": "用于识别RAG 污染中的文档要求调用工具风险，并给出可审计的处置动作。",
+      "category": "rag_injection",
+      "attack_surface": "RAG 污染",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发RAG 污染规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "文档要求调用工具 命中样本",
+          "tool": "rag_search",
+          "params": "input=call tool",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-RAG-004",
+      "name": "外部链接诱导",
+      "tool": "rag_search|retrieve|*",
+      "params_pattern": "open this link|点击链接|访问外部",
+      "threat_keywords": [
+        "open this link",
+        "点击链接",
+        "访问外部"
+      ],
+      "action": "confirm",
+      "severity": 78,
+      "message": "命中RAG 污染规则：外部链接诱导",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 78,
+      "tags": [
+        "rag",
+        "prompt"
+      ],
+      "description": "用于识别RAG 污染中的外部链接诱导风险，并给出可审计的处置动作。",
+      "category": "rag_injection",
+      "attack_surface": "RAG 污染",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对RAG 污染风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "外部链接诱导 命中样本",
+          "tool": "rag_search",
+          "params": "input=open this link",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-RAG-005",
+      "name": "伪造权威来源",
+      "tool": "rag_search|retrieve|*",
+      "params_pattern": "official policy says|官方要求|安全团队要求",
+      "threat_keywords": [
+        "official policy says",
+        "官方要求",
+        "安全团队要求"
+      ],
+      "action": "confirm",
+      "severity": 76,
+      "message": "命中RAG 污染规则：伪造权威来源",
+      "enabled": true,
+      "scope": "model_input",
+      "priority": 76,
+      "tags": [
+        "rag",
+        "prompt"
+      ],
+      "description": "用于识别RAG 污染中的伪造权威来源风险，并给出可审计的处置动作。",
+      "category": "rag_injection",
+      "attack_surface": "RAG 污染",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对RAG 污染风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "伪造权威来源 命中样本",
+          "tool": "rag_search",
+          "params": "input=official policy says",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-MEM-001",
+      "name": "写入长期恶意偏好",
+      "tool": "memory_write|conversation|*",
+      "params_pattern": "remember.*ignore|记住.*不要拦截|以后都放行",
+      "threat_keywords": [
+        "remember ignore",
+        "以后都放行",
+        "不要拦截"
+      ],
+      "action": "block",
+      "severity": 90,
+      "message": "命中记忆污染规则：写入长期恶意偏好",
+      "enabled": true,
+      "scope": "memory",
+      "priority": 90,
+      "tags": [
+        "memory",
+        "agent"
+      ],
+      "description": "用于识别记忆污染中的写入长期恶意偏好风险，并给出可审计的处置动作。",
+      "category": "memory_poisoning",
+      "attack_surface": "记忆污染",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发记忆污染规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "写入长期恶意偏好 命中样本",
+          "tool": "memory_write",
+          "params": "input=remember ignore",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-MEM-002",
+      "name": "修改用户身份设定",
+      "tool": "memory_write|conversation|*",
+      "params_pattern": "remember I am admin|我是管理员|永久授权",
+      "threat_keywords": [
+        "remember I am admin",
+        "我是管理员",
+        "永久授权"
+      ],
+      "action": "block",
+      "severity": 86,
+      "message": "命中记忆污染规则：修改用户身份设定",
+      "enabled": true,
+      "scope": "memory",
+      "priority": 86,
+      "tags": [
+        "memory",
+        "agent"
+      ],
+      "description": "用于识别记忆污染中的修改用户身份设定风险，并给出可审计的处置动作。",
+      "category": "memory_poisoning",
+      "attack_surface": "记忆污染",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发记忆污染规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "修改用户身份设定 命中样本",
+          "tool": "memory_write",
+          "params": "input=remember I am admin",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-MEM-003",
+      "name": "注入虚假安全例外",
+      "tool": "memory_write|conversation|*",
+      "params_pattern": "security exception|安全例外|白名单用户",
+      "threat_keywords": [
+        "security exception",
+        "安全例外",
+        "白名单用户"
+      ],
+      "action": "block",
+      "severity": 84,
+      "message": "命中记忆污染规则：注入虚假安全例外",
+      "enabled": true,
+      "scope": "memory",
+      "priority": 84,
+      "tags": [
+        "memory",
+        "agent"
+      ],
+      "description": "用于识别记忆污染中的注入虚假安全例外风险，并给出可审计的处置动作。",
+      "category": "memory_poisoning",
+      "attack_surface": "记忆污染",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发记忆污染规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "注入虚假安全例外 命中样本",
+          "tool": "memory_write",
+          "params": "input=security exception",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-MEM-004",
+      "name": "要求记住密钥",
+      "tool": "memory_write|conversation|*",
+      "params_pattern": "remember.*token|保存密钥|记住密码",
+      "threat_keywords": [
+        "remember token",
+        "保存密钥",
+        "记住密码"
+      ],
+      "action": "block",
+      "severity": 88,
+      "message": "命中记忆污染规则：要求记住密钥",
+      "enabled": true,
+      "scope": "memory",
+      "priority": 88,
+      "tags": [
+        "memory",
+        "agent"
+      ],
+      "description": "用于识别记忆污染中的要求记住密钥风险，并给出可审计的处置动作。",
+      "category": "memory_poisoning",
+      "attack_surface": "记忆污染",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发记忆污染规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "要求记住密钥 命中样本",
+          "tool": "memory_write",
+          "params": "input=remember token",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-MEM-005",
+      "name": "污染 Agent 角色边界",
+      "tool": "memory_write|conversation|*",
+      "params_pattern": "from now on you are admin|以后你是管理员",
+      "threat_keywords": [
+        "from now on you are admin",
+        "以后你是管理员"
+      ],
+      "action": "block",
+      "severity": 86,
+      "message": "命中记忆污染规则：污染 Agent 角色边界",
+      "enabled": true,
+      "scope": "memory",
+      "priority": 86,
+      "tags": [
+        "memory",
+        "agent"
+      ],
+      "description": "用于识别记忆污染中的污染 Agent 角色边界风险，并给出可审计的处置动作。",
+      "category": "memory_poisoning",
+      "attack_surface": "记忆污染",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发记忆污染规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "污染 Agent 角色边界 命中样本",
+          "tool": "memory_write",
+          "params": "input=from now on you are admin",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-ENV-001",
+      "name": "伪造环境变量",
+      "tool": "*",
+      "params_pattern": "ISHIELD_ALLOW_ALL|DISABLE_GUARD|SAFE_MODE=false",
+      "threat_keywords": [
+        "ISHIELD_ALLOW_ALL",
+        "DISABLE_GUARD",
+        "SAFE_MODE=false"
+      ],
+      "action": "confirm",
+      "severity": 88,
+      "message": "命中环境感知污染规则：伪造环境变量",
+      "enabled": true,
+      "scope": "runtime_context",
+      "priority": 88,
+      "tags": [
+        "context",
+        "environment"
+      ],
+      "description": "用于识别环境感知污染中的伪造环境变量风险，并给出可审计的处置动作。",
+      "category": "environment_pollution",
+      "attack_surface": "环境感知污染",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对环境感知污染风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "伪造环境变量 命中样本",
+          "tool": "*",
+          "params": "input=ISHIELD_ALLOW_ALL",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-ENV-002",
+      "name": "污染工作目录",
+      "tool": "*",
+      "params_pattern": "change cwd|切换目录到|workspace override",
+      "threat_keywords": [
+        "change cwd",
+        "切换目录",
+        "workspace override"
+      ],
+      "action": "confirm",
+      "severity": 78,
+      "message": "命中环境感知污染规则：污染工作目录",
+      "enabled": true,
+      "scope": "runtime_context",
+      "priority": 78,
+      "tags": [
+        "context",
+        "environment"
+      ],
+      "description": "用于识别环境感知污染中的污染工作目录风险，并给出可审计的处置动作。",
+      "category": "environment_pollution",
+      "attack_surface": "环境感知污染",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对环境感知污染风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "污染工作目录 命中样本",
+          "tool": "*",
+          "params": "input=change cwd",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-ENV-003",
+      "name": "伪造系统时间",
+      "tool": "*",
+      "params_pattern": "set date|修改时间|time travel",
+      "threat_keywords": [
+        "set date",
+        "修改时间",
+        "time travel"
+      ],
+      "action": "confirm",
+      "severity": 72,
+      "message": "命中环境感知污染规则：伪造系统时间",
+      "enabled": true,
+      "scope": "runtime_context",
+      "priority": 72,
+      "tags": [
+        "context",
+        "environment"
+      ],
+      "description": "用于识别环境感知污染中的伪造系统时间风险，并给出可审计的处置动作。",
+      "category": "environment_pollution",
+      "attack_surface": "环境感知污染",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对环境感知污染风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "伪造系统时间 命中样本",
+          "tool": "*",
+          "params": "input=set date",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-ENV-004",
+      "name": "污染上下文来源",
+      "tool": "*",
+      "params_pattern": "source is trusted|来源可信|internal user",
+      "threat_keywords": [
+        "source is trusted",
+        "来源可信",
+        "internal user"
+      ],
+      "action": "confirm",
+      "severity": 80,
+      "message": "命中环境感知污染规则：污染上下文来源",
+      "enabled": true,
+      "scope": "runtime_context",
+      "priority": 80,
+      "tags": [
+        "context",
+        "environment"
+      ],
+      "description": "用于识别环境感知污染中的污染上下文来源风险，并给出可审计的处置动作。",
+      "category": "environment_pollution",
+      "attack_surface": "环境感知污染",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对环境感知污染风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "污染上下文来源 命中样本",
+          "tool": "*",
+          "params": "input=source is trusted",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-AGENT-001",
+      "name": "低权限委托高权限工具",
+      "tool": "agent_delegate|agent_message|*",
+      "params_pattern": "delegate.*admin|让管理员Agent|高权限Agent",
+      "threat_keywords": [
+        "delegate admin",
+        "管理员Agent",
+        "高权限Agent"
+      ],
+      "action": "block",
+      "severity": 90,
+      "message": "命中跨 Agent 委托越权规则：低权限委托高权限工具",
+      "enabled": true,
+      "scope": "agent_cluster",
+      "priority": 90,
+      "tags": [
+        "agent",
+        "delegation"
+      ],
+      "description": "用于识别跨 Agent 委托越权中的低权限委托高权限工具风险，并给出可审计的处置动作。",
+      "category": "agent_delegation",
+      "attack_surface": "跨 Agent 委托越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发跨 Agent 委托越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "低权限委托高权限工具 命中样本",
+          "tool": "agent_delegate",
+          "params": "input=delegate admin",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-AGENT-002",
+      "name": "伪造 Agent 角色",
+      "tool": "agent_delegate|agent_message|*",
+      "params_pattern": "agent_role=admin|我是Admin Agent|role override",
+      "threat_keywords": [
+        "agent_role=admin",
+        "Admin Agent",
+        "role override"
+      ],
+      "action": "block",
+      "severity": 88,
+      "message": "命中跨 Agent 委托越权规则：伪造 Agent 角色",
+      "enabled": true,
+      "scope": "agent_cluster",
+      "priority": 88,
+      "tags": [
+        "agent",
+        "delegation"
+      ],
+      "description": "用于识别跨 Agent 委托越权中的伪造 Agent 角色风险，并给出可审计的处置动作。",
+      "category": "agent_delegation",
+      "attack_surface": "跨 Agent 委托越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发跨 Agent 委托越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "伪造 Agent 角色 命中样本",
+          "tool": "agent_delegate",
+          "params": "input=agent_role=admin",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-AGENT-003",
+      "name": "跨 Agent 上下文污染",
+      "tool": "agent_delegate|agent_message|*",
+      "params_pattern": "forward this instruction|转发给.*Agent|共享隐藏指令",
+      "threat_keywords": [
+        "forward this instruction",
+        "转发给Agent",
+        "共享隐藏指令"
+      ],
+      "action": "block",
+      "severity": 84,
+      "message": "命中跨 Agent 委托越权规则：跨 Agent 上下文污染",
+      "enabled": true,
+      "scope": "agent_cluster",
+      "priority": 84,
+      "tags": [
+        "agent",
+        "delegation"
+      ],
+      "description": "用于识别跨 Agent 委托越权中的跨 Agent 上下文污染风险，并给出可审计的处置动作。",
+      "category": "agent_delegation",
+      "attack_surface": "跨 Agent 委托越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发跨 Agent 委托越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "跨 Agent 上下文污染 命中样本",
+          "tool": "agent_delegate",
+          "params": "input=forward this instruction",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-AGENT-004",
+      "name": "多 Agent 工具链放大",
+      "tool": "agent_delegate|agent_message|*",
+      "params_pattern": "planner.*tool.*mail|researcher.*admin|多工具组合",
+      "threat_keywords": [
+        "planner tool mail",
+        "researcher admin",
+        "多工具组合"
+      ],
+      "action": "block",
+      "severity": 86,
+      "message": "命中跨 Agent 委托越权规则：多 Agent 工具链放大",
+      "enabled": true,
+      "scope": "agent_cluster",
+      "priority": 86,
+      "tags": [
+        "agent",
+        "delegation"
+      ],
+      "description": "用于识别跨 Agent 委托越权中的多 Agent 工具链放大风险，并给出可审计的处置动作。",
+      "category": "agent_delegation",
+      "attack_surface": "跨 Agent 委托越权",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发跨 Agent 委托越权规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "多 Agent 工具链放大 命中样本",
+          "tool": "agent_delegate",
+          "params": "input=planner tool mail",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-CODE-001",
+      "name": "执行 shell 命令",
+      "tool": "run_code|execute_code|shell",
+      "params_pattern": "subprocess|os\\.system|powershell|cmd.exe|bash",
+      "threat_keywords": [
+        "subprocess",
+        "os.system",
+        "powershell"
+      ],
+      "action": "block",
+      "severity": 94,
+      "message": "命中代码执行风险规则：执行 shell 命令",
+      "enabled": true,
+      "scope": "code_execution",
+      "priority": 94,
+      "tags": [
+        "code",
+        "sandbox"
+      ],
+      "description": "用于识别代码执行风险中的执行 shell 命令风险，并给出可审计的处置动作。",
+      "category": "code_execution",
+      "attack_surface": "代码执行风险",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发代码执行风险规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "执行 shell 命令 命中样本",
+          "tool": "run_code",
+          "params": "code=subprocess",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-CODE-002",
+      "name": "下载并执行远程脚本",
+      "tool": "run_code|execute_code|shell",
+      "params_pattern": "curl .*\\|.*sh|wget .*\\|.*bash|iex\\(",
+      "threat_keywords": [
+        "curl | sh",
+        "wget | bash",
+        "iex("
+      ],
+      "action": "block",
+      "severity": 96,
+      "message": "命中代码执行风险规则：下载并执行远程脚本",
+      "enabled": true,
+      "scope": "code_execution",
+      "priority": 96,
+      "tags": [
+        "code",
+        "sandbox"
+      ],
+      "description": "用于识别代码执行风险中的下载并执行远程脚本风险，并给出可审计的处置动作。",
+      "category": "code_execution",
+      "attack_surface": "代码执行风险",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发代码执行风险规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "下载并执行远程脚本 命中样本",
+          "tool": "run_code",
+          "params": "code=curl | sh",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-CODE-003",
+      "name": "删除敏感文件",
+      "tool": "run_code|execute_code|shell",
+      "params_pattern": "rm -rf|del /s|Remove-Item.*Recurse",
+      "threat_keywords": [
+        "rm -rf",
+        "Remove-Item",
+        "del /s"
+      ],
+      "action": "block",
+      "severity": 95,
+      "message": "命中代码执行风险规则：删除敏感文件",
+      "enabled": true,
+      "scope": "code_execution",
+      "priority": 95,
+      "tags": [
+        "code",
+        "sandbox"
+      ],
+      "description": "用于识别代码执行风险中的删除敏感文件风险，并给出可审计的处置动作。",
+      "category": "code_execution",
+      "attack_surface": "代码执行风险",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发代码执行风险规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "删除敏感文件 命中样本",
+          "tool": "run_code",
+          "params": "code=rm -rf",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-CODE-004",
+      "name": "反弹连接",
+      "tool": "run_code|execute_code|shell",
+      "params_pattern": "reverse shell|nc .* -e|bash -i",
+      "threat_keywords": [
+        "reverse shell",
+        "nc -e",
+        "bash -i"
+      ],
+      "action": "block",
+      "severity": 97,
+      "message": "命中代码执行风险规则：反弹连接",
+      "enabled": true,
+      "scope": "code_execution",
+      "priority": 97,
+      "tags": [
+        "code",
+        "sandbox"
+      ],
+      "description": "用于识别代码执行风险中的反弹连接风险，并给出可审计的处置动作。",
+      "category": "code_execution",
+      "attack_surface": "代码执行风险",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发代码执行风险规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "反弹连接 命中样本",
+          "tool": "run_code",
+          "params": "code=reverse shell",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-CODE-005",
+      "name": "写入计划任务",
+      "tool": "run_code|execute_code|shell",
+      "params_pattern": "crontab|schtasks|startup folder",
+      "threat_keywords": [
+        "crontab",
+        "schtasks",
+        "startup folder"
+      ],
+      "action": "block",
+      "severity": 88,
+      "message": "命中代码执行风险规则：写入计划任务",
+      "enabled": true,
+      "scope": "code_execution",
+      "priority": 88,
+      "tags": [
+        "code",
+        "sandbox"
+      ],
+      "description": "用于识别代码执行风险中的写入计划任务风险，并给出可审计的处置动作。",
+      "category": "code_execution",
+      "attack_surface": "代码执行风险",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发代码执行风险规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "写入计划任务 命中样本",
+          "tool": "run_code",
+          "params": "code=crontab",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-CODE-006",
+      "name": "混淆脚本执行",
+      "tool": "run_code|execute_code|shell",
+      "params_pattern": "base64 -d|frombase64string|eval\\(",
+      "threat_keywords": [
+        "base64 -d",
+        "frombase64string",
+        "eval("
+      ],
+      "action": "block",
+      "severity": 86,
+      "message": "命中代码执行风险规则：混淆脚本执行",
+      "enabled": true,
+      "scope": "code_execution",
+      "priority": 86,
+      "tags": [
+        "code",
+        "sandbox"
+      ],
+      "description": "用于识别代码执行风险中的混淆脚本执行风险，并给出可审计的处置动作。",
+      "category": "code_execution",
+      "attack_surface": "代码执行风险",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发代码执行风险规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "混淆脚本执行 命中样本",
+          "tool": "run_code",
+          "params": "code=base64 -d",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-DB-001",
+      "name": "危险表操作",
+      "tool": "query_db",
+      "params_pattern": "drop|delete|truncate|alter",
+      "threat_keywords": [
+        "drop table",
+        "delete from",
+        "truncate"
+      ],
+      "action": "block",
+      "severity": 92,
+      "message": "命中数据库滥用规则：危险表操作",
+      "enabled": true,
+      "scope": "data_query",
+      "priority": 92,
+      "tags": [
+        "sql",
+        "database"
+      ],
+      "description": "用于识别数据库滥用中的危险表操作风险，并给出可审计的处置动作。",
+      "category": "database_abuse",
+      "attack_surface": "数据库滥用",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发数据库滥用规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "危险表操作 命中样本",
+          "tool": "query_db",
+          "params": "query=drop table",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-DB-002",
+      "name": "SQL 注入模式",
+      "tool": "query_db",
+      "params_pattern": "union select|or 1=1|--|;.*drop",
+      "threat_keywords": [
+        "union select",
+        "or 1=1",
+        "'; --"
+      ],
+      "action": "block",
+      "severity": 95,
+      "message": "命中数据库滥用规则：SQL 注入模式",
+      "enabled": true,
+      "scope": "data_query",
+      "priority": 95,
+      "tags": [
+        "sql",
+        "database"
+      ],
+      "description": "用于识别数据库滥用中的SQL 注入模式风险，并给出可审计的处置动作。",
+      "category": "database_abuse",
+      "attack_surface": "数据库滥用",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发数据库滥用规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "SQL 注入模式 命中样本",
+          "tool": "query_db",
+          "params": "query=union select",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-DB-003",
+      "name": "密码字段查询",
+      "tool": "query_db",
+      "params_pattern": "password|passwd|pwd|secret|api_key|token",
+      "threat_keywords": [
+        "password",
+        "passwd",
+        "api_key"
+      ],
+      "action": "confirm",
+      "severity": 70,
+      "message": "命中数据库滥用规则：密码字段查询",
+      "enabled": true,
+      "scope": "data_query",
+      "priority": 70,
+      "tags": [
+        "sql",
+        "database"
+      ],
+      "description": "用于识别数据库滥用中的密码字段查询风险，并给出可审计的处置动作。",
+      "category": "database_abuse",
+      "attack_surface": "数据库滥用",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对数据库滥用风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "密码字段查询 命中样本",
+          "tool": "query_db",
+          "params": "query=password",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-DB-004",
+      "name": "管理员账户查询",
       "tool": "query_db",
       "params_pattern": "admin|root|administrator",
       "threat_keywords": [
@@ -140,57 +2151,198 @@
         "administrator"
       ],
       "action": "confirm",
-      "severity": 70,
-      "message": "涉及管理员/root 账户操作，请确认是否放行",
-      "enabled": true
-    },
-    {
-      "id": "POL-010",
-      "name": "社会工程钓鱼确认",
-      "tool": "send_email",
-      "params_pattern": "恭喜|获奖|激活|账户异常|点击链接|紧急",
-      "threat_keywords": [
-        "恭喜",
-        "获奖",
-        "激活",
-        "紧急修复"
+      "severity": 72,
+      "message": "命中数据库滥用规则：管理员账户查询",
+      "enabled": true,
+      "scope": "data_query",
+      "priority": 72,
+      "tags": [
+        "sql",
+        "database"
       ],
-      "action": "confirm",
-      "severity": 65,
-      "message": "疑似社会工程钓鱼内容，请确认是否放行",
-      "enabled": true
+      "description": "用于识别数据库滥用中的管理员账户查询风险，并给出可审计的处置动作。",
+      "category": "database_abuse",
+      "attack_surface": "数据库滥用",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对数据库滥用风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "管理员账户查询 命中样本",
+          "tool": "query_db",
+          "params": "query=admin",
+          "expected_action": "confirm"
+        }
+      ]
     },
     {
-      "id": "POL-011",
-      "name": "XSS注入拦截",
-      "tool": "write_file|post_social",
-      "params_pattern": "<script|javascript:|onerror=|onclick=",
+      "id": "POL-DB-005",
+      "name": "批量导出用户",
+      "tool": "query_db",
+      "params_pattern": "select \\* from users|export users|dump",
       "threat_keywords": [
-        "<script",
-        "javascript:",
-        "onerror=",
-        "onclick="
+        "select * from users",
+        "export users",
+        "dump"
       ],
       "action": "block",
-      "severity": 90,
-      "message": "检测到 XSS 注入模式，拦截写入",
-      "enabled": true
+      "severity": 86,
+      "message": "命中数据库滥用规则：批量导出用户",
+      "enabled": true,
+      "scope": "data_query",
+      "priority": 86,
+      "tags": [
+        "sql",
+        "database"
+      ],
+      "description": "用于识别数据库滥用中的批量导出用户风险，并给出可审计的处置动作。",
+      "category": "database_abuse",
+      "attack_surface": "数据库滥用",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发数据库滥用规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "批量导出用户 命中样本",
+          "tool": "query_db",
+          "params": "query=select * from users",
+          "expected_action": "block"
+        }
+      ]
     },
     {
-      "id": "POL-012",
-      "name": "内部接口越权访问",
-      "tool": "http_request",
-      "params_pattern": "/admin|/internal|/debug|/env|/config",
+      "id": "POL-SOC-001",
+      "name": "钓鱼邮件拦截",
+      "tool": "send_email|post_social",
+      "params_pattern": "evil|steal|hack|钓鱼|fake|phish",
       "threat_keywords": [
-        "/admin",
-        "/internal",
-        "/debug",
-        "/env"
+        "evil",
+        "steal",
+        "钓鱼"
+      ],
+      "action": "block",
+      "severity": 92,
+      "message": "命中社会工程规则：钓鱼邮件拦截",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 92,
+      "tags": [
+        "email",
+        "compliance"
+      ],
+      "description": "用于识别社会工程中的钓鱼邮件拦截风险，并给出可审计的处置动作。",
+      "category": "social_engineering",
+      "attack_surface": "社会工程",
+      "recommended_response": "保持阻断并写入事件中心，将样本加入回归集；同步检查同源主体是否继续触发社会工程规则。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "钓鱼邮件拦截 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=evil",
+          "expected_action": "block"
+        }
+      ]
+    },
+    {
+      "id": "POL-SOC-002",
+      "name": "账户异常诱导",
+      "tool": "send_email|post_social",
+      "params_pattern": "账户异常|立即验证|点击链接|紧急",
+      "threat_keywords": [
+        "账户异常",
+        "立即验证",
+        "点击链接"
       ],
       "action": "confirm",
-      "severity": 80,
-      "message": "尝试访问内部管理接口，请确认是否放行",
-      "enabled": true
+      "severity": 70,
+      "message": "命中社会工程规则：账户异常诱导",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 70,
+      "tags": [
+        "email",
+        "compliance"
+      ],
+      "description": "用于识别社会工程中的账户异常诱导风险，并给出可审计的处置动作。",
+      "category": "social_engineering",
+      "attack_surface": "社会工程",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对社会工程风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "账户异常诱导 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=账户异常",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-SOC-003",
+      "name": "中奖诈骗诱导",
+      "tool": "send_email|post_social",
+      "params_pattern": "恭喜|中奖|领取奖励|gift card",
+      "threat_keywords": [
+        "恭喜",
+        "中奖",
+        "gift card"
+      ],
+      "action": "confirm",
+      "severity": 68,
+      "message": "命中社会工程规则：中奖诈骗诱导",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 68,
+      "tags": [
+        "email",
+        "compliance"
+      ],
+      "description": "用于识别社会工程中的中奖诈骗诱导风险，并给出可审计的处置动作。",
+      "category": "social_engineering",
+      "attack_surface": "社会工程",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对社会工程风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "中奖诈骗诱导 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=恭喜",
+          "expected_action": "confirm"
+        }
+      ]
+    },
+    {
+      "id": "POL-SOC-004",
+      "name": "合规敏感信息外发",
+      "tool": "send_email|post_social",
+      "params_pattern": "身份证|银行卡|手机号|住址",
+      "threat_keywords": [
+        "银行卡",
+        "身份证",
+        "手机号"
+      ],
+      "action": "confirm",
+      "severity": 82,
+      "message": "命中社会工程规则：合规敏感信息外发",
+      "enabled": true,
+      "scope": "external_egress",
+      "priority": 82,
+      "tags": [
+        "email",
+        "compliance"
+      ],
+      "description": "用于识别社会工程中的合规敏感信息外发风险，并给出可审计的处置动作。",
+      "category": "social_engineering",
+      "attack_surface": "社会工程",
+      "recommended_response": "进入确认队列，要求补充业务目的、审批人和执行后审计；重点核对社会工程风险。",
+      "false_positive_note": "如确属业务必要，应改走最小权限、人工确认和执行后复盘流程。",
+      "test_cases": [
+        {
+          "name": "合规敏感信息外发 命中样本",
+          "tool": "send_email",
+          "params": "to=user@example.com&content=银行卡",
+          "expected_action": "confirm"
+        }
+      ]
     }
   ]
 }

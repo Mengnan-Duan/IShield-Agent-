@@ -36,6 +36,11 @@ class PolicyRule:
     priority: int = 50
     tags: List[str] = field(default_factory=list)
     description: str = ""
+    category: str = "runtime"
+    attack_surface: str = "运行时工具调用"
+    recommended_response: str = ""
+    false_positive_note: str = ""
+    test_cases: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -55,6 +60,9 @@ class PolicyResult:
     conditions: List[Dict[str, Any]] = field(default_factory=list)
     matched_rules: List[Dict[str, Any]] = field(default_factory=list)
     policy_trace: List[Dict[str, Any]] = field(default_factory=list)
+    category: str = "runtime"
+    attack_surface: str = "运行时工具调用"
+    false_positive_note: str = ""
     explanation: str = "未命中拦截策略。"
     recommendation: str = "允许执行并保留审计记录。"
 
@@ -91,6 +99,11 @@ class PolicyEngine:
                     priority=int(raw.get("priority", raw.get("severity", 50))),
                     tags=raw.get("tags", _infer_tags(raw.get("tool", ""), raw.get("params_pattern", ""), raw.get("threat_keywords", []))),
                     description=raw.get("description", ""),
+                    category=raw.get("category", _infer_category(raw.get("tool", ""), raw.get("params_pattern", ""), raw.get("threat_keywords", []))),
+                    attack_surface=raw.get("attack_surface", _attack_surface_label(raw.get("category", ""))),
+                    recommended_response=raw.get("recommended_response", raw.get("recommendation", "")),
+                    false_positive_note=raw.get("false_positive_note", ""),
+                    test_cases=raw.get("test_cases", []),
                 )
                 self._rules.append(rule)
             except (KeyError, ValueError):
@@ -214,7 +227,7 @@ class PolicyEngine:
         matched_rules: List[Dict[str, Any]] = []
 
         for rule in rules:
-            tool_matched = fnmatch.fnmatch(tool.lower(), rule.tool.lower())
+            tool_matched = _tool_matches(tool, rule.tool)
             trace_item = {
                 "rule_id": rule.id,
                 "rule_name": rule.name,
@@ -276,14 +289,19 @@ class PolicyEngine:
                 conditions=top["conditions"],
                 matched_rules=matched_rules,
                 policy_trace=trace,
+                category=top.get("category", "runtime"),
+                attack_surface=top.get("attack_surface", "运行时工具调用"),
+                false_positive_note=top.get("false_positive_note", ""),
                 explanation=_explain_match(top),
-                recommendation=_recommendation(top["action"], top["scope"]),
+                recommendation=top.get("recommendation") or _recommendation(top["action"], top["scope"]),
             )
 
         return PolicyResult(
             action=Action.ALLOW,
             matched_rules=[],
             policy_trace=trace,
+            category="runtime",
+            attack_surface="运行时工具调用",
             explanation="工具和参数未命中启用的阻断或确认策略。",
             recommendation="允许执行，同时保留工具、参数和调用来源审计记录。",
         )
@@ -322,10 +340,12 @@ class PolicyEngine:
     def summary(self) -> Dict[str, Any]:
         action_counts: Dict[str, int] = {}
         scope_counts: Dict[str, int] = {}
+        category_counts: Dict[str, int] = {}
         enabled_count = 0
         for rule in self._rules:
             action_counts[rule.action.value] = action_counts.get(rule.action.value, 0) + 1
             scope_counts[rule.scope] = scope_counts.get(rule.scope, 0) + 1
+            category_counts[rule.category] = category_counts.get(rule.category, 0) + 1
             enabled_count += 1 if rule.enabled else 0
         return {
             "total": len(self._rules),
@@ -333,6 +353,7 @@ class PolicyEngine:
             "disabled": len(self._rules) - enabled_count,
             "action_distribution": action_counts,
             "scope_distribution": scope_counts,
+            "category_distribution": category_counts,
             "highest_priority": max((r.priority for r in self._rules), default=0),
             "policy_file": str(self.policy_file),
         }
@@ -364,6 +385,9 @@ def serialize_policy_result(result: PolicyResult) -> Dict[str, Any]:
         "conditions": result.conditions,
         "matched_rules": result.matched_rules,
         "policy_trace": result.policy_trace,
+        "category": result.category,
+        "attack_surface": result.attack_surface,
+        "false_positive_note": result.false_positive_note,
         "explanation": result.explanation,
         "recommendation": result.recommendation,
     }
@@ -400,9 +424,12 @@ def _match_payload(rule: PolicyRule, matched_pattern: str, keyword_hits: List[st
         "matched_keywords": keyword_hits,
         "matched_pattern": matched_pattern,
         "match_type": match_type,
+        "category": rule.category,
+        "attack_surface": rule.attack_surface,
         "conditions": _rule_conditions(rule),
         "effect": _action_effect(rule.action.value),
-        "recommendation": _recommendation(rule.action.value, rule.scope),
+        "recommendation": rule.recommended_response or _recommendation(rule.action.value, rule.scope),
+        "false_positive_note": rule.false_positive_note,
     }
 
 
@@ -418,6 +445,12 @@ def _rule_conditions(rule: PolicyRule) -> List[Dict[str, Any]]:
     if rule.threat_keywords:
         conditions.append({"field": "params", "operator": "contains_any", "value": rule.threat_keywords})
     return conditions
+
+
+def _tool_matches(tool: str, pattern: str) -> bool:
+    tool = str(tool or "").lower()
+    patterns = [p.strip().lower() for p in str(pattern or "*").split("|") if p.strip()]
+    return any(fnmatch.fnmatch(tool, p) for p in (patterns or ["*"]))
 
 
 def _action_effect(action: str) -> str:
@@ -473,3 +506,40 @@ def _infer_tags(tool: str, params_pattern: str, keywords: List[str]) -> List[str
         if any(term in text for term in terms):
             tags.append(tag)
     return tags or ["runtime"]
+
+
+def _infer_category(tool: str, params_pattern: str, keywords: List[str]) -> str:
+    text = f"{tool} {params_pattern} {' '.join(keywords or [])}".lower()
+    if any(term in text for term in ["ignore previous", "system prompt", "developer message", "prompt"]):
+        return "prompt_injection"
+    if any(term in text for term in ["dan", "jailbreak", "unrestricted", "越狱"]):
+        return "jailbreak"
+    if any(term in text for term in ["read_file", "write_file", "../", "passwd", ".env"]):
+        return "file_access"
+    if any(term in text for term in ["http_request", "metadata", "localhost", "169.254"]):
+        return "api_ssrf"
+    if any(term in text for term in ["send_email", "post_social", "api_key", "token", "cookie"]):
+        return "data_exfiltration"
+    if any(term in text for term in ["query_db", "select", "drop", "union"]):
+        return "database_abuse"
+    return "runtime"
+
+
+def _attack_surface_label(category: str) -> str:
+    return {
+        "prompt_injection": "提示注入",
+        "jailbreak": "模型越狱",
+        "tool_hijacking": "工具调用劫持",
+        "file_access": "文件访问越权",
+        "data_exfiltration": "数据泄露外发",
+        "api_ssrf": "API / SSRF",
+        "rag_injection": "RAG 污染",
+        "memory_poisoning": "记忆污染",
+        "environment_pollution": "环境感知污染",
+        "agent_delegation": "跨 Agent 委托越权",
+        "code_execution": "代码执行风险",
+        "database_abuse": "数据库滥用",
+        "social_engineering": "社会工程",
+        "compliance": "合规审计",
+        "runtime": "运行时工具调用",
+    }.get(str(category or "").lower(), "运行时工具调用")

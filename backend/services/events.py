@@ -9,6 +9,7 @@ _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)
 
 from runtime_paths import runtime_path
 from utils.cache import detect_cache, invalidate_events_cache, get_cached_events, set_cached_events
+from services.evidence import build_evidence_packet
 
 DB_PATH = runtime_path("ishield.db")
 _db_lock = Lock()
@@ -340,6 +341,114 @@ def get_chain_events(chain_id: str) -> List[dict]:
     return chain_events
 
 
+def get_rule_hit_events(rule_id: str, limit: int = 20) -> List[dict]:
+    """Return recent events that directly hit a policy rule."""
+    rule_id = str(rule_id or "").strip()
+    if not rule_id:
+        return []
+
+    with _db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT id, time, type, detail, status, text_hash, threat_level, confidence,
+                   source_ip, action, tool_name, target, rule_id, category, metadata_json,
+                   chain_id, stage
+            FROM events
+            WHERE rule_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (rule_id, max(1, min(int(limit or 20), 200))),
+        )
+        rows = c.fetchall()
+        conn.close()
+
+    return [_row_to_event(row) for row in rows]
+
+
+def get_rule_hit_summary(limit: int = 2000, per_rule_limit: int = 5) -> List[dict]:
+    """Aggregate recent event hits by policy rule."""
+    with _db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT id, time, type, detail, status, text_hash, threat_level, confidence,
+                   source_ip, action, tool_name, target, rule_id, category, metadata_json,
+                   chain_id, stage
+            FROM events
+            WHERE rule_id IS NOT NULL AND rule_id != '' AND rule_id != '-'
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (max(1, min(int(limit or 2000), 10000)),),
+        )
+        rows = c.fetchall()
+        conn.close()
+
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        event = _row_to_event(row)
+        rid = str(event.get("rule_id") or "").strip()
+        if not rid:
+            continue
+        item = grouped.setdefault(rid, {
+            "rule_id": rid,
+            "hit_count": 0,
+            "blocked_count": 0,
+            "confirm_count": 0,
+            "allowed_count": 0,
+            "last_hit_at": event.get("time"),
+            "last_event_id": event.get("id"),
+            "chain_ids": [],
+            "recent_events": [],
+        })
+        item["hit_count"] += 1
+        code = event.get("status_code")
+        if code == "blocked":
+            item["blocked_count"] += 1
+        elif code == "confirm":
+            item["confirm_count"] += 1
+        elif code == "allowed":
+            item["allowed_count"] += 1
+        if not item.get("last_hit_at"):
+            item["last_hit_at"] = event.get("time")
+            item["last_event_id"] = event.get("id")
+        chain_id = event.get("chain_id")
+        if chain_id and chain_id not in item["chain_ids"]:
+            item["chain_ids"].append(chain_id)
+        if len(item["recent_events"]) < max(1, min(int(per_rule_limit or 5), 20)):
+            item["recent_events"].append({
+                "id": event.get("id"),
+                "time": event.get("time"),
+                "type": event.get("type"),
+                "detail": event.get("detail"),
+                "status_code": event.get("status_code"),
+                "status_label": event.get("status_label"),
+                "threat_level": event.get("threat_level"),
+                "confidence": event.get("confidence"),
+                "tool_name": event.get("tool_name"),
+                "action": event.get("action"),
+                "target": event.get("target"),
+                "chain_id": chain_id,
+                "stage": event.get("stage"),
+            })
+
+    summaries = list(grouped.values())
+    summaries.sort(
+        key=lambda item: (
+            str(item.get("last_hit_at") or ""),
+            int(item.get("hit_count") or 0),
+        ),
+        reverse=True,
+    )
+    return summaries
+
+
 def get_chain_summary(limit: int = 50) -> List[dict]:
     with _db_lock:
         conn = sqlite3.connect(DB_PATH)
@@ -372,6 +481,9 @@ def get_chain_summary(limit: int = 50) -> List[dict]:
     summaries = []
     for cid, events in list(grouped.items())[:limit]:
         ordered = sorted(events, key=lambda e: e.get("id") or 0)
+        evidence_packet = build_evidence_packet(ordered, cid)
+        verdict = evidence_packet.get("verdict", {})
+        actors = evidence_packet.get("actors", {})
         status_codes = {e.get("status_code") for e in ordered}
         if "blocked" in status_codes:
             status_code = "blocked"
@@ -389,18 +501,27 @@ def get_chain_summary(limit: int = 50) -> List[dict]:
             "chain_id": cid,
             "started_at": first.get("time"),
             "ended_at": last.get("time"),
+            "last_seen": last.get("time"),
             "event_count": len(ordered),
-            "max_confidence": max((e.get("confidence") or 0) for e in ordered),
-            "blocked": 1 if status_code == "blocked" else 0,
-            "requires_confirmation": 1 if status_code == "confirm" else 0,
-            "source_ip": last.get("source_ip") or first.get("source_ip"),
-            "action": last.get("action") or first.get("action"),
-            "tool_name": last.get("tool_name") or first.get("tool_name"),
-            "target": last.get("target") or first.get("target"),
-            "stages": [e.get("stage") or e.get("type") for e in ordered],
-            "status": status_label(status_code),
-            "status_code": status_code,
-            "disposition": status_code,
+            "max_confidence": verdict.get("risk_score", max((e.get("confidence") or 0) for e in ordered)),
+            "blocked": 1 if verdict.get("status_code", status_code) == "blocked" else 0,
+            "requires_confirmation": 1 if verdict.get("status_code", status_code) == "confirm" else 0,
+            "source_ip": actors.get("source_ip") or last.get("source_ip") or first.get("source_ip"),
+            "action": actors.get("tool") or last.get("action") or first.get("action"),
+            "tool_name": actors.get("tool") or last.get("tool_name") or first.get("tool_name"),
+            "target": actors.get("target") or last.get("target") or first.get("target"),
+            "stages": [item.get("stage_label") or item.get("stage") for item in evidence_packet.get("timeline", [])],
+            "status": verdict.get("status_label") or status_label(status_code),
+            "status_label": verdict.get("status_label") or status_label(status_code),
+            "status_code": verdict.get("status_code") or status_code,
+            "disposition": verdict.get("status_code") or status_code,
+            "runtime_conclusion": verdict.get("summary"),
+            "blocked_at": verdict.get("blocked_at"),
+            "blocked_at_label": verdict.get("blocked_at_label"),
+            "recommendation": verdict.get("recommendation"),
+            "remediation": evidence_packet.get("remediation"),
+            "evidence_count": (evidence_packet.get("stats") or {}).get("evidence_count", 0),
+            "evidence_packet": evidence_packet,
         })
     return summaries
 

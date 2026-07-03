@@ -21,12 +21,13 @@
       "created_at": "2026-06-01T00:00:00",
       "expires_at": null,
       "last_used_at": null,
-      "revoked": false,
-      "revoked_at": null,
+      "revoked": true,
+      "revoked_at": "2026-07-03T12:58:15.841979+08:00",
       "allowed_ips": [
         "*"
       ],
-      "request_count": 0
+      "request_count": 0,
+      "revoke_reason": "manual_revoke"
     },
     "demo-token": {
       "name": "demo-token",
@@ -100,6 +101,63 @@
         "*"
       ],
       "request_count": 0
+    },
+    "operator-agent-20260703": {
+      "name": "operator-agent-20260703",
+      "subject": "operator-agent-20260703",
+      "role": "operator",
+      "description": "最小权限运行凭证，用于检测、沙箱预审和红队验证。",
+      "created_at": "2026-07-03T12:58:23.430423+08:00",
+      "expires_at": "2026-08-02T12:58:23.430423+08:00",
+      "last_used_at": null,
+      "revoked": false,
+      "revoked_at": null,
+      "allowed_ips": [
+        "127.0.0.1",
+        "10.0.0.0/8"
+      ],
+      "request_count": 0,
+      "key_hash": "354573b25985b0a7fac6a382990a29bb0e54072462b26bc46c799d953cf10736",
+      "scopes": [
+        "tool:detect",
+        "tool:simulate",
+        "tool:conversation",
+        "tool:campaign",
+        "tool:redteam",
+        "tool:http_request",
+        "tool:send_email",
+        "tool:query_db",
+        "tool:post_social",
+        "tool:read_file"
+      ],
+      "allowed_tools": [
+        "detect",
+        "simulate",
+        "conversation",
+        "campaign",
+        "redteam",
+        "http_request",
+        "send_email",
+        "query_db",
+        "post_social",
+        "read_file"
+      ],
+      "constraints": {
+        "http_request": {
+          "domain_mode": "observe",
+          "allow_unknown_domains": false
+        },
+        "write_file": {
+          "sandbox_only": true
+        },
+        "query_db": {
+          "allow_write": false
+        }
+      },
+      "write_access": true,
+      "requires_approval": false,
+      "issue_source": "registry"
     }
-  }
+  },
+  "approvals": {}
 }

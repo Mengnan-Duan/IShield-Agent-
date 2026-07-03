@@ -91,6 +91,19 @@ def terminate_process(pid):
         return False
 
 
+def force_kill_process_tree(pid):
+    try:
+        result = subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(pid)],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def get_listening_pid(port):
     try:
         output = subprocess.check_output(
@@ -149,20 +162,35 @@ def stop_tracked_process(pid):
             remove_pid()
             return True
 
+    if force_kill_process_tree(pid):
+        print(f"[START] Force-killed old backend process tree PID {pid}.")
+        if wait_for_port_release(PORT, timeout=3):
+            remove_pid()
+            return True
+
+    listening_pid = get_listening_pid(PORT)
+    if listening_pid and listening_pid != os.getpid():
+        if force_kill_process_tree(listening_pid) or terminate_process(listening_pid):
+            print(f"[START] Terminated process PID {listening_pid} using port {PORT}.")
+            if wait_for_port_release(PORT, timeout=3):
+                remove_pid()
+                return True
+
     raise RuntimeError(f"Old backend PID {pid} did not release port {PORT}.")
 
 
 def stop_untracked_backend_process():
-    print("[START] Untracked backend detected. Stopping it first...")
+    print("[START] Process detected on backend port. Stopping it first...")
     request_graceful_stop()
     if wait_for_port_release(PORT, timeout=5):
         return True
 
     listening_pid = get_listening_pid(PORT)
-    if listening_pid and terminate_process(listening_pid):
-        print(f"[START] Terminated process PID {listening_pid} using port {PORT}.")
-        if wait_for_port_release(PORT, timeout=3):
-            return True
+    if listening_pid and listening_pid != os.getpid():
+        if force_kill_process_tree(listening_pid) or terminate_process(listening_pid):
+            print(f"[START] Terminated process PID {listening_pid} using port {PORT}.")
+            if wait_for_port_release(PORT, timeout=3):
+                return True
 
     raise RuntimeError(f"Port {PORT} is still occupied after stop attempt.")
 
@@ -179,9 +207,8 @@ def ensure_single_instance():
 
     if is_port_in_use(PORT):
         if is_backend_service_running():
-            if stop_untracked_backend_process():
-                return
-        raise RuntimeError(f"Port {PORT} is occupied by another process. Close it first.")
+            print("[START] Existing backend service responded on status endpoint.")
+        stop_untracked_backend_process()
 
 
 def cleanup_pid():
@@ -259,7 +286,7 @@ if __name__ == "__main__":
 
     print("=" * 60)
     print("  IShield Agent Security Platform")
-    print("  Backend v4.5.0 - Agent Cluster Guard")
+    print("  Backend - Policy Hit Linkage")
     print("=" * 60)
     print(f"  Console:   {FRONTEND_URL}")
     print(f"  Dashboard: http://{LOCAL_HOST}:{PORT}/dashboard")

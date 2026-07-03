@@ -8,6 +8,14 @@ RATE_LIMITS = {
     "/api/redteam":   (10, 60),
     "/api/export":    (5, 60),
     "/api/batch":    (20, 60),
+    "/api/detect":    (1200, 60),
+    "/api/simulate":  (1200, 60),
+    "/api/conversation/evaluate": (1200, 60),
+    "/api/policies/evaluate":     (1200, 60),
+    "/api/policies/matrix-test":  (300, 60),
+    "/api/agent/register":        (1200, 60),
+    "/api/agent/execute":         (1200, 60),
+    "/api/agent-cluster/run":     (600, 60),
     "default":       (500, 60),   # 提高默认阈值，避免正常轮询触发
 }
 

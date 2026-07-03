@@ -16,6 +16,7 @@ from services.events import (
     normalize_status,
     status_label,
 )
+from services.evidence import build_evidence_packet, event_evidence_brief
 from services.analytics import get_analytics, get_dashboard_overview
 
 events_bp = Blueprint("events", __name__, url_prefix="/api")
@@ -38,6 +39,8 @@ def get_events():
         type_filter=type_filter,
         chain_id=chain_id,
     )
+    for event in events:
+        event["evidence_brief"] = event_evidence_brief(event)
     return make_response({"events": events, "count": len(events)})
 
 
@@ -48,10 +51,12 @@ def event_detail(event_id: int):
         raise ValidationError(f"未找到事件: {event_id}")
 
     related_chain = get_chain_events(event.get("chain_id")) if event.get("chain_id") else []
+    evidence_packet = build_evidence_packet(related_chain or [event], event.get("chain_id"), event)
     return make_response({
         "event": event,
         "chain": related_chain,
         "chain_count": len(related_chain),
+        "evidence_packet": evidence_packet,
     })
 
 
@@ -82,10 +87,11 @@ def chain_detail(chain_id: str):
     else:
         status_code = "allowed"
 
+    evidence_packet = build_evidence_packet(chain_events, chain_id)
     return make_response({
         "chain_id": chain_id,
-        "status": status_label(status_code),
-        "status_code": status_code,
+        "status": evidence_packet["verdict"]["status_label"] or status_label(status_code),
+        "status_code": evidence_packet["verdict"]["status_code"] or status_code,
         "disposition": status_code,
         "source_ip": primary.get("source_ip"),
         "action": primary.get("action"),
@@ -93,6 +99,7 @@ def chain_detail(chain_id: str):
         "target": primary.get("target"),
         "events": chain_events,
         "count": len(chain_events),
+        "evidence_packet": evidence_packet,
     })
 
 

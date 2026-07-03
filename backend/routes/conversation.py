@@ -12,6 +12,20 @@ from services.conversation_guard import create_session, append_turns, evaluate_s
 conversation_bp = Blueprint("conversation", __name__, url_prefix="/api/conversation")
 
 
+def _as_bool(value, default=True):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on", "fast"}:
+            return True
+        if normalized in {"0", "false", "no", "off", "precise"}:
+            return False
+    return bool(value)
+
+
 @conversation_bp.route("/session", methods=["POST"])
 def create_conversation_session():
     if not request.is_json:
@@ -57,9 +71,10 @@ def evaluate_conversation():
     existing_turns = data.get("existing_turns", [])
     new_turns = data.get("new_turns", data.get("turns", []))
     session_id = data.get("session_id") or data.get("chain_id")
+    fast = _as_bool(data.get("fast"), True)
 
     combined = append_turns(existing_turns, new_turns)
-    evaluation = evaluate_session(combined["turns"])
+    evaluation = evaluate_session(combined["turns"], fast=fast)
 
     chain_id = session_id or f"conv-anon-{len(combined['turns'])}"
     add_event(
@@ -77,6 +92,8 @@ def evaluate_conversation():
         metadata={
             "alerts": evaluation.get("alerts", []),
             "summary": evaluation.get("summary", {}),
+            "engine": evaluation.get("engine"),
+            "elapsed_ms": evaluation.get("elapsed_ms"),
         },
     )
 
