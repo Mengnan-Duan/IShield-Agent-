@@ -9,11 +9,12 @@ import urllib.request
 import webbrowser
 from contextlib import closing
 
-from runtime_paths import executable_root, runtime_path
+from runtime_paths import bundled_path, executable_root, runtime_path
 
 
 SCRIPT_DIR = executable_root()
-BACKEND_DIR = str(executable_root())
+BUNDLED_BACKEND_DIR = bundled_path("backend")
+BACKEND_DIR = str(BUNDLED_BACKEND_DIR if BUNDLED_BACKEND_DIR.exists() else executable_root() / "backend")
 PID_FILE = runtime_path(".backend.pid")
 PORT = int(os.environ.get("BACKEND_PORT", 5000))
 HOST = os.environ.get("BACKEND_HOST", "0.0.0.0")
@@ -272,9 +273,9 @@ if __name__ == "__main__":
         app = create_app()
     except ImportError as error:
         print("=" * 60)
-        print("  [ERROR] Missing dependency:", error)
-        print("  Install dependencies:")
-        print("  pip install flask flask_cors requests pyjwt")
+        print("  [ERROR] Backend failed to load:", error)
+        print("  If this is a packaged release, rebuild it with build_exe.bat.")
+        print("  If this is source mode, run: pip install -r requirements.txt")
         print("=" * 60)
         input("Press Enter to exit...")
         raise SystemExit(1)

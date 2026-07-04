@@ -1,442 +1,286 @@
 # IShield v6.0
 
-IShield 是一个面向 LLM / Agent 应用的安全监督原型系统，核心目标是把 Agent 的输入理解、工具调用、文件访问、代码执行、RAG 查询、记忆写入、跨 Agent 委托和外部 API 访问纳入统一审计、判定、阻断和处置闭环。
+> 面向大语言模型与智能体应用的运行时安全监督平台
 
-系统采用“规则库矩阵 + 语义判定 + Runtime Gateway + 证据包 + 处置闭环 + 攻击剧本回归”的组合路线，覆盖提示注入、模型越狱、训练数据泄露、滥用风险、工具调用劫持、记忆中毒、环境感知污染、RAG 污染、API/SSRF、数据库滥用和跨 Agent 风险传播等攻击面。
+`当前版本 v6.0` · `Windows 便携交付` · `本地启动` · `规则库 69 条` · `覆盖 13 类攻击面` · `后端验收 55 项通过`
 
-## v6.0 定位
+IShield 不是一个单点提示词过滤器，而是一套围绕 Agent 运行时链路构建的安全监督系统。它把用户输入、模型输出、工具调用、文件访问、代码执行、RAG 查询、记忆读写、跨 Agent 委托和外部 API 访问纳入统一安全网关，在真实动作发生前完成审计、判定、阻断和取证。
 
-v6.0 是 IShield 的产品化收口版本，重点从“功能堆叠”升级为“可操作、可验证、可复盘”的安全运营平台。
-
-- 总控台统一呈现风险分数、规则命中、攻击链、待处置链路、剧本回归和系统就绪度。
-- 事件中心围绕“事件 -> 证据 -> chain_id -> 处置 -> 回归”组织操作动线。
-- 策略控制台保留 69 条规则、13 类攻击面和规则矩阵自测能力。
-- Agent 接入中心提供 Runtime Protocol、SDK 示例、外部会话流和协议诊断。
-- 攻击剧本实验室支持多阶段红队链路编排，不再局限于单条样本检测。
-- 系统体检检查主前端、态势大屏、规则库、攻击剧本、地球资源、运行数据、事件数据库、Playbook 回归和 Runtime 诊断状态。
-- 前端移除意义不清的空图表和图谱入口，保留证据抽屉、链路回放和可执行操作。
-- 全局版本统一为 v6.0。
-
-## 核心能力
-
-### 1. Agent Runtime Gateway
-
-所有高风险工具行为先进入 Runtime Gateway，再根据输入检测、策略规则、工具参数、目标敏感性和历史行为生成裁决。
-
-覆盖的典型动作包括：
-
-- `read_file` / `write_file`
-- `call_api`
-- `query_database`
-- `execute_code`
-- `rag_query`
-- `memory_read` / `memory_write`
-- `delegation`
-- `output`
-
-Runtime Gateway 输出统一结构：
-
-- `decision`: `allow` / `confirm` / `block`
-- `status_code`: `passed` / `confirm` / `blocked` / `error`
-- `chain_id`: 攻击链追踪标识
-- `risk_assessment`: 风险等级、风险分数、风险因子
-- `policy_trace`: 命中规则与裁决依据
-- `evidence_packet`: 可复盘证据包
-- `remediation`: 处置闭环状态
-
-### 2. 策略规则库矩阵
-
-默认规则库位于 `backend/policies/default_policy.json`，由 `tools/generate_policy_v48.py` 可复现生成。
-
-当前规则库规模：
-
-- 69 条默认规则
-- 13 类攻击面
-- 每条规则包含 `category`、`attack_surface`、`recommended_response`、`false_positive_note`、`test_cases`
-- 支持 `read_file|write_file` 这类多工具模式匹配
-- 支持 `/api/policies/matrix-test` 一键自测
-
-覆盖攻击面：
-
-- 提示注入
-- 模型越狱
-- 工具劫持
-- 文件访问越权
-- 数据外发
-- API/SSRF
-- RAG 污染
-- 记忆污染
-- 环境污染
-- 跨 Agent 委托
-- 代码执行
-- 数据库滥用
-- 社会工程/合规
-
-### 3. 证据包与攻击链回放
-
-IShield 以 `chain_id` 为主线，把输入检测、策略命中、工具网关裁决、事件入库、证据抽屉和处置状态串成可复盘链路。
-
-关键接口：
-
-- `GET /api/events/<id>`
-- `GET /api/chains/<chain_id>`
-- `GET /api/chains/<chain_id>/replay`
-
-证据包包含：
-
-- 裁决结果
-- 阻断阶段
-- 攻击面
-- 风险等级
-- 可信证据项
-- 策略证据
-- 运行时证据链
-- 处置建议
-- 闭环进度
-
-### 4. 处置闭环
-
-处置服务把高风险攻击链转化为可记录、可推进、可复查的行动闭环。
-
-关键接口：
-
-- `GET /api/remediation/chain/<chain_id>`
-- `POST /api/remediation/action`
-- `GET /api/remediation/summary`
-- `GET /api/response/runbooks`
-- `POST /api/response/execute`
-
-支持的动作类型包括：
-
-- 隔离来源 Agent / IP / Token
-- 保持阻断策略
-- 加入回归样本
-- 复核授权范围
-- 保全审计证据
-- 收紧工具调用范围
-
-### 5. Agent Runtime Protocol
-
-外部 Agent 可通过 Runtime Protocol 接入 IShield，将工具调用、记忆访问、RAG 查询、跨 Agent 委托和输出内容上报到统一安全网关。
-
-关键接口：
-
-- `POST /api/runtime/ingest`
-- `POST /api/runtime/decision`
-- `GET /api/runtime/sessions`
-- `GET /api/runtime/sdk-config`
-- `POST /api/runtime/diagnostics`
-- `GET /api/runtime/diagnostics/latest`
-
-SDK 示例位于：
+系统最终形成一条完整闭环：
 
 ```text
-backend/sdk/ishield_client.py
+输入检测 -> 策略裁决 -> 工具拦截 -> 事件入库 -> 证据包 -> 攻击链回放 -> 处置闭环 -> 回归验证
 ```
 
-### 6. Attack Playbook Engine
+它的价值不在于“看起来能识别风险”，而在于可以现场运行、连续点击、生成证据、回放链路，并把攻击样本沉淀为可复测的安全能力。
 
-攻击剧本引擎位于 `backend/services/playbook_engine.py`，剧本数据位于 `backend/playbooks/default_playbooks.json`。
+## 为什么它强
 
-每个 Playbook 包含：
+| 能力维度 | IShield 的做法 | 体现出的优势 |
+| --- | --- | --- |
+| 运行时监督 | 在 Agent 工具执行前进入 Runtime Gateway | 不是事后日志，而是调用前裁决 |
+| 攻击面覆盖 | 内置 69 条规则，覆盖 13 类典型攻击面 | 能对齐命题要求，不停留在单一 prompt |
+| 证据链闭环 | 每次风险事件生成 `chain_id` 与 `evidence_packet` | 可复盘、可追责、可继续处置 |
+| 红队验证 | 内置多阶段 Playbook 与矩阵自测 | 攻击样本不是静态文本，而是可运行链路 |
+| 工具调用防护 | 文件、API、数据库、代码执行、记忆、RAG 统一监管 | 覆盖智能体应用真正危险的外部动作 |
+| 处置编排 | 高风险链路可生成处置计划和动作记录 | 从发现风险推进到闭环治理 |
+| 交付形态 | 一个压缩包即可在新电脑启动 | 更接近真实产品，而不是源码工程 |
 
-- 前置条件
-- 多阶段攻击步骤
-- 期望触发规则
-- 期望阻断阶段
-- 证据检查点
-- 回归断言
+## 最终交付
 
-关键接口：
-
-- `GET /api/playbooks`
-- `POST /api/playbooks/run`
-- `GET /api/playbooks/<id>/result`
-- `POST /api/playbooks/regression`
-
-内置剧本覆盖：
-
-- Prompt Injection
-- Jailbreak
-- RAG Poisoning
-- Memory Poisoning
-- Tool Hijacking
-- Data Exfiltration
-- API/SSRF
-- Environment Pollution
-- Cross-Agent Delegation
-- 安全基线验证
-
-### 7. 态势大屏与系统体检
-
-态势大屏使用本地化 `Globe.gl`、Three.js 和地球纹理资源，不依赖外部 CDN。
-
-系统体检接口：
+最终只需要交付一个文件：
 
 ```text
-GET /api/system-audit
+release\IShield-Final-Package.zip
 ```
 
-体检项包括：
-
-- 主前端文件
-- 态势大屏文件
-- 规则库文件
-- 攻击剧本文件
-- Globe.gl 本地资源
-- 地球纹理资源
-- 运行数据目录
-- 事件数据库
-- 规则库规模
-- 事件链路
-- Playbook 回归结果
-- Runtime 诊断结果
-
-## 系统架构
-
-```mermaid
-flowchart LR
-  A["Agent / 用户输入"] --> B["输入检测"]
-  B --> C["PolicyEngine"]
-  C --> D["Runtime Gateway"]
-  D --> E{"裁决"}
-  E -->|"allow"| F["工具执行"]
-  E -->|"confirm"| G["确认队列"]
-  E -->|"block"| H["阻断"]
-  F --> I["事件入库"]
-  G --> I
-  H --> I
-  I --> J["evidence_packet"]
-  J --> K["chain_id 回放"]
-  K --> L["Remediation Loop"]
-  L --> M["Playbook Regression"]
-  M --> C
-```
-
-## 快速启动
-
-### Windows 一键启动
-
-双击项目根目录：
+使用者解压后会看到：
 
 ```text
-启动 IShield.bat
+IShield\
+  README.md
+  IShield.exe
+  _internal\
 ```
 
-启动后访问：
+双击 `IShield.exe` 后，浏览器会自动打开：
 
 ```text
 http://127.0.0.1:5000/
 ```
 
-### 后端直接启动
+不要单独发送或移动 `IShield.exe`。它依赖同级 `_internal` 目录中的前端页面、后端服务、规则库、剧本库、静态资源和运行时 DLL。
 
-在项目根目录执行：
+## 五分钟体验路径
 
-```powershell
-cd backend
-..\env\Scripts\python.exe run_backend.py
+这条路线适合第一次使用时快速验证核心能力。
+
+| 顺序 | 功能入口 | 操作 | 你应该看到什么 |
+| --- | --- | --- | --- |
+| 1 | 首页 / 工作台 | 进入系统 | 左侧功能导航可切换，顶部服务状态正常 |
+| 2 | 安全检测 | 选择内置高风险样本并运行 | 风险等级、命中规则、检测依据、处置建议 |
+| 3 | 沙箱模拟 | 运行越权文件读取或外部 API 调用 | 工具调用被裁决为放行、确认或阻断 |
+| 4 | 事件中心 | 刷新事件并打开详情 | `status_code`、运行结论、证据包、`chain_id` |
+| 5 | 攻击链回放 | 从事件详情进入链路 | 输入、工具、规则、阻断阶段、证据项串联呈现 |
+| 6 | 策略控制台 | 执行策略试跑和矩阵自测 | 规则批量命中，覆盖率可验证 |
+| 7 | Agent 监控 | 运行危险工具调用示例 | 工具调用在执行前被审计、判定、记录 |
+| 8 | Agent 集群审计 | 运行跨 Agent 委托场景 | 风险在多 Agent 链路中的传播与拦截过程 |
+| 9 | 攻击剧本实验室 | 运行多阶段 Playbook | 阻断阶段、命中规则、证据检查点、回归结论 |
+| 10 | 系统体检 / 态势大屏 | 检查系统并打开大屏 | 关键资源可用，全局风险态势可观察 |
+
+## 攻击面覆盖
+
+IShield 面向智能化应用的真实攻击面设计，不只处理输入文本。
+
+| 攻击面 | 典型风险 | 系统响应 |
+| --- | --- | --- |
+| 提示注入 | 用户输入覆盖系统指令或开发者约束 | 输入检测、规则命中、事件入库 |
+| 模型越狱 | 绕过安全边界输出违规内容 | 语义判定、策略裁决、风险记录 |
+| 训练数据泄露 | 诱导模型泄露语料、密钥或内部信息 | 敏感信息识别、输出审计 |
+| 滥用风险 | 自动生成诈骗、钓鱼、破坏性内容 | 攻击面分类、风险等级判定 |
+| 工具调用劫持 | Agent 被诱导调用危险工具 | Runtime Gateway 调用前阻断 |
+| 文件访问越权 | 读取 `.env`、密钥、上级目录文件 | 路径策略、沙箱裁决、证据包 |
+| 代码执行 | 执行危险命令或逃逸沙箱 | 工具权限、参数规则、阻断记录 |
+| API / SSRF | 请求内网地址或敏感服务 | URL / IP 策略、外联风险判定 |
+| RAG 污染 | 检索内容携带恶意指令 | 上下文审计、污染规则命中 |
+| 记忆中毒 | 写入长期恶意偏好或伪造事实 | 记忆写入审计、污染事件沉淀 |
+| 环境感知污染 | 利用系统环境信息误导模型 | 环境上下文隔离、风险归因 |
+| 跨 Agent 委托 | 风险任务在多个 Agent 间传递 | 集群链路审计、传播路径回放 |
+| 数据库滥用 | 高风险查询、批量导出或越权检索 | 查询策略、异常判定、处置建议 |
+
+## 系统架构
+
+```mermaid
+flowchart LR
+  A["用户输入 / Agent 请求"] --> B["输入检测"]
+  B --> C["策略引擎"]
+  C --> D["运行时安全网关"]
+  D --> E{"安全裁决"}
+  E -->|"放行"| F["工具执行"]
+  E -->|"确认"| G["人工复核 / 待确认"]
+  E -->|"阻断"| H["阻断动作"]
+  F --> I["事件入库"]
+  G --> I
+  H --> I
+  I --> J["证据包"]
+  J --> K["chain_id 链路回放"]
+  K --> L["处置闭环"]
+  L --> M["剧本回归"]
+  M --> C
 ```
 
-如果本机 Python 环境不可用，可使用 Codex 运行时 Python 做语法检查：
+核心思路是把智能体行为拆成可观测、可裁决、可复盘的运行时链路。模型可以生成计划，但真正触达文件、网络、数据库、代码执行和外部系统之前，必须经过 IShield 的安全网关。
 
-```powershell
-C:\Users\ASUS\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m py_compile backend/app.py
-```
+## 核心模块
 
-## 推荐体验路径
+| 模块 | 作用 | 核心能力 |
+| --- | --- | --- |
+| 总控台 | 聚合全局风险和运行状态 | 风险分数、事件趋势、待处置链路、系统状态 |
+| 安全检测 | 判断输入、上下文和输出风险 | 提示注入、越狱、泄露、滥用检测 |
+| 沙箱模拟 | 模拟真实工具调用 | 文件、API、数据库、代码执行、记忆、RAG |
+| 接入中心 | 接入外部 Agent | Runtime Protocol、SDK 配置、协议诊断 |
+| Agent 监控 | 监督单 Agent 行为 | 注册、调用记录、危险工具调用验证 |
+| Agent 集群审计 | 分析多 Agent 链路 | 委托、越权、风险传播、链路回放 |
+| 策略控制台 | 管理和验证规则库 | 规则列表、策略试跑、矩阵自测 |
+| 事件中心 | 查看审计与阻断记录 | 运行结论、状态码、证据包、攻击链入口 |
+| 攻击剧本实验室 | 执行红队链路 | 多阶段 Playbook、阻断断言、回归结果 |
+| 处置编排 | 推进治理闭环 | Runbook、处置计划、动作登记 |
+| 系统体检 | 检查系统完整性 | 前端、后端、规则库、剧本、态势资源 |
+| 态势大屏 | 汇总全局运行态势 | 风险来源、实时事件、攻击趋势 |
 
-1. 进入安全工作台，先查看总控台的风险分数、攻击链、规则热点和待处置链路。
-2. 打开安全检测，输入提示注入或越权读取类样本，查看检测结论。
-3. 打开沙箱模拟，运行 `read_file` + `../config/.env`，验证执行前阻断。
-4. 在事件中心打开最新事件，查看证据抽屉、裁决阶段、命中规则和 `chain_id`。
-5. 进入策略控制台，搜索命中规则，运行规则试跑和矩阵自测。
-6. 进入 Agent 接入中心，运行 Runtime Protocol 诊断。
-7. 进入攻击剧本实验室，一键运行多阶段 Playbook 回归。
-8. 进入处置编排，为高风险 `chain_id` 生成处置计划并登记闭环动作。
-9. 进入系统体检，确认关键资源、数据链路和回归状态。
-10. 打开态势大屏，查看攻击链、拦截趋势、风险来源和地理态势。
+## 裁决数据结构
 
-## API 总览
+每次高风险动作都会输出统一裁决结果，方便前端呈现、事件入库和后续回放。
+
+| 字段 | 含义 |
+| --- | --- |
+| `decision` | 最终裁决：`allow` / `confirm` / `block` |
+| `status_code` | 运行状态：`passed` / `confirm` / `blocked` / `error` |
+| `chain_id` | 攻击链追踪标识 |
+| `risk_assessment` | 风险等级、风险分数、风险因子 |
+| `policy_trace` | 命中规则与裁决依据 |
+| `evidence_packet` | 可复盘证据包 |
+| `remediation` | 处置状态与建议动作 |
+
+## 接口总览
 
 | 能力 | 接口 |
 | --- | --- |
 | 健康检查 | `GET /api/health` |
-| 文本检测 | `POST /api/detect` |
-| 工具沙箱模拟 | `POST /api/simulate` |
-| 策略列表 | `GET /api/policies` |
-| 策略评估 | `POST /api/policies/evaluate` |
-| 规则矩阵自测 | `POST /api/policies/matrix-test` |
-| 事件列表 | `GET /api/events` |
-| 事件详情 | `GET /api/events/<id>` |
-| 攻击链详情 | `GET /api/chains/<chain_id>` |
-| 攻击链回放 | `GET /api/chains/<chain_id>/replay` |
-| 处置详情 | `GET /api/remediation/chain/<chain_id>` |
-| 登记处置动作 | `POST /api/remediation/action` |
-| 处置摘要 | `GET /api/remediation/summary` |
-| 总控台概览 | `GET /api/dashboard/overview` |
-| 总控台时间线 | `GET /api/dashboard/timeline` |
-| 态势实时事件 | `GET /api/dashboard/live` |
-| Runtime 上报 | `POST /api/runtime/ingest` |
-| Runtime 裁决 | `POST /api/runtime/decision` |
-| Runtime 会话 | `GET /api/runtime/sessions` |
-| Runtime 诊断 | `POST /api/runtime/diagnostics` |
-| Playbook 列表 | `GET /api/playbooks` |
-| Playbook 运行 | `POST /api/playbooks/run` |
-| Playbook 回归 | `POST /api/playbooks/regression` |
-| 处置 Runbook | `GET /api/response/runbooks` |
-| 执行处置计划 | `POST /api/response/execute` |
+| 安全检测 | `POST /api/detect`、`POST /api/batch/detect` |
+| 工具沙箱 | `POST /api/simulate` |
+| 运行时接入 | `POST /api/runtime/ingest`、`POST /api/runtime/decision`、`GET /api/runtime/sessions` |
+| 协议诊断 | `POST /api/runtime/diagnostics`、`GET /api/runtime/diagnostics/latest` |
+| 策略规则 | `GET /api/policies`、`POST /api/policies/evaluate`、`POST /api/policies/matrix-test` |
+| 事件中心 | `GET /api/events`、`GET /api/events/<id>` |
+| 攻击链 | `GET /api/chains`、`GET /api/chains/<chain_id>`、`GET /api/chains/<chain_id>/replay` |
+| 总控台 | `GET /api/dashboard/overview`、`GET /api/dashboard/timeline`、`GET /api/dashboard/live` |
+| 攻击剧本 | `GET /api/playbooks`、`POST /api/playbooks/run`、`GET /api/playbooks/regression` |
+| 处置闭环 | `GET /api/remediation/chain/<chain_id>`、`POST /api/remediation/action`、`GET /api/remediation/summary` |
+| 处置计划 | `GET /api/response/runbooks`、`POST /api/response/execute` |
+| Agent 监控 | `GET /api/agent/list`、`POST /api/agent/register`、`POST /api/agent/execute`、`GET /api/agent/calls` |
+| 集群审计 | `GET /api/agent-cluster/scenarios`、`POST /api/agent-cluster/run`、`GET /api/agent-cluster/<id>/replay` |
+| 红队样本 | `GET /api/redteam/strategies`、`POST /api/redteam/generate` |
+| 身份管理 | `GET /api/tokens/list`、`POST /api/tokens/create`、`POST /api/tokens/rotate/<id>`、`POST /api/tokens/revoke/<id>` |
 | 系统体检 | `GET /api/system-audit` |
 
 ## 项目结构
 
 ```text
 .
-├── frontend.html                     # 主 SPA 工作台
-├── dashboard.html                    # 态势大屏
-├── 启动 IShield.bat                  # Windows 一键启动
+├── frontend.html                       # 主控制台单文件前端
+├── dashboard.html                      # 态势大屏
+├── 启动 IShield.bat                    # 源码版一键启动
+├── build_exe.bat                       # 生成最终交付包
+├── IShield.spec                        # PyInstaller 打包配置
 ├── backend/
-│   ├── app.py                        # Flask 应用入口
-│   ├── run_backend.py                # 后端启动入口
-│   ├── server_manager.py             # 进程管理与状态查询
-│   ├── routes/                       # API 路由层
-│   ├── services/                     # 检测、策略、证据、处置、剧本、Runtime 服务
-│   ├── policies/default_policy.json  # 默认规则库
-│   ├── playbooks/default_playbooks.json
-│   ├── sdk/ishield_client.py         # Agent Runtime Protocol SDK 示例
-│   └── data/                         # 运行时数据
-├── tools/
-│   └── generate_policy_v48.py        # 规则库生成脚本
-└── assets/vendor/globe/              # Globe.gl、Three.js、地球纹理等本地资源
+│   ├── app.py                          # Flask 应用入口
+│   ├── run_backend.py                  # 后端启动入口
+│   ├── routes/                         # API 路由
+│   ├── services/                       # 检测、策略、证据、处置、剧本、运行时服务
+│   ├── policies/default_policy.json    # 默认规则库
+│   ├── playbooks/default_playbooks.json # 默认攻击剧本
+│   ├── sdk/ishield_client.py           # Agent 接入 SDK 示例
+│   └── data/                           # 样本、签名、工具权限和运行数据
+├── assets/vendor/globe/                # 态势大屏本地资源
+├── sandbox_files/                      # 沙箱文件读写测试目录
+├── tools/                              # 构建、规则生成和辅助脚本
+├── docs/                               # 文档材料
+└── release/
+    └── IShield-Final-Package.zip       # 唯一交付压缩包
 ```
 
-## 关键验收点
+## 构建交付包
 
-### 策略库
+在开发电脑上重新生成最终交付包：
 
-- `/api/policies` 返回 69 条规则。
-- 规则覆盖 13 类攻击面。
-- `/api/policies/matrix-test` 返回 69 个样本，覆盖率 100.0%。
-
-### 阻断链路
-
-请求：
-
-```json
-{
-  "tool": "read_file",
-  "params": {
-    "path": "../config/.env"
-  }
-}
+```text
+build_exe.bat
 ```
 
-预期结果：
+构建完成后只需要交付：
 
-- 裁决为 `block`
-- 命中 `POL-FILE-003`
-- 攻击面为文件访问越权
-- 返回 `chain_id`
-- 攻击链回放包含 `evidence_packet`
-
-### Playbook 回归
-
-- 可一键运行多阶段攻击剧本。
-- 每个剧本输出阻断阶段、命中规则、证据项、处置建议和回归结论。
-- 回归结果可用于证明系统覆盖完整攻击链，而不是只拦截单条样本。
-
-### 系统体检
-
-- `/api/system-audit` 返回 v6.0。
-- 关键资源检查不应出现缺失项。
-- Playbook 回归和 Runtime 诊断状态应可被追踪。
-
-## 开发与验证命令
-
-前端脚本解析：
-
-```powershell
-node -e "const fs=require('fs');for(const file of ['frontend.html','dashboard.html']){const html=fs.readFileSync(file,'utf8');const scripts=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);for(let i=0;i<scripts.length;i++){try{new Function(scripts[i]);}catch(e){console.error(file,'script',i,e.message);process.exit(1)}}console.log(file,'scripts parsed:',scripts.length)}"
+```text
+release\IShield-Final-Package.zip
 ```
 
-后端语法检查：
+构建脚本会自动完成：
 
-```powershell
-C:\Users\ASUS\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe -m py_compile backend/app.py backend/server_manager.py backend/services/detection.py backend/services/dashboard.py backend/services/playbook_engine.py backend/services/runtime_protocol.py backend/services/runtime_diagnostics.py backend/services/v5_operations.py
-```
+- 检查本地 Python 与核心依赖。
+- 使用 PyInstaller 生成 `IShield.exe` 和运行资源。
+- 检查前端、态势大屏、后端配置、规则库、剧本库和运行 DLL。
+- 把 README 放到解压根目录，方便使用者第一眼看到。
+- 清理临时 `build/`、`dist/` 和旧压缩包。
+- 保证 `release/` 下只保留一个最终交付包。
 
-健康检查：
+## 验收方式
 
-```powershell
-Invoke-WebRequest -Uri http://127.0.0.1:5000/api/health -UseBasicParsing
-```
+如果你拿到的是最终交付包，只需要按下面方式验收：
 
-## 版本记录
+1. 解压 `IShield-Final-Package.zip`。
+2. 打开解压后的 `IShield` 文件夹。
+3. 双击 `IShield.exe`。
+4. 浏览器打开 `http://127.0.0.1:5000/` 后，进入工作台依次体验安全检测、沙箱模拟、事件中心、策略控制台、攻击剧本实验室和态势大屏。
 
-### v6.0
+普通用户不需要安装 Python，不需要打开命令行，不需要运行任何测试脚本。
 
-- 统一项目运行态版本为 v6.0。
-- 精简行为监控页中意义不明确的大空图表和数字堆叠区，改为“异常 IP 排行榜 + 风险摘要”。
-- 移除独立图形追踪入口，保留证据抽屉、攻击链回放和 `chain_id` 证据链能力。
-- 强化事件中心、处置编排、系统体检、态势大屏和 Agent 接入的操作动线。
-- 统一 README、前端页面、健康接口、Runtime Protocol、Playbook Engine、系统体检和总控台版本文案。
-- 将模型服务降级类表达产品化为 Agent 语义引擎状态。
-- 重写 README，形成完整的项目说明、体验路径、API 总览和验收清单。
+当前交付包已经按“解压后双击运行”的方式完成验收：
 
-### v5.8
+| 验收项 | 结果 |
+| --- | --- |
+| 健康检查 | `healthy` |
+| 运行版本 | `v6.0` |
+| 首页访问 | `200` |
+| 态势大屏 | `200` |
+| 事件接口 | 通过 |
+| 策略接口 | 通过 |
+| 安全检测 | 通过 |
+| 沙箱阻断 | `blocked` |
 
-- 新增系统体检能力，检查前端、态势大屏、规则库、剧本、地球资源、运行数据、事件数据库、Runtime 诊断和 Playbook 回归状态。
+## 常见问题
 
-### v5.7
+| 问题 | 原因 | 处理方式 |
+| --- | --- | --- |
+| 浏览器没有自动打开 | 系统拦截自动打开浏览器 | 手动访问 `http://127.0.0.1:5000/` |
+| 页面显示无法连接 | 后端窗口关闭或服务未启动 | 重新双击 `IShield.exe` |
+| 端口 5000 被占用 | 旧实例或其他程序占用端口 | 关闭旧 IShield 窗口后重新启动 |
+| 态势大屏连接失败 | 大屏加载 `/dashboard` 时后端不可用 | 保持 `IShield.exe` 窗口运行，再点击重新连接 |
+| Windows 安全提示 | 本地服务启动需要确认 | 允许本地程序运行；服务默认只监听本机 |
+| 只复制 exe 后无法运行 | 缺少 `_internal` 目录 | 交付完整 zip，不要单独发送 `IShield.exe` |
+| 打包时出现 pip 网络警告 | 当前网络无法访问依赖源 | 若核心依赖已安装，构建仍可继续；以最终包验收为准 |
 
-- 新增能力评测中心，从规则覆盖、攻击面、Agent 接入、剧本回归、证据链和处置闭环多个维度输出成熟度评分。
+## 版本演进
 
-### v5.6
+IShield 的演进可以分为三条主线：前端产品化、后端运行时安全、交付验收稳定性。下面保留关键阶段，避免长篇流水账，同时能看出系统能力是如何逐步长出来的。
 
-- 新增处置编排中心，将待处置攻击链转化为 Runbook、处置计划和动作记录。
-
-### v5.5
-
-- 探索链路图谱能力，后续在 v6.0 中收敛为证据抽屉与攻击链回放，减少独立入口和复杂图形带来的操作负担。
-
-### v5.4
-
-- 恢复态势大屏视觉基线，本地化 `Globe.gl`、Three.js 和地球纹理资源，避免 CDN 失败导致地球空白。
-
-### v5.3
-
-- 新增 Attack Playbook Engine，支持多阶段红队攻击链编排和回归断言。
-
-### v5.2
-
-- 新增 Runtime Protocol 诊断能力，验证外部 Agent 接入是否真正经过 IShield 安全裁决。
-
-### v5.1
-
-- 新增 Agent Runtime Protocol 和 SDK 示例，支持外部 Agent 上报工具调用、记忆访问、RAG 查询、委托和输出。
-
-### v5.0
-
-- 新增全局总控台，把事件、攻击链、规则命中、证据包、处置闭环和规则库状态聚合为主入口。
-
-### v4.8
-
-- 规则库扩展到 69 条规则和 13 类攻击面。
-- 策略控制台升级为规则库矩阵。
-- 新增规则矩阵自测接口，覆盖率达到 100.0%。
-
-### v4.7
-
-- 新增 Remediation Loop，证据包内置处置计划、闭环进度和行动记录。
-
-### v4.6
-
-- 新增统一 evidence_packet 证据包结构，事件详情、攻击链详情和链路回放接入可信证据。
+| 版本 | 阶段定位 | 关键变化 |
+| --- | --- | --- |
+| v6.0 | 产品化收口 | 统一最终交付包，重写 README，修复态势大屏容错，强化事件证据链、系统体检和稳定验收路径 |
+| v5.8 | 系统体检 | 检查前端、态势资源、规则库、剧本、运行数据、事件数据库、协议诊断和剧本回归状态 |
+| v5.7 | 能力评测 | 从规则覆盖、攻击面、Agent 接入、剧本回归、证据链和处置闭环输出成熟度评分 |
+| v5.6 | 处置编排 | 将待处置攻击链转化为 Runbook、处置计划和动作记录，形成可推进的治理闭环 |
+| v5.5 | 链路图谱探索 | 探索图形化链路追踪，后续收敛为证据抽屉和攻击链回放，降低操作复杂度 |
+| v5.4 | 态势大屏恢复 | 本地化 Globe.gl、Three.js 和地球纹理资源，避免外部 CDN 失败导致大屏不可用 |
+| v5.3 | 攻击剧本引擎 | 引入多阶段红队 Playbook，支持攻击步骤编排、阻断断言和回归验证 |
+| v5.2 | 协议诊断 | 验证外部 Agent 接入后是否真正经过安全裁决、事件入库和证据生成 |
+| v5.1 | Agent 接入协议 | 提供 SDK 示例，支持外部 Agent 上报工具调用、记忆访问、RAG 查询、委托和输出 |
+| v5.0 | 全局总控台 | 聚合事件、攻击链、规则命中、证据包、处置闭环和规则库状态，形成主入口 |
+| v4.9 | 策略命中联动 | 将策略命中、事件中心、处置建议和链路入口打通，让规则结果能进入后续操作 |
+| v4.8 | 规则库扩容 | 规则库扩展到 69 条规则和 13 类攻击面，新增规则矩阵自测，覆盖率达到 100% |
+| v4.7 | 处置闭环雏形 | 在证据包中加入处置计划、闭环进度和行动记录，开始从检测走向治理 |
+| v4.6 | 统一证据包 | 建立 `evidence_packet` 结构，事件详情、攻击链详情和链路回放开始共享证据模型 |
+| v4.5 | Agent 集群防护 | 强化多 Agent 协作链路审计，关注委托、越权、工具调用和风险传播 |
+| v4.4 | 功能健壮性 | 围绕按钮可点、接口可达、流程可跑通、状态可反馈进行稳定性修复 |
+| v4.3 | 策略体验增强 | 优化策略控制、命中反馈和功能入口，使规则能力更容易被现场验证 |
+| v4.2 | 前后端联动 | 强化前端操作与后端接口的联动，让功能结果从“能返回”变成“能理解” |
+| v4.1 | 事件中心增强 | 围绕 `status_code`、运行结论和事件详情重构事件中心体验 |
+| v4.0 | 后端导向升级 | 从前端产品化转向后端功能支撑，开始补齐运行时接口、规则和审计链路 |
+| v3.x | 前端产品化 | 完成工作台、主题系统、模块导航、视觉层级和主要交互入口的产品化改造 |
 
 ## 设计原则
 
-- 可操作优先：所有关键能力都应能在前端直接运行、查看结果和继续处理。
-- 可复盘优先：每次阻断都要落到事件、证据、`chain_id` 和处置记录。
-- 可回归优先：规则和剧本都必须能自测，避免功能只靠人工判断。
-- 低耦合接入：外部 Agent 通过 Runtime Protocol 接入，不强绑定具体模型或业务框架。
-- 产品化表达：界面呈现聚焦结论、风险、证据和下一步动作，减少空图表和无意义术语堆叠。
+- **运行时优先**：安全监督必须进入 Agent 工具调用链路，而不是停留在静态报告。
+- **证据优先**：每次阻断都要落到事件、证据包、`chain_id` 和处置记录。
+- **可验证优先**：规则、剧本、接口和交付包都必须能被实际运行验证。
+- **产品化优先**：界面聚焦结论、证据和下一步动作，减少无意义图表和术语堆叠。
+- **交付优先**：最终成果必须能在全新 Windows 电脑上快速启动并体验核心功能。

@@ -4417,6 +4417,7 @@
       line-height: 1.65;
     }
     .situation-frame-shell {
+      position: relative;
       height: calc(100vh - 92px);
       min-height: 860px;
       border: 0;
@@ -4439,9 +4440,96 @@
       border: 0;
       display: block;
       background: #020617;
+      opacity: 0;
+      transition: opacity 0.22s ease;
+    }
+    .situation-frame-shell iframe.is-ready {
+      opacity: 1;
     }
     [data-theme="light"] .situation-frame-shell iframe {
       background: #eef4fb;
+    }
+    .situation-frame-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(91,95,233,0.12), transparent 30%),
+        var(--bg-primary);
+    }
+    .situation-frame-overlay[hidden] {
+      display: none;
+    }
+    .situation-frame-card {
+      width: min(520px, 100%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      background: var(--bg-elevated);
+      box-shadow: 0 28px 90px rgba(15,23,42,0.18);
+      padding: 28px;
+      text-align: center;
+    }
+    [data-theme="dark"] .situation-frame-card {
+      background: rgba(20,20,20,0.96);
+      border-color: rgba(255,255,255,0.1);
+      box-shadow: 0 28px 90px rgba(0,0,0,0.34);
+    }
+    .situation-frame-icon {
+      width: 54px;
+      height: 54px;
+      margin: 0 auto 16px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      font-weight: 900;
+      font-size: 24px;
+    }
+    .situation-frame-title {
+      color: var(--text-primary);
+      font-size: 18px;
+      line-height: 1.35;
+      font-weight: 900;
+      margin: 0;
+    }
+    .situation-frame-message {
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.75;
+      margin: 10px 0 0;
+    }
+    .situation-frame-actions {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .situation-frame-action {
+      height: 38px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-muted);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+    .situation-frame-action:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 34%, var(--border-subtle));
+    }
+    .situation-frame-action.primary {
+      border-color: transparent;
+      background: var(--accent);
+      color: #fff;
     }
     @media (max-width: 860px) {
       .situation-screen-hero {
@@ -13367,6 +13455,17 @@
           </div>
         </div>
         <div class="situation-frame-shell">
+          <div id="situationFrameOverlay" class="situation-frame-overlay">
+            <div class="situation-frame-card">
+              <div class="situation-frame-icon">▣</div>
+              <h3 id="situationFrameTitle" class="situation-frame-title">正在连接态势大屏</h3>
+              <p id="situationFrameMessage" class="situation-frame-message">正在确认后端服务和大屏资源状态。</p>
+              <div class="situation-frame-actions">
+                <button type="button" class="situation-frame-action primary" onclick="refreshSituationScreen(true)">重新连接</button>
+                <button type="button" class="situation-frame-action" onclick="location.hash='#/app/dashboard'">事件中心</button>
+              </div>
+            </div>
+          </div>
           <iframe id="situationFrame" title="IShield 态势大屏" data-src="/dashboard"></iframe>
         </div>
       </section>
@@ -14716,17 +14815,65 @@ function showTab(id) {
   if (id === 'system-audit') { loadSystemAudit(); }
 }
 
-function refreshSituationScreen(force) {
+function setSituationFrameState(state, title, message) {
+  var overlay = document.getElementById('situationFrameOverlay');
+  var titleEl = document.getElementById('situationFrameTitle');
+  var messageEl = document.getElementById('situationFrameMessage');
+  var frame = document.getElementById('situationFrame');
+  if (titleEl && title) titleEl.textContent = title;
+  if (messageEl && message) messageEl.textContent = message;
+  if (overlay) overlay.hidden = state === 'ready';
+  if (frame) frame.classList.toggle('is-ready', state === 'ready');
+}
+
+async function checkSituationBackend() {
+  if (window.location.protocol === 'file:') {
+    return {
+      ok: false,
+      title: '需要通过 IShield.exe 启动',
+      message: '当前页面像是直接打开了 HTML 文件。请双击 release\\IShield\\IShield.exe，等待控制台打开后再进入态势大屏。'
+    };
+  }
+  try {
+    var response = await fetch(window.location.origin + '/api/health', { cache: 'no-cache' });
+    if (!response.ok) throw new Error('health status ' + response.status);
+    return { ok: true };
+  } catch(e) {
+    return {
+      ok: false,
+      title: '后端服务未连接',
+      message: '态势大屏依赖本地后端服务。请确认 IShield.exe 控制台窗口仍在运行，或重新双击 release\\IShield\\IShield.exe 后点击“重新连接”。'
+    };
+  }
+}
+
+async function refreshSituationScreen(force) {
   var frame = document.getElementById('situationFrame');
   if (!frame) return;
   var base = frame.getAttribute('data-src') || '/dashboard';
   var loaded = frame.getAttribute('data-loaded') === '1';
   var theme = getCurrentTheme();
   if (!loaded || force !== false) {
+    setSituationFrameState('loading', '正在连接态势大屏', '正在确认后端服务和大屏资源状态。');
+    var health = await checkSituationBackend();
+    if (!health.ok) {
+      frame.removeAttribute('data-loaded');
+      frame.removeAttribute('src');
+      setSituationFrameState('offline', health.title, health.message);
+      return;
+    }
     var sep = base.indexOf('?') >= 0 ? '&' : '?';
+    frame.onload = function() {
+      setSituationFrameState('ready');
+    };
     frame.src = base + sep + 't=' + Date.now() + '&theme=' + encodeURIComponent(theme);
     frame.setAttribute('data-loaded', '1');
     frame.setAttribute('data-theme', theme);
+    window.setTimeout(function() {
+      if (!frame.classList.contains('is-ready')) {
+        setSituationFrameState('loading', '正在加载态势大屏', '后端已连接，正在加载地球资源、实时事件和风险态势。');
+      }
+    }, 1800);
   } else {
     syncSituationTheme(theme);
   }

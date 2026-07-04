@@ -36,10 +36,10 @@ build/
 .venv/
 
 # Build artifacts
-IShield.spec
 IShield.zip
+IShield-portable.zip
 IShield/
-build_exe.bat
+release/
 build_portable_v3/
 dist_portable_v3/
 
