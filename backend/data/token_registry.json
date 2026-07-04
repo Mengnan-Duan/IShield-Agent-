@@ -832,6 +832,141 @@
       "last_rotated_at": "2026-07-04T22:21:39.777387+08:00",
       "rotation_count": 1,
       "revoke_reason": "smoke check cleanup"
+    },
+    "smoke-token-1783176441": {
+      "name": "smoke-token-1783176441",
+      "subject": "smoke-token-1783176441",
+      "role": "readonly",
+      "description": "smoke check token",
+      "created_at": "2026-07-04T22:47:21.545657+08:00",
+      "expires_at": "2026-07-07T22:47:21.545657+08:00",
+      "last_used_at": null,
+      "revoked": true,
+      "revoked_at": "2026-07-04T22:47:21.595143+08:00",
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0,
+      "key_hash": "3c9b89aaa143c0de0f7b905a79c655d5fbe11277251ac05d77506ac346e04c1e",
+      "scopes": [
+        "tool:detect"
+      ],
+      "allowed_tools": [
+        "detect"
+      ],
+      "constraints": {
+        "http_request": {
+          "disabled": true
+        },
+        "write_file": {
+          "disabled": true
+        },
+        "query_db": {
+          "allow_write": false
+        },
+        "send_email": {
+          "disabled": true
+        },
+        "post_social": {
+          "disabled": true
+        }
+      },
+      "write_access": false,
+      "requires_approval": false,
+      "issue_source": "registry",
+      "last_rotated_at": "2026-07-04T22:47:21.578430+08:00",
+      "rotation_count": 1,
+      "revoke_reason": "smoke check cleanup"
+    },
+    "smoke-token-1783176752": {
+      "name": "smoke-token-1783176752",
+      "subject": "smoke-token-1783176752",
+      "role": "readonly",
+      "description": "smoke check token",
+      "created_at": "2026-07-04T22:52:32.943777+08:00",
+      "expires_at": "2026-07-07T22:52:32.943777+08:00",
+      "last_used_at": null,
+      "revoked": true,
+      "revoked_at": "2026-07-04T22:52:32.995135+08:00",
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0,
+      "key_hash": "8d8ebb7eedfbd216155771a296f175e9a491d59fba60dcf148ec97789dd427ba",
+      "scopes": [
+        "tool:detect"
+      ],
+      "allowed_tools": [
+        "detect"
+      ],
+      "constraints": {
+        "http_request": {
+          "disabled": true
+        },
+        "write_file": {
+          "disabled": true
+        },
+        "query_db": {
+          "allow_write": false
+        },
+        "send_email": {
+          "disabled": true
+        },
+        "post_social": {
+          "disabled": true
+        }
+      },
+      "write_access": false,
+      "requires_approval": false,
+      "issue_source": "registry",
+      "last_rotated_at": "2026-07-04T22:52:32.977656+08:00",
+      "rotation_count": 1,
+      "revoke_reason": "smoke check cleanup"
+    },
+    "smoke-token-1783177242": {
+      "name": "smoke-token-1783177242",
+      "subject": "smoke-token-1783177242",
+      "role": "readonly",
+      "description": "smoke check token",
+      "created_at": "2026-07-04T23:00:42.462319+08:00",
+      "expires_at": "2026-07-07T23:00:42.462319+08:00",
+      "last_used_at": null,
+      "revoked": true,
+      "revoked_at": "2026-07-04T23:00:42.518881+08:00",
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0,
+      "key_hash": "0a3c1dd3b69f88f28631a5e1234a601f209157c5b64f751d698da06c0e01da14",
+      "scopes": [
+        "tool:detect"
+      ],
+      "allowed_tools": [
+        "detect"
+      ],
+      "constraints": {
+        "http_request": {
+          "disabled": true
+        },
+        "write_file": {
+          "disabled": true
+        },
+        "query_db": {
+          "allow_write": false
+        },
+        "send_email": {
+          "disabled": true
+        },
+        "post_social": {
+          "disabled": true
+        }
+      },
+      "write_access": false,
+      "requires_approval": false,
+      "issue_source": "registry",
+      "last_rotated_at": "2026-07-04T23:00:42.500302+08:00",
+      "rotation_count": 1,
+      "revoke_reason": "smoke check cleanup"
     }
   },
   "approvals": {}
