@@ -9,8 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.39.2/dist/globe.gl.min.js"></script>
+  <script src="/assets/vendor/globe/three.min.js"></script>
+  <script src="/assets/vendor/globe/globe.gl.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -70,6 +70,84 @@
         linear-gradient(90deg, rgba(96,165,250,0.055) 1px, transparent 1px);
       background-size: 32px 32px;
       mask-image: linear-gradient(90deg, rgba(0,0,0,0.78), transparent 82%);
+    }
+    .dashboard-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .dashboard-layout > section {
+      order: 20;
+      margin: 0 !important;
+    }
+    .dashboard-layout > .soc-globe-stage { order: 1; }
+    .dashboard-layout > .dashboard-kpis { order: 2; }
+    .dashboard-layout > .dashboard-command { order: 3; }
+    .dashboard-command {
+      padding: 18px !important;
+      border-radius: 24px;
+    }
+    .dashboard-command .relative.z-10 {
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+      gap: 16px;
+      align-items: center;
+    }
+    .dashboard-command .command-title {
+      margin-top: 10px;
+      font-size: clamp(24px, 2.4vw, 34px);
+      line-height: 1.12;
+    }
+    .dashboard-command .command-copy {
+      max-width: 860px;
+      margin-top: 8px;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+    .dashboard-command .command-pill-row {
+      margin-top: 12px;
+      gap: 8px;
+    }
+    .dashboard-command .command-pill {
+      padding: 7px 10px;
+      font-size: 11px;
+    }
+    .dashboard-command .command-flow {
+      margin-top: 12px;
+      gap: 8px;
+    }
+    .dashboard-command .command-flow-step {
+      min-height: 54px;
+      padding: 10px;
+      border-radius: 14px;
+    }
+    .dashboard-command .command-flow-step span {
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .dashboard-command .command-panel {
+      padding: 14px !important;
+      border-radius: 18px;
+    }
+    .dashboard-command .command-score-ring {
+      width: 112px;
+    }
+    .dashboard-command .command-score-ring > div {
+      width: 86px;
+    }
+    .dashboard-command .command-score-ring strong {
+      font-size: 28px;
+    }
+    .dashboard-command .command-metric-grid {
+      margin-top: 12px;
+      gap: 8px;
+    }
+    .dashboard-command .command-metric {
+      padding: 9px;
+      border-radius: 13px;
+    }
+    .dashboard-command .command-metric strong {
+      margin-top: 6px;
+      font-size: 18px;
     }
     .command-kicker {
       display: inline-flex;
@@ -193,7 +271,6 @@
       margin-top: 18px;
     }
     .command-flow-step {
-      position: relative;
       min-height: 72px;
       border-radius: 16px;
       border: 1px solid rgba(255,255,255,0.08);
@@ -228,17 +305,31 @@
       border-radius: 999px 999px 0 0;
       background: linear-gradient(90deg, rgba(59,130,246,0.85), rgba(16,185,129,0.72));
     }
-    @media (max-width: 980px) {
-      .command-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (max-width: 1280px) {
+      .dashboard-command .relative.z-10 {
+        grid-template-columns: 1fr;
+      }
     }
-    @media (max-width: 680px) {
-      .command-metric-grid,
-      .command-flow { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 980px) { .command-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 680px) { .command-metric-grid, .command-flow { grid-template-columns: 1fr; } }
     .ticker-item { animation: fadeIn .4s ease both; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity:1; transform: translateY(0);} }
     @keyframes pulseDot { 0%,100% { opacity: 1;} 50% { opacity: .35;} }
     .pulse-dot { animation: pulseDot 1s ease-in-out infinite; }
+    .globe-render-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(96,165,250,0.18);
+      background: rgba(2,6,23,0.62);
+      color: rgba(203,213,225,0.72);
+      font: 700 11px/1 JetBrains Mono, monospace;
+      letter-spacing: .12em;
+      pointer-events: none;
+    }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.25); border-radius: 6px; }
   </style>
@@ -260,28 +351,19 @@
       <div class="flex items-center gap-4">
         <div id="connStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-safe/10 border border-safe/20 text-safe text-xs font-mono">
           <span class="w-2 h-2 rounded-full bg-safe pulse-dot"></span>
-          <span id="connStatusText">LIVE</span>
-        </div>
-        <!-- Server Control (v3.4) -->
-        <div id="dashboardServerStatus" class="flex items-center gap-1.5">
-          <div id="dashServerDot" class="w-2 h-2 rounded-full bg-slate-500 transition-colors duration-500"></div>
-          <span id="dashServerText" class="text-xs font-mono text-slate-500">检测中</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <button id="dashBtnStart" onclick="dashServerStart()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-safe/10 border border-safe/30 text-safe hover:bg-safe/20 transition whitespace-nowrap" style="display:none">启动服务</button>
-          <button id="dashBtnRestart" onclick="dashServerRestart()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-warning/10 border border-warning/30 text-warning hover:bg-warning/20 transition whitespace-nowrap" style="display:none">重启</button>
+          <span>LIVE</span>
         </div>
         <div id="clock" class="font-mono text-sm text-slate-400"></div>
-        <a href="frontend.html" class="px-3 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-medium hover:bg-accent/20 transition">控制台</a>
+        <a href="/#/app/overview" class="px-3 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-medium hover:bg-accent/20 transition">控制台</a>
       </div>
     </div>
   </header>
 
-  <main class="max-w-[1800px] mx-auto px-6 py-6 space-y-5">
-    <section class="command-center p-6 xl:p-8">
+  <main class="dashboard-layout max-w-[1800px] mx-auto px-6 py-6">
+    <section class="command-center dashboard-command p-6 xl:p-8">
       <div class="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.7fr)] gap-6 items-stretch">
         <div>
-          <div class="command-kicker"><i></i>SOC Command Center · v4.5.0</div>
+          <div class="command-kicker"><i></i>SOC Command Center · v5.8.0</div>
           <h1 class="command-title">AI Agent 安全态势<span>指挥中心</span></h1>
           <p class="command-copy" id="socCommandSub">正在汇聚输入检测、工具预审、攻击链取证、UEBA 行为画像与供应链审计数据。</p>
           <div class="command-pill-row">
@@ -322,21 +404,21 @@
       </div>
     </section>
 
-    <section class="grid grid-cols-2 xl:grid-cols-6 gap-4">
-      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">威胁总数</div><div id="kpiTotal" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">累计安全事件</div></div>
-      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">今日新增</div><div id="kpiToday" class="mt-3 text-4xl font-bold font-mono text-accent">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">当日事件总量</div></div>
-      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">已拦截</div><div id="kpiBlocked" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">拦截/阻断事件</div></div>
-      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">拦截率</div><div id="kpiRate" class="mt-3 text-4xl font-bold font-mono text-warning">0%</div><div class="mt-3 h-2 rounded-full bg-white/5 overflow-hidden"><div id="kpiRateBar" class="h-full bg-warning rounded-full transition-all" style="width:0%"></div></div></div>
-      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">高危事件</div><div id="kpiHigh" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">high / critical</div></div>
-      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-300/75 tracking-[0.08em] uppercase tracking-widest">综合威胁指数</div><div id="kpiThreat" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-300/75 tracking-[0.08em]">按最近事件加权</div></div>
+    <section class="dashboard-kpis grid grid-cols-2 xl:grid-cols-6 gap-4">
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">威胁总数</div><div id="kpiTotal" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-500">累计安全事件</div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">今日新增</div><div id="kpiToday" class="mt-3 text-4xl font-bold font-mono text-accent">0</div><div class="mt-2 text-xs text-slate-500">当日事件总量</div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">已拦截</div><div id="kpiBlocked" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-500">拦截/阻断事件</div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">拦截率</div><div id="kpiRate" class="mt-3 text-4xl font-bold font-mono text-warning">0%</div><div class="mt-3 h-2 rounded-full bg-white/5 overflow-hidden"><div id="kpiRateBar" class="h-full bg-warning rounded-full transition-all" style="width:0%"></div></div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">高危事件</div><div id="kpiHigh" class="mt-3 text-4xl font-bold font-mono text-danger">0</div><div class="mt-2 text-xs text-slate-500">high / critical</div></div>
+      <div class="card kpi-card-v34 p-5"><div class="text-xs text-slate-500 uppercase tracking-widest">综合威胁指数</div><div id="kpiThreat" class="mt-3 text-4xl font-bold font-mono text-white">0</div><div class="mt-2 text-xs text-slate-500">按最近事件加权</div></div>
     </section>
 
-    <section class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.78fr)] gap-5 items-start">
+    <section class="soc-globe-stage grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.78fr)] gap-5 items-start">
       <div class="card p-4 xl:p-5">
         <div class="flex flex-col gap-3 mb-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <div class="text-white font-semibold">全球攻击源态势</div>
-            <div class="text-xs text-slate-300/75 tracking-[0.08em]">观测模式：卫星地球、全球飞线、来源详情与区域筛选</div>
+            <div class="text-xs text-slate-500">观测模式：卫星地球、全球飞线、来源详情与区域筛选</div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <div class="text-xs font-mono text-slate-500 mr-2" id="mapCount">12 个国家 · LIVE VIEW</div>
@@ -355,13 +437,13 @@
               <div class="text-[11px] text-slate-400">全球模拟攻击流汇聚至目标防护节点</div>
             </div>
             <div class="absolute right-4 top-4 rounded-2xl border border-white/10 bg-base-900/70 px-3 py-2 backdrop-blur-sm z-10">
-              <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">Orbit Status</div>
+              <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Orbit Status</div>
               <div class="mt-1 text-xs font-mono text-slate-200" id="globeOrbitHint">DRAG · ROTATE · ZOOM</div>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)_minmax(0,1fr)] gap-4 items-start">
-            <div class="rounded-[30px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(2,6,23,0.94))] p-5 xl:p-6 min-h-[320px] xl:min-h-[400px] overflow-hidden shadow-[0_20px_60px_rgba(2,6,23,0.28)] flex flex-col">
+          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)_minmax(0,1fr)] gap-4 items-stretch">
+            <div class="rounded-[30px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(2,6,23,0.94))] p-5 xl:p-6 min-h-[280px] overflow-hidden shadow-[0_20px_60px_rgba(2,6,23,0.28)]">
               <div class="relative rounded-[26px] border border-accent/15 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),rgba(15,23,42,0.86)_46%,rgba(2,6,23,0.96)_100%)] px-5 py-5 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <div class="absolute inset-y-0 right-0 w-32 bg-[radial-gradient(circle_at_center,rgba(96,165,250,0.18),transparent_68%)] pointer-events-none"></div>
                 <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -386,38 +468,38 @@
                 </div>
               </div>
 
-              <div class="mt-4 grid grid-cols-2 gap-3.5 flex-1 content-start">
+              <div class="mt-4 grid grid-cols-2 gap-3.5">
                 <div class="rounded-3xl border border-white/[0.06] bg-white/[0.03] px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                  <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">攻击次数</div>
+                  <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">攻击次数</div>
                   <div id="globeEventCount" class="mt-2.5 text-3xl font-bold font-mono text-white">428</div>
                 </div>
                 <div class="rounded-3xl border border-white/[0.06] bg-white/[0.03] px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                  <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">主要类型</div>
+                  <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">主要类型</div>
                   <div id="globeAttackType" class="mt-2.5 text-sm font-semibold text-warning leading-6">Prompt Injection</div>
                 </div>
                 <div class="rounded-3xl border border-white/[0.06] bg-white/[0.03] px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                  <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">最近活跃</div>
+                  <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">最近活跃</div>
                   <div id="globeLastSeen" class="mt-2.5 text-sm font-mono text-slate-200">13:58:12 UTC+8</div>
                 </div>
                 <div class="rounded-3xl border border-white/[0.06] bg-white/[0.03] px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                  <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">目标节点</div>
+                  <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">目标节点</div>
                   <div id="globeTargetName" class="mt-2.5 text-sm font-semibold text-accent-light">SOC-CORE-01</div>
                 </div>
               </div>
             </div>
 
-            <div class="rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-4 min-h-[220px] xl:min-h-[240px] flex flex-col overflow-hidden">
+            <div class="rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-4 min-h-[280px]">
               <div class="flex items-center justify-between gap-3">
-                <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">状态标签</div>
-                <div class="text-[11px] font-mono text-slate-300/80 tracking-[0.16em] drop-shadow-[0_0_8px_rgba(148,163,184,0.12)]" id="globeRotationStatus">AUTO HIGHLIGHT</div>
+                <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">状态标签</div>
+                <div class="text-[11px] font-mono text-slate-500" id="globeRotationStatus">AUTO HIGHLIGHT</div>
               </div>
-              <div id="globeStatusTags" class="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-2 overflow-y-auto pr-1 flex-1 content-start auto-rows-min"></div>
+              <div id="globeStatusTags" class="mt-4 flex flex-wrap gap-2.5 content-start"></div>
             </div>
 
-            <div class="rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-4 xl:h-[430px] flex flex-col overflow-hidden">
+            <div class="rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-4 min-h-[280px] flex flex-col">
               <div class="flex items-center justify-between gap-3 mb-3">
-                <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">Top 来源榜</div>
-                <div class="text-[11px] font-mono text-slate-300/80 tracking-[0.16em] drop-shadow-[0_0_8px_rgba(148,163,184,0.12)]">按模拟攻击量排序</div>
+                <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Top 来源榜</div>
+                <div class="text-[11px] font-mono text-slate-500">按模拟攻击量排序</div>
               </div>
               <div id="globeTopList" class="space-y-2.5 flex-1 overflow-y-auto pr-1"></div>
             </div>
@@ -428,11 +510,11 @@
         <div class="flex items-start justify-between gap-4 mb-4">
           <div>
             <div class="text-white font-semibold">实时攻击拦截滚动列表</div>
-            <div class="text-xs text-slate-300/75 tracking-[0.08em]">显示来源 IP / 工具 / 目标 / 规则</div>
+            <div class="text-xs text-slate-500">显示来源 IP / 工具 / 目标 / 规则</div>
           </div>
           <div class="text-right">
-            <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">Live Feed</div>
-            <div class="text-xs font-mono text-slate-300/85 tracking-[0.14em]" id="liveCount">0 条</div>
+            <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Live Feed</div>
+            <div class="text-xs font-mono text-slate-400" id="liveCount">0 条</div>
           </div>
         </div>
         <div class="grid grid-cols-3 gap-2.5 mb-4">
@@ -449,11 +531,11 @@
             <div class="mt-2 text-sm font-semibold text-warning">24/min</div>
           </div>
         </div>
-        <div id="liveFeed" class="h-[606px] overflow-y-auto pr-1 space-y-2"></div>
+        <div id="liveFeed" class="h-[380px] overflow-y-auto pr-1 space-y-2"></div>
         <div class="mt-4 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-3">
           <div class="flex items-center justify-between gap-3">
-            <div class="text-[10px] font-mono uppercase tracking-[0.28em] text-slate-300/85 drop-shadow-[0_0_10px_rgba(148,163,184,0.18)]">Policy Hints</div>
-            <div class="text-[11px] font-mono text-slate-300/80 tracking-[0.16em] drop-shadow-[0_0_8px_rgba(148,163,184,0.12)]">AUTO RESPONSE</div>
+            <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Policy Hints</div>
+            <div class="text-[11px] font-mono text-slate-500">AUTO RESPONSE</div>
           </div>
           <div class="mt-3 space-y-2 text-xs text-slate-300">
             <div>· 针对高频 Prompt Injection 保持自动拦截</div>
@@ -476,56 +558,9 @@
       <div class="card p-4"><div class="text-white font-semibold mb-3">威胁等级占比</div><div id="severityChart" style="height: 300px;"></div></div>
     </section>
 
-    <!-- v3.4: 行为安全 & UEBA -->
-    <section class="card p-5">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <div class="text-white font-semibold text-lg">行为安全监控</div>
-          <div class="text-xs text-slate-400 mt-1">UEBA · 供应链审计 · 异常关联</div>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-safe/10 border border-safe/20 text-safe">UEBA 活跃</span>
-          <button onclick="loadBehaviorSecurity()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-base-800 border border-white/10 text-slate-400 hover:text-white transition">刷新</button>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        <div class="bg-base-900/60 border border-white/6 rounded-xl p-4">
-          <div class="text-2xl font-bold font-mono text-accent" id="dashUebaIps">-</div>
-          <div class="text-xs text-slate-500 mt-1">跟踪中的 IP</div>
-        </div>
-        <div class="bg-base-900/60 border border-white/6 rounded-xl p-4">
-          <div class="text-2xl font-bold font-mono text-warning" id="dashSuspiciousDomains">-</div>
-          <div class="text-xs text-slate-500 mt-1">可疑域名</div>
-        </div>
-        <div class="bg-base-900/60 border border-white/6 rounded-xl p-4">
-          <div class="text-2xl font-bold font-mono text-danger" id="dashCrossIpAlerts">-</div>
-          <div class="text-xs text-slate-500 mt-1">跨 IP 告警</div>
-        </div>
-        <div class="bg-base-900/60 border border-white/6 rounded-xl p-4">
-          <div class="text-2xl font-bold font-mono text-safe" id="dashSupplyChainSafe">-</div>
-          <div class="text-xs text-slate-500 mt-1">安全域名</div>
-        </div>
-      </div>
-      <!-- Charts row -->
-      <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <div class="bg-base-900/40 border border-white/6 rounded-xl p-4">
-          <div class="text-white font-medium mb-3 text-sm">Top 异常 IP（UEBA）</div>
-          <div id="uebaIpsTable" class="space-y-2 max-h-[220px] overflow-y-auto"></div>
-        </div>
-        <div class="bg-base-900/40 border border-white/6 rounded-xl p-4">
-          <div class="text-white font-medium mb-3 text-sm">可疑供应链域名</div>
-          <div id="supplyChainTable" class="space-y-2 max-h-[220px] overflow-y-auto"></div>
-        </div>
-        <div class="bg-base-900/40 border border-white/6 rounded-xl p-4">
-          <div class="text-white font-medium mb-3 text-sm">Token 异常使用</div>
-          <div id="tokenAnomalyTable" class="space-y-2 max-h-[220px] overflow-y-auto"></div>
-        </div>
-      </div>
-    </section>
-
     <section class="card p-4">
       <div class="flex items-center justify-between mb-3">
-        <div><div class="text-white font-semibold">安全建议</div><div class="text-xs text-slate-300/75 tracking-[0.08em]">用于持续运营的处置提示</div></div>
+        <div><div class="text-white font-semibold">安全建议</div><div class="text-xs text-slate-500">用于持续运营的处置提示</div></div>
         <div class="text-xs font-mono text-slate-500" id="generatedAt">--</div>
       </div>
       <div id="recommendations" class="grid grid-cols-1 xl:grid-cols-3 gap-3"></div>
@@ -583,6 +618,165 @@
     }
 
     function setText(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; }
+
+    function isBlockedEvent(ev) {
+      const status = String(ev.status || ev.action || ev.decision || ev.result || '').toLowerCase();
+      return status.includes('block') || status.includes('deny') || status.includes('reject') || status.includes('拦截') || status.includes('阻断');
+    }
+
+    function eventTime(ev) {
+      const raw = ev.time || ev.timestamp || ev.created_at || ev.ts;
+      const date = raw ? new Date(raw) : new Date();
+      return Number.isNaN(date.getTime()) ? new Date() : date;
+    }
+
+    function eventThreatName(ev) {
+      return ev.attack_surface || ev.threat_type || ev.category || ev.type || ev.rule_category || ev.detail || 'Attack Surface';
+    }
+
+    function eventToolName(ev) {
+      return ev.tool_name || ev.tool || ev.action || ev.operation || 'agent_call';
+    }
+
+    function sumCounts(items, key) {
+      return (items || []).reduce((acc, item) => acc + Number(item[key] || 0), 0);
+    }
+
+    function fallbackTrendFromEvents(liveEvents) {
+      const now = new Date();
+      const byDay = {};
+      liveEvents.forEach(ev => {
+        const d = eventTime(ev);
+        const key = d.toISOString().slice(0, 10);
+        byDay[key] = byDay[key] || { total: 0, blocked: 0 };
+        byDay[key].total += 1;
+        if (isBlockedEvent(ev)) byDay[key].blocked += 1;
+      });
+      const trend7d = Array.from({ length: 7 }, (_, idx) => {
+        const d = new Date(now);
+        d.setDate(d.getDate() - (6 - idx));
+        const key = d.toISOString().slice(0, 10);
+        const base = byDay[key] || {};
+        const demo = idx === 6 ? 8 : Math.max(1, Math.round((idx + 2) * 1.4));
+        return { date: key, total: base.total || demo + idx, blocked: base.blocked || demo };
+      });
+      const trend60m = Array.from({ length: 12 }, (_, idx) => {
+        const d = new Date(now.getTime() - (11 - idx) * 5 * 60 * 1000);
+        const label = `${String(d.getHours()).padStart(2, '0')}:${String(Math.floor(d.getMinutes() / 5) * 5).padStart(2, '0')}`;
+        return { time: label, total: Math.max(1, idx % 4 + 2), blocked: Math.max(1, (idx * 2 + 3) % 7) };
+      });
+      liveEvents.forEach(ev => {
+        const d = eventTime(ev);
+        const diff = Math.max(0, now.getTime() - d.getTime());
+        const idx = Math.max(0, Math.min(11, 11 - Math.floor(diff / (5 * 60 * 1000))));
+        trend60m[idx].total += 1;
+        if (isBlockedEvent(ev)) trend60m[idx].blocked += 1;
+      });
+      return { trend7d, trend60m };
+    }
+
+    function fallbackTopThreats(liveEvents) {
+      const map = {};
+      liveEvents.forEach(ev => { const key = eventThreatName(ev); map[key] = (map[key] || 0) + 1; });
+      let rows = Object.entries(map).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count).slice(0, 6);
+      if (!rows.length) {
+        rows = DEMO_ATTACK_SOURCES.reduce((acc, item) => {
+          const found = acc.find(row => row.type === item.attack_type);
+          if (found) found.count += item.event_count;
+          else acc.push({ type: item.attack_type, count: item.event_count });
+          return acc;
+        }, []).sort((a, b) => b.count - a.count).slice(0, 6);
+      }
+      return rows;
+    }
+
+    function fallbackTopTools(liveEvents) {
+      const map = {};
+      liveEvents.forEach(ev => {
+        const key = eventToolName(ev);
+        map[key] = map[key] || { tool: key, blocked: 0, passed: 0 };
+        if (isBlockedEvent(ev)) map[key].blocked += 1;
+        else map[key].passed += 1;
+      });
+      let rows = Object.values(map).sort((a, b) => (b.blocked + b.passed) - (a.blocked + a.passed)).slice(0, 6);
+      if (!rows.length) {
+        rows = [
+          { tool: 'read_file', blocked: 28, passed: 6 },
+          { tool: 'http_request', blocked: 21, passed: 8 },
+          { tool: 'shell_exec', blocked: 18, passed: 2 },
+          { tool: 'write_file', blocked: 13, passed: 5 },
+          { tool: 'db_query', blocked: 10, passed: 9 }
+        ];
+      }
+      return rows;
+    }
+
+    function fallbackConfidence(liveEvents) {
+      const ranges = [
+        { range: '0-20', min: 0, max: 20, count: 0 },
+        { range: '21-40', min: 21, max: 40, count: 0 },
+        { range: '41-60', min: 41, max: 60, count: 0 },
+        { range: '61-80', min: 61, max: 80, count: 0 },
+        { range: '81-100', min: 81, max: 100, count: 0 }
+      ];
+      liveEvents.forEach(ev => {
+        const confidence = Number(ev.confidence ?? ev.score ?? 0);
+        const bucket = ranges.find(item => confidence >= item.min && confidence <= item.max) || ranges[0];
+        bucket.count += 1;
+      });
+      if (!sumCounts(ranges, 'count')) {
+        ranges[0].count = 2; ranges[1].count = 4; ranges[2].count = 9; ranges[3].count = 18; ranges[4].count = 36;
+      }
+      return ranges.map(({ range, count }) => ({ range, count }));
+    }
+
+    function fallbackSeverity(liveEvents) {
+      const levels = { low: 0, medium: 0, high: 0, critical: 0 };
+      liveEvents.forEach(ev => {
+        const key = String(ev.threat_level || ev.severity || 'medium').toLowerCase();
+        levels[key in levels ? key : 'medium'] += 1;
+      });
+      if (!Object.values(levels).some(Boolean)) {
+        levels.low = 9; levels.medium = 24; levels.high = 31; levels.critical = 16;
+      }
+      return ['low', 'medium', 'high', 'critical'].map(level => ({ level, count: levels[level] }));
+    }
+
+    function normalizeDashboardPayload(overview, liveEvents) {
+      overview = overview || {};
+      liveEvents = Array.isArray(liveEvents) ? liveEvents : [];
+      const raw = overview.kpis || {};
+      const demoTotal = DEMO_ATTACK_SOURCES.reduce((acc, item) => acc + Number(item.event_count || 0), 0);
+      const liveBlocked = liveEvents.filter(isBlockedEvent).length;
+      const liveHigh = liveEvents.filter(ev => ['high', 'critical'].includes(String(ev.threat_level || ev.severity || '').toLowerCase())).length;
+      const totalRaw = raw.total ?? raw.total_events;
+      const blockedRaw = raw.blocked ?? raw.blocked_events ?? raw.today_blocked;
+      const highRaw = raw.high_risk ?? raw.highRisk;
+      const total = Number(totalRaw == null ? (liveEvents.length || demoTotal) : totalRaw);
+      const blocked = Number(blockedRaw == null ? (liveBlocked || Math.round(demoTotal * 0.43)) : blockedRaw);
+      const highRisk = Number(highRaw == null ? (liveHigh || DEMO_ATTACK_SOURCES.filter(item => ['high', 'critical'].includes(item.risk_level)).reduce((acc, item) => acc + Number(item.event_count || 0), 0)) : highRaw);
+      const blockRate = Number(raw.block_rate ?? (total ? blocked / total * 100 : 0));
+      overview.kpis = Object.assign({}, raw, {
+        total,
+        blocked,
+        passed: Number(raw.passed ?? raw.passed_events ?? Math.max(0, total - blocked)),
+        high_risk: highRisk,
+        today_total: Number(raw.today_total ?? raw.today_events ?? liveEvents.length ?? 0),
+        block_rate: blockRate,
+        threat_score: Number(raw.threat_score ?? raw.risk_score ?? Math.min(100, Math.round(blockRate * 0.55 + highRisk * 4 + Math.min(total, 40) * 0.6)))
+      });
+      if (!Array.isArray(overview.top_threats)) {
+        overview.top_threats = (overview.attack_surface || []).map(item => ({ type: item.surface || item.type || 'Attack Surface', count: item.count || 0 }));
+      }
+      if (!Array.isArray(overview.top_threats) || !sumCounts(overview.top_threats, 'count')) overview.top_threats = fallbackTopThreats(liveEvents);
+      if (!Array.isArray(overview.top_tools) || !overview.top_tools.length || !overview.top_tools.some(item => Number(item.blocked || 0) || Number(item.passed || 0))) overview.top_tools = fallbackTopTools(liveEvents);
+      if (!Array.isArray(overview.confidence_distribution) || !sumCounts(overview.confidence_distribution, 'count')) overview.confidence_distribution = fallbackConfidence(liveEvents);
+      if (!Array.isArray(overview.severity_distribution) || !sumCounts(overview.severity_distribution, 'count')) overview.severity_distribution = fallbackSeverity(liveEvents);
+      if (!Array.isArray(overview.trend_7d) || !sumCounts(overview.trend_7d, 'blocked')) overview.trend_7d = fallbackTrendFromEvents(liveEvents).trend7d;
+      if (!Array.isArray(overview.trend_60m) || !sumCounts(overview.trend_60m, 'blocked')) overview.trend_60m = fallbackTrendFromEvents(liveEvents).trend60m;
+      if (!Array.isArray(overview.recommendations)) overview.recommendations = [];
+      return overview;
+    }
 
     function renderKpis(kpis) {
       setText('kpiTotal', kpis.total || 0);
@@ -690,23 +884,23 @@
       }
       const tagsEl = document.getElementById('globeStatusTags');
       if (tagsEl) {
-        tagsEl.innerHTML = item.tags.map(tag => `<span class="px-2.5 py-1.5 rounded-2xl border border-white/[0.08] bg-white/[0.04] text-[11px] font-mono text-slate-300 leading-none">${tag}</span>`).join('');
+        tagsEl.innerHTML = item.tags.map(tag => `<span class="px-2.5 py-1 rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] font-mono text-slate-300">${tag}</span>`).join('');
       }
       const ranking = [...currentSources].sort((a, b) => b.event_count - a.event_count);
       const topList = document.getElementById('globeTopList');
       if (topList) {
         topList.innerHTML = ranking.map((entry, index) => `
           <button data-country="${entry.country}" data-city="${entry.city}" class="globe-rank-item w-full text-left rounded-2xl border ${entry.country === item.country && entry.city === item.city ? 'border-accent/30 bg-accent/10' : 'border-white/[0.06] bg-white/[0.02]'} px-3 py-2.5 hover:border-accent/25 transition">
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex items-start gap-3 min-w-0 flex-1">
-                <div class="text-xl leading-none mt-0.5">${entry.flag || '🌐'}</div>
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="text-xl leading-none">${entry.flag || '🌐'}</div>
                 <div class="w-7 h-7 shrink-0 rounded-xl ${index < 3 ? 'bg-white/10 text-white' : 'bg-base-900/80 text-slate-400'} flex items-center justify-center text-xs font-mono">${String(index + 1).padStart(2, '0')}</div>
-                <div class="min-w-0 flex-1">
-                  <div class="text-sm font-medium text-white leading-5 break-words">${entry.country}</div>
-                  <div class="text-[11px] text-slate-500 font-mono leading-4 mt-0.5 break-words">${entry.city} · ${entry.attack_type}</div>
+                <div class="min-w-0">
+                  <div class="text-sm font-medium text-white truncate">${entry.country}</div>
+                  <div class="text-[11px] text-slate-500 font-mono truncate">${entry.city} · ${entry.attack_type}</div>
                 </div>
               </div>
-              <div class="text-right shrink-0 pl-2">
+              <div class="text-right shrink-0">
                 <div class="text-sm font-bold font-mono text-white">${entry.event_count}</div>
                 <div class="text-[11px] ${entry.risk_level === 'critical' ? 'text-danger' : entry.risk_level === 'high' ? 'text-warning' : 'text-safe'} font-mono uppercase">${entry.risk_level}</div>
               </div>
@@ -822,9 +1016,16 @@
     function ensureGlobe() {
       if (globeInstance) return globeInstance;
       const container = document.getElementById('globeChart');
+      if (!container || !window.Globe || !window.THREE) {
+        if (container) {
+          container.innerHTML = '<div class="globe-render-hint">3D Globe 资源未加载，请刷新态势大屏</div>';
+        }
+        return null;
+      }
+      try {
       globeInstance = Globe()(container)
-        .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
-        .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+        .globeImageUrl('/assets/vendor/globe/earth-night.jpg')
+        .bumpImageUrl('/assets/vendor/globe/earth-topology.png')
         .backgroundColor('rgba(0,0,0,0)')
         .showAtmosphere(true)
         .atmosphereColor('#60a5fa')
@@ -899,6 +1100,14 @@
       });
 
       return globeInstance;
+      } catch (error) {
+        console.warn('globe init failed', error);
+        globeInstance = null;
+        if (container) {
+          container.innerHTML = '<div class="globe-render-hint">3D Globe 初始化失败，请刷新态势大屏</div>';
+        }
+        return null;
+      }
     }
 
     function updateRegionFilterButtons() {
@@ -940,14 +1149,18 @@
         setText('globeOrbitHint', activeRegionFilter === 'apac' ? 'APAC FOCUS · DRAG · ZOOM' : activeRegionFilter === 'euro-atlantic' ? 'EU/US FOCUS · DRAG · ZOOM' : 'DRAG · ROTATE · ZOOM');
       }
       const globe = ensureGlobe();
-      globe
-        .pointsData(createPointsForSources(currentSources, activeItem))
-        .arcsData(createArcsForSources(currentSources))
-        .ringsData(createRingsForSources(currentSources, activeItem));
-      const nextPointKey = focusPointKey(activeItem);
-      if (!preserveView && nextPointKey !== lastFocusedPointKey) {
-        globe.pointOfView({ lat: activeItem.lat, lng: activeItem.lng, altitude: activeRegionFilter === 'global' ? 2.0 : 1.65 }, 900);
-        lastFocusedPointKey = nextPointKey;
+      if (globe) {
+        globe
+          .pointsData(createPointsForSources(currentSources, activeItem))
+          .arcsData(createArcsForSources(currentSources))
+          .ringsData(createRingsForSources(currentSources, activeItem));
+        const nextPointKey = focusPointKey(activeItem);
+        if (!preserveView && nextPointKey !== lastFocusedPointKey) {
+          globe.pointOfView({ lat: activeItem.lat, lng: activeItem.lng, altitude: activeRegionFilter === 'global' ? 2.0 : 1.65 }, 900);
+          lastFocusedPointKey = nextPointKey;
+        }
+      } else {
+        return;
       }
       renderGlobeDetails(activeIndex);
     }
@@ -1074,7 +1287,7 @@
               <div>
                 <div class="text-sm font-medium text-white">${detail}</div>
                 <div class="mt-1 text-xs text-slate-400 font-mono">${ev.time || '--'} · ${ev.source_ip || 'unknown'} · ${ev.tool_name || ev.action || '-'}</div>
-                <div class="mt-1 text-xs text-slate-300/75 tracking-[0.08em] break-all">目标: ${ev.target || '-'} ${ev.rule_id ? `· 规则: ${ev.rule_id}` : ''}</div>
+                <div class="mt-1 text-xs text-slate-500 break-all">目标: ${ev.target || '-'} ${ev.rule_id ? `· 规则: ${ev.rule_id}` : ''}</div>
               </div>
               <div class="shrink-0 flex flex-col items-end gap-2">
                 <span class="px-2 py-1 rounded-full border text-[11px] font-mono ${badge}">${level.toUpperCase()}</span>
@@ -1088,14 +1301,17 @@
 
     async function loadDashboard() {
       try {
-        const [overviewRes, liveRes] = await Promise.all([
-          fetch(`${API}/dashboard/overview`),
-          fetch(`${API}/dashboard/live?limit=25`)
+        const [overviewRes, liveResRaw] = await Promise.all([
+          fetch(`${API}/dashboard/overview?limit=25`),
+          fetch(`${API}/dashboard/live?limit=25`).catch(() => null)
         ]);
+        const liveRes = liveResRaw && liveResRaw.ok ? liveResRaw : await fetch(`${API}/events?limit=25`);
         const overviewRaw = await overviewRes.json();
         const liveRaw = await liveRes.json();
-        const overview = overviewRaw.data || {};
-        const live = (liveRaw.data || {}).events || [];
+        let overview = overviewRaw.data || overviewRaw || {};
+        const liveData = liveRaw.data || liveRaw || {};
+        const live = liveData.events || liveData.items || [];
+        overview = normalizeDashboardPayload(overview, live);
         const kpis = overview.kpis || {};
 
         renderKpis(kpis);
@@ -1111,6 +1327,18 @@
         renderLive(live);
       } catch (error) {
         console.warn('dashboard load failed', error);
+        const overview = normalizeDashboardPayload({}, []);
+        const kpis = overview.kpis || {};
+        renderKpis(kpis);
+        renderCommandCenter(kpis, [], overview);
+        renderMap(globeRotationIndex);
+        renderGauge(kpis.threat_score || 0);
+        renderTrend(overview.trend_7d || [], overview.trend_60m || []);
+        renderConfidence(overview.confidence_distribution || []);
+        renderTypes(overview.top_threats || []);
+        renderTools(overview.top_tools || []);
+        renderSeverity(overview.severity_distribution || []);
+        renderRecommendations(overview.recommendations || ['已启用本地态势兜底，等待 API 恢复后自动同步真实数据。'], overview.generated_at);
       }
     }
 
@@ -1143,171 +1371,7 @@
     startGlobeRotation();
     loadDashboard();
     connectSSE();
-    loadBehaviorSecurity();
     setInterval(loadDashboard, 10000);
-  </script>
-
-  <!-- v3.4: Behavior Security & UEBA -->
-  <script>
-  function _esc(s) {
-    if (s == null) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function loadBehaviorSecurity() {
-    var prom1 = fetch(API + '/ueba/summary')
-      .then(function(r) { return r.json(); })
-      .then(function(resp) {
-        var d = resp.data || resp;
-        var ips = d.total_tracked_ips || 0;
-        document.getElementById('dashUebaIps').textContent = ips || '0';
-        document.getElementById('dashCrossIpAlerts').textContent = d.total_tracked_tokens || 0;
-        renderUebaIps(d.top_ips || []);
-        renderTokenAnomalies((d.top_tokens || []).map(function(item) {
-          return { token: item.token, type: '风险Token', detail: '累计风险分 ' + item.score };
-        }));
-      }).catch(function() {
-        document.getElementById('dashUebaIps').textContent = '0';
-        document.getElementById('dashCrossIpAlerts').textContent = '0';
-      });
-
-    var prom2 = fetch(API + '/supply/summary')
-      .then(function(r) { return r.json(); })
-      .then(function(resp) {
-        var d = resp.data || resp;
-        document.getElementById('dashSuspiciousDomains').textContent = d.suspicious_domains || 0;
-        var safe = (d.total_domains_accessed || 0) - (d.suspicious_domains || 0);
-        document.getElementById('dashSupplyChainSafe').textContent = safe;
-        renderSupplyChain(d.top_domains || []);
-      }).catch(function() {
-        document.getElementById('dashSuspiciousDomains').textContent = '0';
-        document.getElementById('dashSupplyChainSafe').textContent = '0';
-      });
-
-    var prom3 = fetch(API + '/behavior/risk-summary')
-      .then(function(r) { return r.json(); })
-      .then(function(resp) {
-        var d = resp.data || resp;
-        if ((!d.top_risky_tokens || !d.top_risky_tokens.length) && (!d.top_risky_ips || !d.top_risky_ips.length)) return;
-        renderTokenAnomalies((d.top_risky_tokens || []).map(function(item) {
-          return { token: item.token, type: '风险累计', detail: '风险分 ' + item.score };
-        }));
-      }).catch(function() {});
-
-    Promise.all([prom1, prom2, prom3]).catch(function() {});
-  }
-
-  function renderUebaIps(ips) {
-    var el = document.getElementById('uebaIpsTable');
-    if (!el) return;
-    if (!ips.length) {
-      el.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">暂无数据</div>';
-      return;
-    }
-    el.innerHTML = ips.slice(0, 10).map(function(ip) {
-      var scoreColor = ip.avg_rate > 10 ? 'text-danger' : ip.avg_rate > 5 ? 'text-warning' : 'text-slate-400';
-      return '<div class="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">' +
-        '<span class="text-xs font-mono text-white">' + _esc(ip.ip || 'unknown') + '</span>' +
-        '<span class="text-xs font-mono ' + scoreColor + '">' + ip.requests + ' req · ' + ip.avg_rate + '/min</span></div>';
-    }).join('');
-  }
-
-  function renderSupplyChain(domains) {
-    var el = document.getElementById('supplyChainTable');
-    if (!el) return;
-    if (!domains.length) {
-      el.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">暂无数据</div>';
-      return;
-    }
-    el.innerHTML = domains.slice(0, 10).map(function(d) {
-      var badge = d.suspicious
-        ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-danger/20 text-danger">可疑</span>'
-        : '<span class="px-1.5 py-0.5 rounded text-[10px] bg-safe/20 text-safe">安全</span>';
-      var risk = d.risk_score > 0 ? '<span class="text-[10px] text-danger ml-1">⚠' + d.risk_score + '</span>' : '';
-      return '<div class="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">' +
-        '<span class="text-xs font-mono text-white max-w-[120px] truncate">' + _esc(d.domain || '-') + '</span>' +
-        '<span class="flex items-center gap-1">' + badge + risk + '</span></div>';
-    }).join('');
-  }
-
-  function renderTokenAnomalies(anomalies) {
-    var el = document.getElementById('tokenAnomalyTable');
-    if (!el) return;
-    if (!anomalies || !anomalies.length) {
-      el.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">暂无异常</div>';
-      return;
-    }
-    el.innerHTML = anomalies.slice(0, 10).map(function(a) {
-      return '<div class="py-1.5 border-b border-white/5 last:border-0">' +
-        '<div class="text-xs font-mono text-warning truncate">' + _esc(a.token || a.name || '-') + '</div>' +
-        '<div class="text-[11px] text-slate-500 mt-0.5">' + _esc(a.type || '') + ' · ' + _esc(a.detail || '') + '</div></div>';
-    }).join('');
-  }
-  </script>
-
-  <!-- v3.4: Server Manager JS -->
-  <script>
-  var DASH_MANAGER_API = 'http://127.0.0.1:5001';
-
-  function getDashServerStatus() {
-    return fetch(API + '/__internal__/status', { method: 'GET', cache: 'no-cache' })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data && data.running) return data;
-        return { running: false };
-      })
-      .catch(function() { return { running: false }; });
-  }
-
-  function initDashboardServerStatus() {
-    getDashServerStatus().then(function(status) {
-      updateDashServerUI(status);
-      if (status.running) {
-        document.getElementById('connStatusText').textContent = 'LIVE';
-      } else {
-        document.getElementById('connStatusText').textContent = 'OFFLINE';
-      }
-    });
-  }
-
-  function updateDashServerUI(status) {
-    var running = status && status.running;
-    var dot = document.getElementById('dashServerDot');
-    var text = document.getElementById('dashServerText');
-    var btnStart = document.getElementById('dashBtnStart');
-    var btnRestart = document.getElementById('dashBtnRestart');
-
-    if (running) {
-      dot.style.background = '#10b981';
-      dot.style.boxShadow = '0 0 6px #10b981';
-      text.textContent = '后端在线';
-      text.style.color = '#10b981';
-      btnStart.style.display = 'none';
-      btnRestart.style.display = '';
-    } else {
-      dot.style.background = '#ef4444';
-      dot.style.boxShadow = '0 0 6px #ef4444';
-      text.textContent = '后端离线';
-      text.style.color = '#ef4444';
-      btnStart.style.display = '';
-      btnRestart.style.display = 'none';
-    }
-  }
-
-  function dashServerStart() {
-    toast('后端应在主控台（frontend.html）中启动', 'info');
-  }
-
-  function dashServerRestart() {
-    fetch(API + '/__internal__/stop', { method: 'POST', cache: 'no-cache' })
-      .then(function() {
-        toast('后端已停止，请使用项目根目录的一键启动脚本重启。', 'info');
-        updateDashServerUI({ running: false });
-      })
-      .catch(function() {
-        toast('操作失败', 'error');
-      });
-  }
   </script>
 </body>
 </html>

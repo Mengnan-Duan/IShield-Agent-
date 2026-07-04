@@ -40,6 +40,10 @@ from routes.validation import validation_bp
 from routes.agent_cluster import agent_cluster_bp
 from routes.remediation import remediation_bp
 from routes.closure import closure_bp
+from routes.dashboard import dashboard_bp
+from routes.runtime import runtime_bp
+from routes.playbooks import playbooks_bp
+from routes.v5_operations import v5_ops_bp
 from services.websocket import events_stream
 
 logger = get_logger()
@@ -82,7 +86,7 @@ def create_app():
         """GET /api/health — 前端轮询后端就绪状态"""
         return {
             "status": "healthy",
-            "version": "4.9.0",
+            "version": "5.8.0",
         }
 
     @app.route("/api/__internal__/stop", methods=["POST"])
@@ -108,6 +112,10 @@ def create_app():
     setup_behavior_guard(app)
     setup_auth(app)
 
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(runtime_bp)
+    app.register_blueprint(playbooks_bp)
+    app.register_blueprint(v5_ops_bp)
     app.register_blueprint(detect_bp)
     app.register_blueprint(simulate_bp)
     app.register_blueprint(events_bp)
@@ -153,10 +161,20 @@ def create_app():
         return redirect("/", code=301)
 
     @app.route("/dashboard")
+    @app.route("/dashboard/")
     def dashboard():
-        resp = send_from_directory(static_dir, "dashboard.html")
-        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        return resp
+        candidates = [
+            (static_dir, "dashboard.html"),
+            (static_dir / "assets", "dashboard.html"),
+        ]
+        for directory, filename in candidates:
+            if (directory / filename).is_file():
+                resp = send_from_directory(directory, filename)
+                resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                return resp
+        from middleware.error_handler import BusinessError
+        from utils.response import Err
+        raise BusinessError("Dashboard asset not found", Err.NOT_FOUND)
 
     @app.route("/<path:path>")
     def static_files(path):
@@ -165,7 +183,7 @@ def create_app():
             return send_from_directory(static_dir, path)
         from middleware.error_handler import BusinessError
         from utils.response import Err
-        raise BusinessError("资源不存在", Err.NOT_FOUND)
+        raise BusinessError("Resource not found", Err.NOT_FOUND)
 
     @app.before_request
     def log_start():
@@ -180,6 +198,6 @@ app = create_app()
 if __name__ == "__main__":
     print("=" * 60)
     print("  IShield Agent Security Platform")
-    print("  Backend - Policy Hit Linkage")
+    print("  Backend - Advanced Operations Baseline")
     print("=" * 60)
     app.run(debug=False, host=config.BACKEND_HOST, port=config.BACKEND_PORT, threaded=True)

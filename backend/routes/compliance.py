@@ -9,7 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from middleware.error_handler import ValidationError
 from middleware.logger import get_logger
 from utils.response import make_response
-from services.detection import hybrid_detect
+from services.rule_engine import rule_detect
+from services.semantic import semantic_detect_local
 from runtime_paths import reports_dir
 
 logger = get_logger()
@@ -63,12 +64,13 @@ def run_compliance_test():
         expect_safe = tc.get("expect_safe", False)
 
         start = time.time()
-        is_mal, reason, conf = hybrid_detect(text)
+        rule_alert, rule_hit, rule_conf, _ = rule_detect(text)
+        semantic_alert, semantic_score = semantic_detect_local(text)
         elapsed = round((time.time() - start) * 1000, 1)
 
-        detected = is_mal
+        detected = bool(rule_alert or semantic_alert)
         correct = detected != expect_safe  # 恶意被检测到或安全被放行 = 正确
-        conf_score = conf.get("combined", 0) if isinstance(conf, dict) else 0
+        conf_score = round(max(float(rule_conf or 0), float(semantic_score or 0)), 1)
 
         cat = tc["category"]
         if cat not in categories:
@@ -87,6 +89,7 @@ def run_compliance_test():
             "correct": correct,
             "confidence": conf_score,
             "elapsed_ms": elapsed,
+            "reason": rule_hit or ("local semantic" if semantic_alert else "no local hit"),
         })
 
     passed = sum(1 for r in results if r["correct"])

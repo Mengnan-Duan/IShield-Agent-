@@ -286,7 +286,7 @@ if __name__ == "__main__":
 
     print("=" * 60)
     print("  IShield Agent Security Platform")
-    print("  Backend - Policy Hit Linkage")
+    print("  Backend - Advanced Operations Baseline")
     print("=" * 60)
     print(f"  Console:   {FRONTEND_URL}")
     print(f"  Dashboard: http://{LOCAL_HOST}:{PORT}/dashboard")

@@ -107,8 +107,8 @@ def get_backend_status():
         "uptime_text": _format_uptime(get_uptime()),
         "port_in_use": port_used,
         "manager_port": MANAGER_PORT,
-        "version": "4.9.0",
-        "release": "4.9.0",
+        "version": "5.8.0",
+        "release": "5.8.0",
     }
 
 
@@ -347,7 +347,7 @@ def restore_backend_state():
 if __name__ == "__main__":
     print("=" * 60)
     print("  IShield Server Manager")
-    print("  IShield v4.9.0 - Policy Hit Linkage")
+    print("  IShield v5.8.0 - Advanced Operations Baseline")
     print("=" * 60)
     print(f"  Manager Port: {MANAGER_PORT}")
     print(f"  Backend Port: {BACKEND_PORT}")

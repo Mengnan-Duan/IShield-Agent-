@@ -200,7 +200,7 @@ def create_redteam_campaign():
         raise ValidationError("Content-Type 必须是 application/json")
 
     data = request.get_json(silent=True) or {}
-    seed_text = str(data.get("text", "")).strip()
+    seed_text = str(data.get("text") or data.get("seed_text") or "").strip()
     if not seed_text:
         raise ValidationError("text 不能为空")
 

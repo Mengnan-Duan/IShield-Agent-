@@ -157,6 +157,51 @@
       "write_access": true,
       "requires_approval": false,
       "issue_source": "registry"
+    },
+    "health-check-token-1783136854": {
+      "name": "health-check-token-1783136854",
+      "subject": "health-check-token-1783136854",
+      "role": "readonly",
+      "description": "health check",
+      "created_at": "2026-07-04T11:47:34.094985+08:00",
+      "expires_at": "2026-07-07T11:47:34.094985+08:00",
+      "last_used_at": null,
+      "revoked": true,
+      "revoked_at": "2026-07-04T11:47:34.129762+08:00",
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0,
+      "key_hash": "7456f2972d694dcbca5cb00febd1a158397a84f1bbdf4ec49a3d52b53ec9921e",
+      "scopes": [
+        "tool:detect"
+      ],
+      "allowed_tools": [
+        "detect"
+      ],
+      "constraints": {
+        "http_request": {
+          "disabled": true
+        },
+        "write_file": {
+          "disabled": true
+        },
+        "query_db": {
+          "allow_write": false
+        },
+        "send_email": {
+          "disabled": true
+        },
+        "post_social": {
+          "disabled": true
+        }
+      },
+      "write_access": false,
+      "requires_approval": false,
+      "issue_source": "registry",
+      "last_rotated_at": "2026-07-04T11:47:34.118236+08:00",
+      "rotation_count": 1,
+      "revoke_reason": "health_check_cleanup"
     }
   },
   "approvals": {}

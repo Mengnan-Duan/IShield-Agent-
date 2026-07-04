@@ -258,7 +258,7 @@ def matrix_test():
     total_cases = sum(item["case_count"] for item in results)
     passed_cases = sum(item["passed"] for item in results)
     return make_response({
-        "version": "v4.9",
+        "version": "v5.8",
         "rule_count": len(results),
         "case_count": total_cases,
         "passed": passed_cases,

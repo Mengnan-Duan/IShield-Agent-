@@ -75,7 +75,7 @@ def closure_summary():
         next_action = "运行检测、工具沙箱或联动验证后，系统会自动生成闭环统计。"
 
     return make_response({
-        "version": "v4.9",
+        "version": "v5.8",
         "kpis": {
             "total_events": stats.get("total", 0),
             "today_events": stats.get("today_total", 0),

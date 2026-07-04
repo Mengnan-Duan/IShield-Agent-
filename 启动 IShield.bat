@@ -4,12 +4,15 @@ setlocal
 title IShield
 cd /d "%~dp0"
 
-set "PYTHON_CMD=python"
-python --version >nul 2>&1
-if errorlevel 1 if exist "%~dp0env\Scripts\python.exe" set "PYTHON_CMD=%~dp0env\Scripts\python.exe"
+set "PYTHON_CMD="
+for %%P in ("%~dp0env\Scripts\python.exe" "%~dp0.venv\Scripts\python.exe" "python") do (
+    if not defined PYTHON_CMD (
+        "%%~P" --version >nul 2>&1
+        if not errorlevel 1 set "PYTHON_CMD=%%~P"
+    )
+)
 
-"%PYTHON_CMD%" --version >nul 2>&1
-if errorlevel 1 (
+if not defined PYTHON_CMD (
     echo.
     echo Python not found.
     echo Please install Python or activate the project runtime.

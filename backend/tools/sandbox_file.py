@@ -1,6 +1,6 @@
 """文件读写沙箱 — 目录隔离 + 危险文件拦截 + 审计信息"""
 import os, re, sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import (
@@ -17,7 +17,7 @@ MAX_FILE_SIZE = SANDBOX_MAX_FILE_SIZE
 _BLOCKED_PREFIXES = [
     r"C:\\Windows", r"C:\\Program Files", r"C:\\Program Files \(x86\)",
     r"/etc/", r"/root/", r"/sys/", r"/proc/", r"/boot/",
-    r"../../", r"../..", r"..\\..",
+    r"\.\./\.\./", r"\.\./\.\.", r"\.\.\\\.\.",
     r"/etc/passwd", r"/etc/shadow",
 ]
 _BLOCKED_PATTERNS = [re.compile(p, re.I) for p in _BLOCKED_PREFIXES]
@@ -42,6 +42,9 @@ class FileSandbox:
             raise SecurityBlocked("文件路径不能为空")
 
         raw_path = str(path).replace("\\", "/").strip(" /")
+        if any(part == ".." for part in PurePosixPath(raw_path).parts):
+            raise SecurityBlocked(f"禁止访问路径: {path}")
+
         for pattern in _BLOCKED_PATTERNS:
             if pattern.search(raw_path):
                 raise SecurityBlocked(f"禁止访问路径: {path}")
