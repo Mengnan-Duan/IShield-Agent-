@@ -4154,6 +4154,53 @@
       min-height: 104px !important;
       padding: 18px !important;
     }
+    /* Final QA pass: keep panel actions aligned and prevent button text overflow on narrow screens. */
+    .ops-panel-header,
+    .ops-panel-head,
+    .soc-command-head,
+    .result-open-row,
+    .evidence-action-row,
+    .policy-self-test-actions {
+      flex-wrap: wrap;
+    }
+    .ops-panel-header > div,
+    .ops-panel-head > div,
+    .result-open-row > span {
+      min-width: 0;
+    }
+    .ops-action-btn,
+    .priority-primary-btn,
+    .priority-secondary-btn,
+    .priority-danger-btn {
+      white-space: normal;
+      text-align: center;
+      line-height: 1.25;
+    }
+    .ops-action-btn svg,
+    .priority-primary-btn svg,
+    .priority-secondary-btn svg,
+    .priority-danger-btn svg {
+      flex: 0 0 auto;
+    }
+    @media (max-width: 720px) {
+      .ops-panel-header,
+      .ops-panel-head,
+      .result-open-row {
+        align-items: stretch !important;
+      }
+      .ops-panel-header .ops-action-btn,
+      .ops-panel-head .ops-action-btn,
+      .result-open-row .ops-action-btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .policy-self-test-actions {
+        width: 100%;
+      }
+      .policy-self-test-actions .ops-action-btn {
+        flex: 1 1 160px;
+      }
+    }
     /* v5 UX repair: the earlier density pass must not remove workflow meaning from primary product modules. */
     #detect .ops-kpi-foot,
     #detect .ops-panel-sub,
@@ -12324,7 +12371,7 @@
               <div class="ops-panel-title">规则矩阵自测</div>
               <div class="ops-panel-sub">批量运行规则内置样本，验证攻击面覆盖率、命中分布和需复核项。</div>
             </div>
-            <span class="ops-status-pill is-success">v4.9</span>
+            <span class="ops-status-pill is-success">v6.0</span>
           </div>
           <div class="policy-self-test-control">
             <div class="policy-self-test-main">
@@ -19132,7 +19179,7 @@ function renderPolicyMatrixTest(data) {
       '<section class="policy-verdict '+(Number(data.coverage || 0) >= 90 ? 'allow' : 'confirm')+'">' +
         '<div class="policy-verdict-head">' +
           '<div><div class="policy-verdict-title">规则矩阵覆盖率 '+esc(data.coverage || 0)+'%</div><div class="policy-verdict-copy">共运行 '+esc(data.case_count || 0)+' 个规则样本，命中 '+esc(data.passed || 0)+' 个，覆盖 '+esc(data.rule_count || 0)+' 条规则。</div></div>' +
-          '<span class="ops-status-pill '+(Number(data.coverage || 0) >= 90 ? 'is-success' : 'is-warning')+'">v4.9</span>' +
+          '<span class="ops-status-pill '+(Number(data.coverage || 0) >= 90 ? 'is-success' : 'is-warning')+'">v6.0</span>' +
         '</div>' +
       '</section>' +
       '<div class="result-summary-strip">' +
@@ -19156,7 +19203,7 @@ function renderPolicyMatrixTest(data) {
       '<section class="policy-verdict '+(Number(data.coverage || 0) >= 90 ? 'allow' : 'confirm')+'">' +
         '<div class="policy-verdict-head">' +
           '<div><div class="policy-verdict-title">规则矩阵覆盖率 '+esc(data.coverage || 0)+'%</div><div class="policy-verdict-copy">共运行 '+esc(data.case_count || 0)+' 个规则样本，命中 '+esc(data.passed || 0)+' 个，覆盖 '+esc(data.rule_count || 0)+' 条规则。</div></div>' +
-          '<span class="ops-status-pill '+(Number(data.coverage || 0) >= 90 ? 'is-success' : 'is-warning')+'">v4.9</span>' +
+          '<span class="ops-status-pill '+(Number(data.coverage || 0) >= 90 ? 'is-success' : 'is-warning')+'">v6.0</span>' +
         '</div>' +
       '</section>' +
       '<div class="result-summary-strip">' +
@@ -20538,7 +20585,7 @@ function auditSolutionFor(item) {
     return { title: '恢复态势大屏地球资源', detail: '确认本地 Globe.gl、地球纹理和拓扑纹理存在，态势大屏会优先使用本地资源渲染卫星地球。', path: path || 'assets/vendor/globe/', action: '<button type="button" class="ops-action-btn" onclick="navigateAuditFix(\'situation-screen\', \'situation-screen\', \'检查态势大屏\', \'重点确认地球、实时事件和攻击弧线是否正常渲染。\', \'warning\')">定位处理</button>' };
   }
   if (text.indexOf('规则库') >= 0 || text.indexOf('default_policy') >= 0) {
-    return { title: '恢复规则库基线', detail: '检查默认规则库是否存在且规模达标；必要时使用现有生成脚本重新生成 v4.8 规则库。', path: path || 'backend/policies/default_policy.json', action: '<button type="button" class="ops-action-btn" onclick="navigateAuditFix(\'policy\', \'policyMatrixTestResult\', \'检查规则库\', \'运行规则矩阵自测，确认规则数量、覆盖率和攻击面分布。\', \'warning\')">定位处理</button>' };
+    return { title: '恢复规则库基线', detail: '检查默认规则库是否存在且规模达标；必要时使用现有生成脚本重新生成当前规则库。', path: path || 'backend/policies/default_policy.json', action: '<button type="button" class="ops-action-btn" onclick="navigateAuditFix(\'policy\', \'policyMatrixTestResult\', \'检查规则库\', \'运行规则矩阵自测，确认规则数量、覆盖率和攻击面分布。\', \'warning\')">定位处理</button>' };
   }
   if (text.indexOf('态势大屏') >= 0 || text.indexOf('dashboard.html') >= 0) {
     return { title: '检查态势大屏入口', detail: '确认 dashboard.html 可被后端静态路由访问，并刷新态势大屏查看地球和实时事件是否加载。', path: path || 'dashboard.html', action: '<button type="button" class="ops-action-btn" onclick="navigateAuditFix(\'situation-screen\', \'situation-screen\', \'检查态势大屏入口\', \'如果画面异常，优先确认本地资源和后端静态路由。\', \'warning\')">定位处理</button>' };

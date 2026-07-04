@@ -742,6 +742,96 @@
       "last_rotated_at": "2026-07-04T20:23:11.225678+08:00",
       "rotation_count": 1,
       "revoke_reason": "smoke check cleanup"
+    },
+    "smoke-token-1783174795": {
+      "name": "smoke-token-1783174795",
+      "subject": "smoke-token-1783174795",
+      "role": "readonly",
+      "description": "smoke check token",
+      "created_at": "2026-07-04T22:19:55.400461+08:00",
+      "expires_at": "2026-07-07T22:19:55.400461+08:00",
+      "last_used_at": null,
+      "revoked": true,
+      "revoked_at": "2026-07-04T22:19:55.458836+08:00",
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0,
+      "key_hash": "fc4aeaf7cea46bae5ee2405e26543b45eadf956f1cce61c52725c62ac9cf6183",
+      "scopes": [
+        "tool:detect"
+      ],
+      "allowed_tools": [
+        "detect"
+      ],
+      "constraints": {
+        "http_request": {
+          "disabled": true
+        },
+        "write_file": {
+          "disabled": true
+        },
+        "query_db": {
+          "allow_write": false
+        },
+        "send_email": {
+          "disabled": true
+        },
+        "post_social": {
+          "disabled": true
+        }
+      },
+      "write_access": false,
+      "requires_approval": false,
+      "issue_source": "registry",
+      "last_rotated_at": "2026-07-04T22:19:55.438679+08:00",
+      "rotation_count": 1,
+      "revoke_reason": "smoke check cleanup"
+    },
+    "smoke-token-1783174899": {
+      "name": "smoke-token-1783174899",
+      "subject": "smoke-token-1783174899",
+      "role": "readonly",
+      "description": "smoke check token",
+      "created_at": "2026-07-04T22:21:39.735735+08:00",
+      "expires_at": "2026-07-07T22:21:39.735735+08:00",
+      "last_used_at": null,
+      "revoked": true,
+      "revoked_at": "2026-07-04T22:21:39.797439+08:00",
+      "allowed_ips": [
+        "*"
+      ],
+      "request_count": 0,
+      "key_hash": "17a79952a117be3717a6841b2ef04a48d1cb905b90517be2374bcde0c9b201fa",
+      "scopes": [
+        "tool:detect"
+      ],
+      "allowed_tools": [
+        "detect"
+      ],
+      "constraints": {
+        "http_request": {
+          "disabled": true
+        },
+        "write_file": {
+          "disabled": true
+        },
+        "query_db": {
+          "allow_write": false
+        },
+        "send_email": {
+          "disabled": true
+        },
+        "post_social": {
+          "disabled": true
+        }
+      },
+      "write_access": false,
+      "requires_approval": false,
+      "issue_source": "registry",
+      "last_rotated_at": "2026-07-04T22:21:39.777387+08:00",
+      "rotation_count": 1,
+      "revoke_reason": "smoke check cleanup"
     }
   },
   "approvals": {}

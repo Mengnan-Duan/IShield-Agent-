@@ -505,7 +505,7 @@
     <section class="command-center dashboard-command p-6 xl:p-8">
       <div class="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.7fr)] gap-6 items-stretch">
         <div>
-          <div class="command-kicker"><i></i>SOC Command Center · v6.0</div>
+          <div class="command-kicker"><i></i>安全态势指挥中心 · v6.0</div>
           <h1 class="command-title">AI Agent 安全态势<span>指挥中心</span></h1>
           <p class="command-copy" id="socCommandSub">正在汇聚输入检测、工具预审、攻击链取证、UEBA 行为画像与供应链审计数据。</p>
           <div class="command-pill-row">
@@ -516,10 +516,10 @@
             <span class="command-pill">证据回放</span>
           </div>
           <div class="command-flow" id="socCommandFlow">
-            <div class="command-flow-step"><b>Input</b><span>模型输入与业务文本进入检测链路</span></div>
-            <div class="command-flow-step"><b>Policy</b><span>规则、语义、行为风险联合判定</span></div>
-            <div class="command-flow-step"><b>Gateway</b><span>高危工具调用在执行前被预审</span></div>
-            <div class="command-flow-step"><b>Evidence</b><span>事件、链路、审计记录同步入库</span></div>
+            <div class="command-flow-step"><b>输入</b><span>模型输入与业务文本进入检测链路</span></div>
+            <div class="command-flow-step"><b>策略</b><span>规则、语义、行为风险联合判定</span></div>
+            <div class="command-flow-step"><b>网关</b><span>高危工具调用在执行前被预审</span></div>
+            <div class="command-flow-step"><b>证据</b><span>事件、链路、审计记录同步入库</span></div>
           </div>
         </div>
         <aside class="command-panel p-5 xl:p-6">
@@ -660,14 +660,14 @@
             <div class="text-xs text-slate-500">显示来源 IP / 工具 / 目标 / 规则</div>
           </div>
           <div class="text-right">
-            <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Live Feed</div>
+            <div class="text-[10px] font-mono uppercase tracking-[0.12em] text-slate-500">实时滚动</div>
             <div class="text-xs font-mono text-slate-400" id="liveCount">0 条</div>
           </div>
         </div>
         <div class="grid grid-cols-3 gap-2.5 mb-4">
           <div class="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3">
             <div class="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500">拦截状态</div>
-            <div class="mt-2 text-sm font-semibold text-accent-light">ACTIVE</div>
+            <div class="mt-2 text-sm font-semibold text-accent-light">运行中</div>
           </div>
           <div class="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3">
             <div class="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500">高危占比</div>
@@ -681,8 +681,8 @@
         <div id="liveFeed" class="h-[380px] overflow-y-auto pr-1 space-y-2"></div>
         <div class="mt-4 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-3">
           <div class="flex items-center justify-between gap-3">
-            <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Policy Hints</div>
-            <div class="text-[11px] font-mono text-slate-500">AUTO RESPONSE</div>
+            <div class="text-[10px] font-mono uppercase tracking-[0.12em] text-slate-500">策略建议</div>
+            <div class="text-[11px] font-mono text-slate-500">自动处置</div>
           </div>
           <div class="mt-3 space-y-2 text-xs text-slate-300">
             <div>· 针对高频 Prompt Injection 保持自动拦截</div>
@@ -765,7 +765,7 @@
     const DEMO_GLOBE_TARGET = { name: 'IShield SOC 杭州', short: 'SOC-CORE-01', lat: 30.2741, lng: 120.1551 };
     const DEMO_ATTACK_SOURCES = [
       { country: '美国', country_code: 'US-EAST', flag: '🇺🇸', city: '弗吉尼亚', lat: 37.4316, lng: -78.6569, event_count: 428, risk_level: 'critical', attack_type: 'Prompt Injection', last_seen: '13:58:12 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#ef4444', tags: ['高危', '持续攻击', '自动拦截中'], region: 'euro-atlantic' },
-      { country: '英国', country_code: 'UK-LON', flag: '🇬🇧', city: '伦敦', lat: 51.5072, lng: -0.1276, event_count: 301, risk_level: 'high', attack_type: 'Policy Bypass', last_seen: '13:57:44 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#f97316', tags: ['高频探测', '策略试探'], region: 'euro-atlantic' },
+      { country: '英国', country_code: 'UK-LON', flag: '🇬🇧', city: '伦敦', lat: 51.5072, lng: -0.1276, event_count: 301, risk_level: 'high', attack_type: '策略绕过', last_seen: '13:57:44 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#f97316', tags: ['高频探测', '策略试探'], region: 'euro-atlantic' },
       { country: '德国', country_code: 'DE-FRA', flag: '🇩🇪', city: '法兰克福', lat: 50.1109, lng: 8.6821, event_count: 264, risk_level: 'high', attack_type: 'Tool Escalation', last_seen: '13:56:03 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#fb7185', tags: ['权限尝试', '横向渗透'], region: 'euro-atlantic' },
       { country: '法国', country_code: 'FR-PAR', flag: '🇫🇷', city: '巴黎', lat: 48.8566, lng: 2.3522, event_count: 176, risk_level: 'medium', attack_type: 'Data Exfiltration', last_seen: '13:54:29 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#f59e0b', tags: ['数据探测', '中危'], region: 'euro-atlantic' },
       { country: '俄罗斯', country_code: 'RU-MOW', flag: '🇷🇺', city: '莫斯科', lat: 55.7558, lng: 37.6173, event_count: 333, risk_level: 'critical', attack_type: 'Credential Replay', last_seen: '13:58:57 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#dc2626', tags: ['高危', '凭证复用', '持续攻击'], region: 'euro-atlantic' },
@@ -1000,16 +1000,16 @@
       setText('socCommandHigh', highRisk);
       setText('socCommandBlocked', blocked);
       setText('socCommandLive', liveEvents.length);
-      setText('socCommandUpdated', 'SYNC ' + new Date().toLocaleTimeString('zh-CN', { hour12: false }));
+      setText('socCommandUpdated', '同步 ' + new Date().toLocaleTimeString('zh-CN', { hour12: false }));
       const ring = document.getElementById('socCommandRing');
       if (ring) ring.style.background = `conic-gradient(${ringColor} 0 ${score}%, rgba(148,163,184,0.16) ${score}% 100%)`;
       const flow = document.getElementById('socCommandFlow');
       if (flow) {
         flow.innerHTML = [
-          ['Input', `${liveEvents.length || 0} 条实时事件进入队列`],
-          ['Policy', `${rate}% 阻断率，${highRisk} 条高危`],
-          ['Gateway', `${blocked} 条工具或输入链路已拦截`],
-          ['Evidence', `${(overview.recommendations || []).length || 0} 条处置建议已生成`]
+          ['输入', `${liveEvents.length || 0} 条实时事件进入队列`],
+          ['策略', `${rate}% 阻断率，${highRisk} 条高危`],
+          ['网关', `${blocked} 条工具或输入链路已拦截`],
+          ['证据', `${(overview.recommendations || []).length || 0} 条处置建议已生成`]
         ].map(item => `<div class="command-flow-step"><b>${item[0]}</b><span>${item[1]}</span></div>`).join('');
       }
     }
