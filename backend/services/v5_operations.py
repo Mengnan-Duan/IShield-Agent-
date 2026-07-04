@@ -1,12 +1,11 @@
-"""IShield v5.8 advanced operations services.
+"""IShield v6.0 advanced operations services.
 
 This module adds four product-facing capabilities without changing the
 existing detection/runtime pipeline:
 
-- v5.5 trace graph: rule -> event -> evidence -> response visibility.
 - v5.6 response orchestration: runbook planning and controlled action records.
 - v5.7 benchmark center: capability score from policy, runtime and playbooks.
-- v5.8 system audit: delivery readiness checks for live operation.
+- v6.0 system audit and product readiness checks.
 """
 from __future__ import annotations
 
@@ -26,7 +25,7 @@ from services.runtime_diagnostics import latest_diagnostic
 from services.runtime_protocol import list_sessions
 
 
-PRODUCT_VERSION = "v5.8"
+PRODUCT_VERSION = "v6.0"
 
 
 def build_trace_graph(limit: int = 80, focus_chain_id: str = "") -> Dict[str, Any]:
@@ -167,7 +166,7 @@ def build_response_center(limit: int = 30) -> Dict[str, Any]:
     runbooks = _runbooks()
     recommendations = [_recommend_runbook(chain, runbooks) for chain in open_chains[:10]]
     return {
-        "version": "v5.6",
+        "version": "v6.0",
         "generated_at": _now(),
         "summary": {
             "runbook_count": len(runbooks),
@@ -197,7 +196,7 @@ def execute_response(payload: Dict[str, Any]) -> Dict[str, Any]:
         if chain_id and not dry_run:
             recorded.append(record_remediation_action(chain_id, action_id, operator=operator, note=f"Runbook {runbook_id}: {step.get('label')}"))
     return {
-        "version": "v5.6",
+        "version": "v6.0",
         "generated_at": _now(),
         "mode": "dry_run" if dry_run else "recorded",
         "chain_id": chain_id,
@@ -284,7 +283,7 @@ def build_system_audit() -> Dict[str, Any]:
     failed = sum(1 for item in checks if item["status"] == "failed")
     readiness = round((passed / len(checks)) * 100, 1) if checks else 0
     return {
-        "version": "v5.8",
+        "version": "v6.0",
         "generated_at": _now(),
         "readiness": readiness,
         "state": "ready" if failed == 0 and readiness >= 80 else "attention",
@@ -297,9 +296,9 @@ def build_system_audit() -> Dict[str, Any]:
         },
         "checks": checks,
         "release": {
-            "current": "v5.8.0",
-            "baseline": ["v5.5 trace graph", "v5.6 response orchestration", "v5.7 benchmark center", "v5.8 system audit"],
-            "experience_path": "左侧功能列表进入：证据图谱、处置编排、能力评测、系统体检。",
+            "current": "v6.0",
+            "baseline": ["response orchestration", "benchmark center", "system audit", "playbook regression"],
+            "experience_path": "左侧功能列表进入：处置编排、能力评测、系统体检、攻击剧本实验室。",
         },
     }
 

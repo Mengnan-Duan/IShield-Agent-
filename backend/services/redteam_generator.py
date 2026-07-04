@@ -5,6 +5,7 @@ from typing import List, Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import API_PROVIDER, API_KEY, API_BASE_URL, API_MODEL
 import config as cfg
+from middleware.logger import get_logger
 
 try:
     import openai
@@ -17,6 +18,10 @@ try:
     _HAS_DASHSCOPE = True
 except ImportError:
     _HAS_DASHSCOPE = False
+
+
+logger = get_logger()
+REDTEAM_API_TIMEOUT = float(getattr(cfg, "REDTEAM_API_TIMEOUT", 6.0))
 
 
 SYSTEM_PROMPT = """你是一个专业的红队安全测试专家，负责对AI Agent安全系统进行对抗测试。
@@ -84,12 +89,12 @@ def _generate_openai_variants(user_prompt: str, api_key: str, base_url: str, mod
             ],
             temperature=0.9,
             max_tokens=2000,
-            timeout=30,
+            timeout=REDTEAM_API_TIMEOUT,
         )
         content = response.choices[0].message.content.strip()
         return _parse_json_response(content)
     except Exception as e:
-        print(f"[RedteamGenerator] OpenAI API error: {e}")
+        logger.info(f"[RedteamGenerator] OpenAI API unavailable, falling back to local variants: {e}")
         return []
 
 
@@ -110,7 +115,7 @@ def _generate_dashscope_variants(user_prompt: str) -> List[dict]:
             content = response.output["choices"][0]["message"]["content"].strip()
             return _parse_json_response(content)
     except Exception as e:
-        print(f"[RedteamGenerator] DashScope API error: {e}")
+        logger.info(f"[RedteamGenerator] DashScope API unavailable, falling back to local variants: {e}")
     return []
 
 

@@ -1,4 +1,4 @@
-"""IShield v5.8 Attack Playbook Engine."""
+"""IShield v6.0 Attack Playbook Engine."""
 from __future__ import annotations
 
 import json
@@ -14,7 +14,7 @@ from services.events import add_event, get_chain_events
 from services.runtime_gateway import execute_runtime_request
 
 
-PLAYBOOK_VERSION = "v5.8"
+PLAYBOOK_VERSION = "v6.0"
 PLAYBOOK_DIR = bundled_path("backend", "playbooks")
 RESULT_STORE = runtime_data_dir() / "playbook_results.json"
 _LAST_RESULTS: Dict[str, Any] = {}
@@ -73,7 +73,14 @@ def run_playbooks(payload: Dict[str, Any] = None, source_ip: str = None, trace_i
     output = {
         "version": PLAYBOOK_VERSION,
         "run_id": run_id,
+        "chain_id": run_id,
         "status": "passed" if summary["failed"] == 0 else "review",
+        "status_code": "allowed" if summary["failed"] == 0 else "review",
+        "runtime_conclusion": (
+            f"攻击剧本回归完成：通过 {summary['passed']} / {summary['total']}，阻断步骤 {summary['blocked_steps']}。"
+            if summary["failed"] == 0
+            else f"攻击剧本回归需复核：异常 {summary['failed']} / {summary['total']}，阻断步骤 {summary['blocked_steps']}。"
+        ),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "summary": summary,
         "surface_stats": _result_surface_stats(results),

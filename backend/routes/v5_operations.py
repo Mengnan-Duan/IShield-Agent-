@@ -1,4 +1,4 @@
-"""IShield v5.8 advanced operations API."""
+"""IShield v6.0 advanced operations API."""
 import os
 import sys
 

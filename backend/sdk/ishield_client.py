@@ -1,4 +1,4 @@
-"""Minimal IShield v5.8 Agent Runtime Protocol client."""
+"""Minimal IShield v6.0 Agent Runtime Protocol client."""
 from __future__ import annotations
 
 import json

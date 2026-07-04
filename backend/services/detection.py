@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Tuple, Optional
 
 from services.rule_engine import rule_detect, get_sig_manager
-from services.semantic import semantic_detect, semantic_detect_local, semantic_detect_detailed
+from services.semantic import semantic_detect, semantic_detect_local, semantic_detect_detailed, semantic_detect_local_detailed
 from services.text_normalize import decode_html_entities, decode_url_encoding, normalize_all
 from services.ueba import get_ueba_engine
 
@@ -60,7 +60,7 @@ def hybrid_detect(text: str, use_cache: bool = True,
     # 预处理器处理后的文本送入各引擎检测
     _text = text_decoded
 
-    # ── 并行执行 rule / semantic 引擎 ───────────────────────────
+    # ── 执行 rule / semantic 引擎 ───────────────────────────
     rule_result = None
     semantic_result = None
     api_fallback = False
@@ -74,20 +74,25 @@ def hybrid_detect(text: str, use_cache: bool = True,
         except Exception:
             return semantic_detect_detailed(_text)[:4] + ("local_fallback",), True
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        f_rule = pool.submit(run_rule)
-        f_sem = pool.submit(run_semantic)
-        try:
-            rule_alert, rule_hit, rule_conf, rule_hits = f_rule.result(timeout=10)
-        except Exception:
-            rule_alert, rule_hit, rule_conf, rule_hits = False, None, 0, []
+    try:
+        rule_alert, rule_hit, rule_conf, rule_hits = run_rule()
+    except Exception:
+        rule_alert, rule_hit, rule_conf, rule_hits = False, None, 0, []
 
-        try:
-            semantic_detailed, sem_fallback = f_sem.result(timeout=20)
-            api_fallback = sem_fallback
-        except Exception:
-            semantic_detailed = (False, 0.0, 0.0, 0.0, "local_fallback")
-            api_fallback = True
+    # 规则已经明确命中时，现场处置优先保证响应速度，语义层使用本地补充。
+    # 未命中或低置信命中时仍走原语义检测链路，保留召回能力。
+    if rule_alert and float(rule_conf or 0) >= 30:
+        semantic_detailed = semantic_detect_local_detailed(_text)
+        api_fallback = True
+    else:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            f_sem = pool.submit(run_semantic)
+            try:
+                semantic_detailed, sem_fallback = f_sem.result(timeout=20)
+                api_fallback = sem_fallback
+            except Exception:
+                semantic_detailed = (False, 0.0, 0.0, 0.0, "local_fallback")
+                api_fallback = True
 
     semantic_alert, sem_point, sem_low, sem_high, sem_engine = semantic_detailed
 
@@ -177,7 +182,7 @@ def hybrid_detect(text: str, use_cache: bool = True,
             "rules": get_sig_manager().version,
             "semantic": sem_engine,
             "embeddings": "deepseek-1.0",
-            "ueba": "v5.8.0",
+            "ueba": "v6.0",
         },
         "detection_time_ms": elapsed_ms,
         "cached": False,
@@ -217,7 +222,7 @@ def get_detection_insight(result: dict, text: str = "") -> str:
         parts.append(f"UEBA 异常评分 {ueba.get('score', 0)}")
 
     if fallback:
-        parts.append("（语义 API 降级至本地引擎）")
+        parts.append("（Agent 语义引擎进入离线守护模式）")
 
     if cached:
         parts.append("（结果来自缓存）")

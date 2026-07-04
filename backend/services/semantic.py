@@ -7,6 +7,8 @@ from typing import Tuple
 
 import config
 
+SEMANTIC_API_TIMEOUT = float(getattr(config, "SEMANTIC_API_TIMEOUT", 6.0))
+
 # ── 语义检测结果类型 ──────────────────────────────────────────────────────
 SemanticResult = Tuple[bool, int]  # (is_malicious, confidence)
 # 详细结果：(is_malicious, point, low, high, engine)
@@ -241,7 +243,7 @@ def semantic_detect_openai_compatible(text: str) -> SemanticResult:
     client = openai.OpenAI(
         api_key=config.API_KEY,
         base_url=config.API_BASE_URL,
-        timeout=15.0,   # 15 秒超时
+        timeout=SEMANTIC_API_TIMEOUT,
     )
 
     response = client.chat.completions.create(
@@ -304,7 +306,7 @@ def semantic_detect_dashscope(text: str) -> SemanticResult:
         prompt=prompt,
         result_format="message",
         max_tokens=80,
-        request_timeout=15,
+        request_timeout=SEMANTIC_API_TIMEOUT,
     )
 
     if response.status_code != 200:
@@ -434,7 +436,7 @@ def semantic_detect_with_followup(text: str) -> SemanticResult:
     client = openai.OpenAI(
         api_key=config.API_KEY,
         base_url=config.API_BASE_URL,
-        timeout=20.0,
+        timeout=max(SEMANTIC_API_TIMEOUT, 8.0),
     )
 
     SYSTEM_PROMPT = (

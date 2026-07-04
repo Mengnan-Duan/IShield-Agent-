@@ -1,4 +1,4 @@
-"""IShield v5.8 operational dashboard API."""
+"""IShield v6.0 operational dashboard API."""
 import os
 import sys
 

@@ -654,8 +654,42 @@ def _add_step(steps: list, stage: str, title: str, status: str, detail: str, ris
 
 def _runtime_result(**kwargs) -> dict:
     kwargs.setdefault("runtime_status", kwargs.get("decision"))
+    decision = _normalize_runtime_status(kwargs.get("decision") or kwargs.get("result") or kwargs.get("runtime_status"))
+    kwargs.setdefault("status_code", decision)
+    kwargs.setdefault("runtime_conclusion", _runtime_conclusion(
+        decision=decision,
+        reason=kwargs.get("reason") or kwargs.get("message") or "",
+        blocked_at=kwargs.get("blocked_at") or "unknown",
+    ))
     kwargs.setdefault("context", "runtime_gateway")
     return kwargs
+
+
+def _normalize_runtime_status(value: Any) -> str:
+    text = str(value or "").lower()
+    if text in {"block", "blocked", "deny", "rejected"}:
+        return "blocked"
+    if text in {"confirm", "review", "pending", "ask"}:
+        return "confirm"
+    if text in {"allow", "allowed", "pass", "passed", "executed", "mock"}:
+        return "allowed"
+    if text in {"timeout"}:
+        return "timeout"
+    if text in {"error", "failed", "failure"}:
+        return "error"
+    return text or "unknown"
+
+
+def _runtime_conclusion(decision: str, reason: str = "", blocked_at: str = "unknown") -> str:
+    if decision == "blocked":
+        return f"已阻断，阻断阶段：{blocked_at}。{reason}".strip()
+    if decision == "confirm":
+        return f"需人工确认，触发阶段：{blocked_at}。{reason}".strip()
+    if decision == "allowed":
+        return "已放行，检测、策略与工具审计链路均已记录。"
+    if decision in {"timeout", "error"}:
+        return f"执行异常，异常阶段：{blocked_at}。{reason}".strip()
+    return reason or "已完成运行时审计。"
 
 
 def _add_runtime_conclusion(action: str, target: str, decision: str, reason: str, source_ip: str,

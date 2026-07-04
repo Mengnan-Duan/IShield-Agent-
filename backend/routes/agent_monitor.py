@@ -84,15 +84,20 @@ def execute_tool():
     if not monitor:
         monitor = AgentMonitor(agent_id=agent_id, agent_name=f"Agent-{agent_id}")
 
-    result = monitor.execute_tool(tool_name, params, user_message)
-    return make_response(result)
+    result = monitor.execute_tool(tool_name, params, user_message, chain_id=data.get("chain_id"))
+    return make_response(result, chain_id=result.get("chain_id"))
 
 
 @agent_bp.route("/calls", methods=["GET"])
 def get_agent_calls():
     """获取 Agent 的调用历史"""
     agent_id = request.args.get("agent_id")
-    limit = int(request.args.get("limit", 50))
+    raw_limit = request.args.get("limit", "50")
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        raise ValidationError("limit 必须是整数")
+    limit = max(1, min(limit, 200))
 
     from tools.openclaw_adapter import _agents_lock
     with _agents_lock:

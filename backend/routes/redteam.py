@@ -2,6 +2,7 @@
 from flask import Blueprint, request
 import random
 import base64
+import uuid
 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -11,8 +12,6 @@ from utils.validators import validate_text, validate_strategy
 from middleware.error_handler import ValidationError
 
 from services.detection import hybrid_detect
-from services.rule_engine import rule_detect
-from services.semantic import semantic_detect, semantic_detect_local
 from services.events import add_event
 from services.redteam_generator import generate_attack_variants
 from services.campaign_service import create_campaign, start_campaign, get_campaign, list_campaigns
@@ -89,14 +88,15 @@ def redteam():
         raise ValidationError(err)
 
     mutated = _mutate(text, strategy)
-
-    rule_alert, rule_hit, rule_conf, _ = rule_detect(mutated)
-    try:
-        semantic_alert, _ = semantic_detect(mutated)
-    except Exception:
-        semantic_alert, _ = semantic_detect_local(mutated)
+    chain_id = str(data.get("chain_id") or f"chain-redteam-{uuid.uuid4().hex[:10]}").strip()
 
     hybrid_alert, hybrid_reason, hybrid_data = hybrid_detect(mutated)
+    rule_data = hybrid_data.get("rule") or {}
+    semantic_data = hybrid_data.get("semantic") or {}
+    rule_alert = bool(rule_data.get("alert"))
+    rule_hit = rule_data.get("hit")
+    rule_conf = rule_data.get("confidence", 0)
+    semantic_alert = bool(semantic_data.get("alert"))
 
     add_event(
         event_type="红队测试",
@@ -108,10 +108,21 @@ def redteam():
         target=strategy,
         threat_level=hybrid_data.get("threat_level", "medium"),
         confidence=hybrid_data.get("combined", 0),
-        metadata={"hybrid_reason": hybrid_reason, "rule_hit": rule_hit},
+        chain_id=chain_id,
+        stage="redteam_evaluated",
+        metadata={
+            "hybrid_reason": hybrid_reason,
+            "rule_hit": rule_hit,
+            "decision": "blocked" if hybrid_alert else "allowed",
+            "runtime_status": "blocked" if hybrid_alert else "allowed",
+            "status_code": "blocked" if hybrid_alert else "allowed",
+        },
     )
 
     return make_response({
+        "chain_id": chain_id,
+        "status_code": "blocked" if hybrid_alert else "allowed",
+        "runtime_conclusion": "红队样本已命中检测策略，链路证据已记录。" if hybrid_alert else "红队样本未命中阻断策略，审计证据已记录。",
         "mutated": mutated,
         "strategy": strategy,
         "strategy_desc": MUTATIONS.get(strategy, {}).get("desc", ""),
@@ -123,7 +134,7 @@ def redteam():
         "hybrid_confidence": hybrid_data.get("combined", 0),
         "threat_level": hybrid_data.get("threat_level", "none"),
         "reason": hybrid_reason,
-    })
+    }, chain_id=chain_id)
 
 
 @redteam_bp.route("/redteam/strategies", methods=["GET"])
@@ -157,13 +168,13 @@ def generate():
     variant_results = []
     for v in variants:
         var_text = v.get("variant", "")
-        rule_alert, rule_hit, rule_conf, _ = rule_detect(var_text)
-        try:
-            semantic_alert, _ = semantic_detect(var_text)
-        except Exception:
-            semantic_alert, _ = semantic_detect_local(var_text)
-
         hybrid_alert, hybrid_reason, hybrid_data = hybrid_detect(var_text)
+        rule_data = hybrid_data.get("rule") or {}
+        semantic_data = hybrid_data.get("semantic") or {}
+        rule_alert = bool(rule_data.get("alert"))
+        rule_hit = rule_data.get("hit")
+        rule_conf = rule_data.get("confidence", 0)
+        semantic_alert = bool(semantic_data.get("alert"))
         if hybrid_alert:
             detected_count += 1
 

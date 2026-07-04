@@ -330,6 +330,148 @@
       letter-spacing: .12em;
       pointer-events: none;
     }
+    body.dashboard-light {
+      background:
+        radial-gradient(circle at 18% 0%, rgba(59,130,246,0.14), transparent 34%),
+        linear-gradient(180deg, #eef4fb 0%, #f8fafc 100%);
+      color: #334155;
+    }
+    body.dashboard-light .grid-bg {
+      opacity: 0.52 !important;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.09) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.09) 1px, transparent 1px);
+    }
+    body.dashboard-light header {
+      background: rgba(255,255,255,0.86) !important;
+      border-color: rgba(15,23,42,0.08) !important;
+      box-shadow: 0 12px 34px rgba(15,23,42,0.08);
+    }
+    body.dashboard-light .card,
+    body.dashboard-light .command-panel,
+    body.dashboard-light .globe-side-panel,
+    body.dashboard-light .globe-status-panel {
+      background: rgba(255,255,255,0.86) !important;
+      border-color: rgba(15,23,42,0.08) !important;
+      box-shadow: 0 18px 46px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.85) !important;
+      color: #334155;
+    }
+    body.dashboard-light .command-center {
+      background:
+        radial-gradient(circle at 16% 12%, rgba(59,130,246,0.16), transparent 32%),
+        radial-gradient(circle at 78% 18%, rgba(16,185,129,0.10), transparent 28%),
+        linear-gradient(135deg, rgba(255,255,255,0.96), rgba(239,246,255,0.92));
+      border-color: rgba(59,130,246,0.18);
+      box-shadow: 0 28px 72px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+    body.dashboard-light .globe-visual-shell {
+      background:
+        radial-gradient(circle at 50% 45%, rgba(59,130,246,0.16), transparent 30%),
+        radial-gradient(circle at 18% 18%, rgba(14,165,233,0.12), transparent 30%),
+        linear-gradient(180deg, rgba(248,250,252,0.88), rgba(226,232,240,0.78)) !important;
+      border-color: rgba(59,130,246,0.14) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 18px 54px rgba(15,23,42,0.12);
+    }
+    body.dashboard-light .text-white,
+    body.dashboard-light .command-title,
+    body.dashboard-light .command-score-ring strong,
+    body.dashboard-light .command-metric strong,
+    body.dashboard-light #globeActiveCountry,
+    body.dashboard-light #globeEventCount,
+    body.dashboard-light #kpiTotal,
+    body.dashboard-light #kpiThreat,
+    body.dashboard-light #socCommandVerdict {
+      color: #0f172a !important;
+    }
+    body.dashboard-light .text-slate-200,
+    body.dashboard-light .text-slate-300,
+    body.dashboard-light .text-slate-400,
+    body.dashboard-light .command-copy,
+    body.dashboard-light .command-flow-step span,
+    body.dashboard-light .command-pill {
+      color: #475569 !important;
+    }
+    body.dashboard-light .text-slate-500,
+    body.dashboard-light .text-slate-600 {
+      color: #64748b !important;
+    }
+    body.dashboard-light .command-pill,
+    body.dashboard-light .command-flow-step,
+    body.dashboard-light .command-metric {
+      background: rgba(255,255,255,0.62) !important;
+      border-color: rgba(15,23,42,0.08) !important;
+    }
+    body.dashboard-light .command-score-ring > div {
+      background: rgba(255,255,255,0.94);
+      border-color: rgba(15,23,42,0.08);
+    }
+    body.dashboard-light .globe-status-chip {
+      background: rgba(59,130,246,0.08) !important;
+      border-color: rgba(59,130,246,0.16) !important;
+      color: #1e3a8a !important;
+    }
+    body.dashboard-light .globe-side-panel > .relative,
+    body.dashboard-light .globe-side-panel .rounded-3xl {
+      background: rgba(255,255,255,0.68) !important;
+      border-color: rgba(15,23,42,0.08) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9) !important;
+    }
+    body.dashboard-light .globe-rank-item {
+      background: rgba(255,255,255,0.62) !important;
+      border-color: rgba(15,23,42,0.08) !important;
+      color: #334155 !important;
+    }
+    body.dashboard-light .globe-rank-item:hover,
+    body.dashboard-light .globe-rank-item.border-accent\/30 {
+      background: rgba(59,130,246,0.08) !important;
+      border-color: rgba(59,130,246,0.24) !important;
+    }
+    body.dashboard-light .globe-overlay-card {
+      background: rgba(255,255,255,0.84) !important;
+      border-color: rgba(59,130,246,0.16) !important;
+      box-shadow: 0 16px 34px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.88);
+    }
+    body.dashboard-light .globe-overlay-card .text-white,
+    body.dashboard-light .globe-overlay-card .text-slate-200 {
+      color: #0f172a !important;
+    }
+    body.dashboard-light .globe-overlay-card .text-slate-400,
+    body.dashboard-light .globe-overlay-card .text-slate-500 {
+      color: #475569 !important;
+    }
+    body.dashboard-light .globe-rank-index {
+      background: #e0f2fe !important;
+      color: #1d4ed8 !important;
+      border: 1px solid rgba(59,130,246,0.16);
+      font-weight: 800;
+    }
+    .globe-status-flow {
+      display: grid;
+      gap: 8px;
+    }
+    .globe-status-flow span {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+      color: rgba(203,213,225,0.88);
+      font-size: 11px;
+    }
+    .globe-status-flow b {
+      color: #60a5fa;
+      font-family: JetBrains Mono, monospace;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    body.dashboard-light .globe-status-flow span {
+      background: rgba(255,255,255,0.66);
+      border-color: rgba(15,23,42,0.08);
+      color: #334155;
+    }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.25); border-radius: 6px; }
   </style>
@@ -363,7 +505,7 @@
     <section class="command-center dashboard-command p-6 xl:p-8">
       <div class="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.7fr)] gap-6 items-stretch">
         <div>
-          <div class="command-kicker"><i></i>SOC Command Center · v5.8.0</div>
+          <div class="command-kicker"><i></i>SOC Command Center · v6.0</div>
           <h1 class="command-title">AI Agent 安全态势<span>指挥中心</span></h1>
           <p class="command-copy" id="socCommandSub">正在汇聚输入检测、工具预审、攻击链取证、UEBA 行为画像与供应链审计数据。</p>
           <div class="command-pill-row">
@@ -428,22 +570,22 @@
           </div>
         </div>
         <div class="grid grid-cols-1 gap-5">
-          <div class="relative rounded-[34px] border border-white/[0.08] bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),rgba(2,6,23,0.3)_35%,rgba(2,6,23,0.95)_70%)] overflow-hidden min-h-[520px] xl:min-h-[560px]">
+          <div class="globe-visual-shell relative rounded-[34px] border border-white/[0.08] bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),rgba(2,6,23,0.3)_35%,rgba(2,6,23,0.95)_70%)] overflow-hidden min-h-[520px] xl:min-h-[560px]">
             <div class="absolute inset-0 pointer-events-none opacity-70" style="background-image: radial-gradient(circle at 20% 20%, rgba(96,165,250,0.18), transparent 28%), radial-gradient(circle at 78% 24%, rgba(59,130,246,0.12), transparent 22%), radial-gradient(circle at 50% 80%, rgba(239,68,68,0.08), transparent 26%);"></div>
             <div id="globeChart" class="absolute inset-0"></div>
-            <div class="absolute left-4 top-4 rounded-2xl border border-accent/20 bg-base-900/70 px-3 py-2 backdrop-blur-sm z-10">
+            <div class="globe-overlay-card absolute left-4 top-4 rounded-2xl border border-accent/20 bg-base-900/70 px-3 py-2 backdrop-blur-sm z-10">
               <div class="text-[10px] font-mono text-accent uppercase tracking-[0.24em]">Focus Target</div>
               <div class="mt-1 text-sm font-semibold text-white">IShield SOC · Hangzhou</div>
               <div class="text-[11px] text-slate-400">全球模拟攻击流汇聚至目标防护节点</div>
             </div>
-            <div class="absolute right-4 top-4 rounded-2xl border border-white/10 bg-base-900/70 px-3 py-2 backdrop-blur-sm z-10">
+            <div class="globe-overlay-card absolute right-4 top-4 rounded-2xl border border-white/10 bg-base-900/70 px-3 py-2 backdrop-blur-sm z-10">
               <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Orbit Status</div>
               <div class="mt-1 text-xs font-mono text-slate-200" id="globeOrbitHint">DRAG · ROTATE · ZOOM</div>
             </div>
           </div>
 
           <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.8fr)_minmax(0,1fr)] gap-4 items-stretch">
-            <div class="rounded-[30px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(2,6,23,0.94))] p-5 xl:p-6 min-h-[280px] overflow-hidden shadow-[0_20px_60px_rgba(2,6,23,0.28)]">
+            <div class="globe-side-panel rounded-[30px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(2,6,23,0.94))] p-5 xl:p-6 min-h-[280px] overflow-hidden shadow-[0_20px_60px_rgba(2,6,23,0.28)]">
               <div class="relative rounded-[26px] border border-accent/15 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),rgba(15,23,42,0.86)_46%,rgba(2,6,23,0.96)_100%)] px-5 py-5 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <div class="absolute inset-y-0 right-0 w-32 bg-[radial-gradient(circle_at_center,rgba(96,165,250,0.18),transparent_68%)] pointer-events-none"></div>
                 <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -488,15 +630,20 @@
               </div>
             </div>
 
-            <div class="rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-4 min-h-[280px]">
+            <div class="globe-status-panel rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-4 min-h-[170px]">
               <div class="flex items-center justify-between gap-3">
                 <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">状态标签</div>
                 <div class="text-[11px] font-mono text-slate-500" id="globeRotationStatus">AUTO HIGHLIGHT</div>
               </div>
               <div id="globeStatusTags" class="mt-4 flex flex-wrap gap-2.5 content-start"></div>
+              <div class="globe-status-flow mt-4">
+                <span><b>01</b>来源聚合</span>
+                <span><b>02</b>风险归因</span>
+                <span><b>03</b>策略阻断</span>
+              </div>
             </div>
 
-            <div class="rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-4 min-h-[280px] flex flex-col">
+            <div class="globe-status-panel rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.86))] px-4 py-4 min-h-[280px] flex flex-col">
               <div class="flex items-center justify-between gap-3 mb-3">
                 <div class="text-[10px] font-mono uppercase tracking-[0.22em] text-slate-500">Top 来源榜</div>
                 <div class="text-[11px] font-mono text-slate-500">按模拟攻击量排序</div>
@@ -570,6 +717,51 @@
   <script>
     const API = window.location.origin + '/api';
     const charts = {};
+    let currentDashboardTheme = 'dark';
+    function preferredDashboardTheme() {
+      try {
+        const queryTheme = new URLSearchParams(window.location.search).get('theme');
+        if (queryTheme === 'light' || queryTheme === 'dark') return queryTheme;
+      } catch(e) {}
+      try {
+        const saved = localStorage.getItem('ishield.theme');
+        if (saved === 'light' || saved === 'dark') return saved;
+      } catch(e) {}
+      return 'dark';
+    }
+    function applyGlobeTheme() {
+      if (!globeInstance) return;
+      const light = currentDashboardTheme === 'light';
+      try {
+        globeInstance
+          .globeImageUrl('/assets/vendor/globe/earth-night.jpg')
+          .backgroundColor('rgba(0,0,0,0)')
+          .atmosphereColor(light ? '#38bdf8' : '#60a5fa')
+          .atmosphereAltitude(light ? 0.13 : 0.18);
+        const material = globeInstance.globeMaterial && globeInstance.globeMaterial();
+        if (material && window.THREE) {
+          material.color = material.color || new THREE.Color();
+          material.color.set(light ? '#dbeafe' : '#ffffff');
+          if (material.emissive) material.emissive.set(light ? '#2563eb' : '#020617');
+          material.emissiveIntensity = light ? 0.16 : 0.02;
+          material.needsUpdate = true;
+        }
+      } catch(e) {}
+    }
+    function applyDashboardTheme(theme) {
+      currentDashboardTheme = theme === 'light' ? 'light' : 'dark';
+      document.body.classList.toggle('dashboard-light', currentDashboardTheme === 'light');
+      document.body.classList.toggle('dashboard-dark', currentDashboardTheme !== 'light');
+      document.body.setAttribute('data-theme', currentDashboardTheme);
+      try { localStorage.setItem('ishield.theme', currentDashboardTheme); } catch(e) {}
+      applyGlobeTheme();
+      try { Object.values(charts).forEach(chart => chart && chart.resize()); } catch(e) {}
+    }
+    window.addEventListener('message', event => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data || {};
+      if (data.type === 'ishield-theme') applyDashboardTheme(data.theme);
+    });
     const DEMO_GLOBE_TARGET = { name: 'IShield SOC 杭州', short: 'SOC-CORE-01', lat: 30.2741, lng: 120.1551 };
     const DEMO_ATTACK_SOURCES = [
       { country: '美国', country_code: 'US-EAST', flag: '🇺🇸', city: '弗吉尼亚', lat: 37.4316, lng: -78.6569, event_count: 428, risk_level: 'critical', attack_type: 'Prompt Injection', last_seen: '13:58:12 UTC+8', target_name: DEMO_GLOBE_TARGET.short, pulse_color: '#ef4444', tags: ['高危', '持续攻击', '自动拦截中'], region: 'euro-atlantic' },
@@ -594,6 +786,7 @@
     let globeClickTimer = null;
     let suppressNextPointClick = false;
     let lastFocusedPointKey = '';
+    applyDashboardTheme(preferredDashboardTheme());
 
     function tick() {
       const now = new Date();
@@ -842,9 +1035,12 @@
       const button = document.getElementById('globeLockToggle');
       if (!button) return;
       button.textContent = globeLocked ? '恢复自动' : '锁定查看';
+      const light = currentDashboardTheme === 'light';
       button.className = globeLocked
         ? 'px-2.5 py-1 rounded-full border border-warning/30 bg-warning/10 text-[11px] font-mono text-warning hover:border-warning/40 transition'
-        : 'px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.03] text-[11px] font-mono text-slate-300 hover:border-accent/30 hover:text-accent transition';
+        : (light
+          ? 'px-2.5 py-1 rounded-full border border-slate-300 bg-white/70 text-[11px] font-mono text-slate-700 hover:border-accent/40 hover:text-accent transition'
+          : 'px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.03] text-[11px] font-mono text-slate-300 hover:border-accent/30 hover:text-accent transition');
     }
 
     function setGlobeLocked(nextLocked) {
@@ -884,7 +1080,7 @@
       }
       const tagsEl = document.getElementById('globeStatusTags');
       if (tagsEl) {
-        tagsEl.innerHTML = item.tags.map(tag => `<span class="px-2.5 py-1 rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] font-mono text-slate-300">${tag}</span>`).join('');
+        tagsEl.innerHTML = item.tags.map(tag => `<span class="globe-status-chip px-2.5 py-1 rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] font-mono text-slate-300">${tag}</span>`).join('');
       }
       const ranking = [...currentSources].sort((a, b) => b.event_count - a.event_count);
       const topList = document.getElementById('globeTopList');
@@ -894,7 +1090,7 @@
             <div class="flex items-center justify-between gap-3">
               <div class="flex items-center gap-3 min-w-0">
                 <div class="text-xl leading-none">${entry.flag || '🌐'}</div>
-                <div class="w-7 h-7 shrink-0 rounded-xl ${index < 3 ? 'bg-white/10 text-white' : 'bg-base-900/80 text-slate-400'} flex items-center justify-center text-xs font-mono">${String(index + 1).padStart(2, '0')}</div>
+                <div class="globe-rank-index w-7 h-7 shrink-0 rounded-xl ${index < 3 ? 'bg-white/10 text-white' : 'bg-base-900/80 text-slate-400'} flex items-center justify-center text-xs font-mono">${String(index + 1).padStart(2, '0')}</div>
                 <div class="min-w-0">
                   <div class="text-sm font-medium text-white truncate">${entry.country}</div>
                   <div class="text-[11px] text-slate-500 font-mono truncate">${entry.city} · ${entry.attack_type}</div>
@@ -1054,6 +1250,7 @@
         .ringMaxRadius('maxR')
         .ringPropagationSpeed('propagationSpeed')
         .ringRepeatPeriod('repeatPeriod');
+      applyGlobeTheme();
 
       globeInstance.controls().autoRotate = false;
       globeInstance.controls().enableDamping = true;

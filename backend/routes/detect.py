@@ -1,6 +1,7 @@
 """检测路由 + 健康检查"""
 import time
 import hashlib
+import uuid
 from flask import Blueprint, request, jsonify, g
 
 import sys, os
@@ -253,6 +254,14 @@ def detect():
         "context_guard":    confidence_data.get("context_guard"),
         "output_guard":     confidence_data.get("output_guard"),
     }
+    chain_id_for_event = None
+    if not is_init_probe:
+        chain_id_for_event = str(conversation_id or f"chain-detect-{uuid.uuid4().hex[:10]}").strip()
+        result["chain_id"] = chain_id_for_event
+        result["status_code"] = "blocked" if is_malicious else "allowed"
+        result["runtime_conclusion"] = (
+            f"输入检测已阻断：{reason}" if is_malicious else "输入检测已放行，审计证据已记录。"
+        )
 
     # ── 4. 缓存写入 & 事件记录 ───────────────────────────────────
     if not is_init_probe:
@@ -260,7 +269,7 @@ def detect():
 
         source_ip = _get_client_ip()
         # 多轮上下文支持：把 conversation_id 写入 chain_id，便于后续回溯
-        chain_id_for_event = conversation_id if conversation_id else None
+        chain_id_for_event = chain_id_for_event or conversation_id
         add_event(
             event_type="检测" if is_malicious else "放行",
             detail=f"输入: {text[:50]}... | {reason}" if is_malicious else f"输入: {text[:50]}...",
@@ -272,9 +281,13 @@ def detect():
             chain_id=chain_id_for_event,
             metadata={
                 "conversation_id": conversation_id,
+                "decision": "blocked" if is_malicious else "allowed",
+                "runtime_status": "blocked" if is_malicious else "allowed",
+                "status_code": "blocked" if is_malicious else "allowed",
                 "progressive_injection_score": confidence_data.get("progressive_injection_score"),
                 "ueba_score": confidence_data.get("ueba", {}).get("score", 0),
-            } if conversation_id else None,
+            },
+            stage="input_detection",
         )
 
         # 恶意样本自动归档
@@ -315,7 +328,7 @@ def detect():
             "status":         "ok",
         })
 
-    return make_response(result)
+    return make_response(result, chain_id=result.get("chain_id"))
 
 
 @detect_bp.route("/cache/clear", methods=["POST"])

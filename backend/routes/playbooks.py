@@ -1,4 +1,4 @@
-"""IShield v5.8 Attack Playbook API."""
+"""IShield v6.0 Attack Playbook API."""
 import os
 import sys
 

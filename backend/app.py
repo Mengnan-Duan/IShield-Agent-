@@ -86,7 +86,7 @@ def create_app():
         """GET /api/health — 前端轮询后端就绪状态"""
         return {
             "status": "healthy",
-            "version": "5.8.0",
+            "version": "v6.0",
         }
 
     @app.route("/api/__internal__/stop", methods=["POST"])

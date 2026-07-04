@@ -1,4 +1,4 @@
-"""IShield v5.8 external Agent runtime protocol API."""
+"""IShield v6.0 external Agent runtime protocol API."""
 import os
 import sys
 

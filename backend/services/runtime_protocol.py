@@ -1,4 +1,4 @@
-"""IShield v5.8 external Agent runtime protocol service."""
+"""IShield v6.0 external Agent runtime protocol service."""
 from __future__ import annotations
 
 import time
@@ -12,7 +12,7 @@ from services.policy import Action, get_policy_engine, serialize_policy_result
 from services.runtime_gateway import execute_runtime_request
 
 
-PROTOCOL_VERSION = "v5.8"
+PROTOCOL_VERSION = "v6.0"
 DEFAULT_AGENT_ID = "external-agent"
 _SESSIONS: Dict[str, Dict[str, Any]] = {}
 _SESSION_LOCK = Lock()
@@ -179,6 +179,8 @@ def decide_step(payload: Dict[str, Any], source_ip: str = None, trace_id: str = 
         "step_type": normalized["step_type"],
         "tool_name": action,
         "decision": decision,
+        "status_code": runtime.get("status_code") or decision,
+        "runtime_conclusion": runtime.get("runtime_conclusion") or runtime.get("reason") or runtime.get("message") or "",
         "blocked": decision == "blocked",
         "blocked_at": runtime.get("blocked_at"),
         "rule_id": runtime.get("rule_id") or _rule_from_steps(runtime.get("steps") or []),

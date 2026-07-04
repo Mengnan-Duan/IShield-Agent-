@@ -1,4 +1,4 @@
-"""IShield v5.8 Runtime Protocol diagnostic runner."""
+"""IShield v6.0 Runtime Protocol diagnostic runner."""
 from __future__ import annotations
 
 import time
@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 from services.runtime_protocol import decide_step, ingest_step
 
 
-DIAGNOSTIC_VERSION = "v5.8"
+DIAGNOSTIC_VERSION = "v6.0"
 _LAST_DIAGNOSTIC: Dict[str, Any] = {}
 
 

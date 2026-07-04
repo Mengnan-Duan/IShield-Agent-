@@ -6,8 +6,6 @@ import uuid
 
 from services.redteam_generator import generate_attack_variants
 from services.detection import hybrid_detect
-from services.rule_engine import rule_detect
-from services.semantic import semantic_detect, semantic_detect_local
 from services.events import add_event
 from services.websocket import broadcast_event
 
@@ -94,12 +92,13 @@ def _run_campaign(campaign_id: str):
         iteration_results = []
         for variant in variants:
             text = variant.get("variant", "")
-            rule_alert, rule_hit, rule_conf, _ = rule_detect(text)
-            try:
-                semantic_alert, _ = semantic_detect(text)
-            except Exception:
-                semantic_alert, _ = semantic_detect_local(text)
             hybrid_alert, hybrid_reason, hybrid_data = hybrid_detect(text)
+            rule_data = hybrid_data.get("rule") or {}
+            semantic_data = hybrid_data.get("semantic") or {}
+            rule_alert = bool(rule_data.get("alert"))
+            rule_hit = rule_data.get("hit")
+            rule_conf = rule_data.get("confidence", 0)
+            semantic_alert = bool(semantic_data.get("alert"))
             if hybrid_alert:
                 detected += 1
             result = {

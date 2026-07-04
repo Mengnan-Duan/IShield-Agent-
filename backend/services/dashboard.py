@@ -1,4 +1,4 @@
-"""IShield v5.8 operational dashboard aggregation service."""
+"""IShield v6.0 operational dashboard aggregation service."""
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
@@ -42,7 +42,7 @@ def build_dashboard_overview(limit: int = 12) -> Dict[str, Any]:
     risk_score = _risk_score(stats, chains, open_chains)
 
     return {
-        "version": "v5.8",
+        "version": "v6.0",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "mission": {
             "title": "Agent 安全监督作战驾驶舱",
@@ -95,10 +95,10 @@ def build_dashboard_overview(limit: int = 12) -> Dict[str, Any]:
         "system": {
             "policy_engine": "ready",
             "event_store": "ready",
-            "runtime_protocol": "v5.8-ready",
+            "runtime_protocol": "v6.0-ready",
             "runtime_diagnostics": "ready" if runtime_diagnostic.get("status") != "empty" else "waiting",
             "attack_playbooks": "ready" if playbook_regression.get("status") != "empty" else "waiting",
-            "evidence_packet": "v5.8-ready",
+            "evidence_packet": "v6.0-ready",
             "remediation_loop": "ready",
         },
         "runtime_diagnostics": runtime_diagnostic,
@@ -145,7 +145,7 @@ def build_live_status() -> Dict[str, Any]:
     recent = get_events_from_db(limit=20)
     blocked_recent = sum(1 for item in recent if item.get("status_code") == "blocked")
     return {
-        "version": "v5.8",
+        "version": "v6.0",
         "status": "ready",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "events_seen": stats.get("total", 0),
@@ -159,7 +159,7 @@ def build_dashboard_live(limit: int = 25) -> Dict[str, Any]:
     limit = _limit(limit, default=25, lower=5, upper=100)
     events = get_events_from_db(limit=limit)
     return {
-        "version": "v5.8",
+        "version": "v6.0",
         "count": len(events),
         "events": [_event_brief(event) for event in events],
         "generated_at": datetime.now(timezone.utc).isoformat(),
